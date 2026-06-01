@@ -32,6 +32,35 @@ services:
       - wordpress_data:/var/www/html
       - ./wordpress/mu-plugins:/var/www/html/wp-content/mu-plugins:ro
 
+  wp-init:
+    image: wordpress:cli-${WORDPRESS_CLI_VERSION}
+    depends_on:
+      db:
+        condition: service_healthy
+      wordpress:
+        condition: service_started
+    environment:
+      WORDPRESS_DB_HOST: db
+      WORDPRESS_DB_NAME: ${WP_DB_NAME}
+      WORDPRESS_DB_USER: ${WP_DB_USER}
+      WORDPRESS_DB_PASSWORD: ${WP_DB_PASSWORD}
+      WORDPRESS_PORT: ${WORDPRESS_PORT}
+      WP_TITLE: ${WP_TITLE}
+      WP_LOCALE: ${WP_LOCALE}
+      WP_ADMIN_USER: ${WP_ADMIN_USER}
+      WP_ADMIN_PASSWORD: ${WP_ADMIN_PASSWORD}
+      WP_ADMIN_EMAIL: ${WP_ADMIN_EMAIL}
+      WOOCOMMERCE_VERSION: ${WOOCOMMERCE_VERSION}
+      SHOP_COUNTRY: ${SHOP_COUNTRY}
+      SHOP_CURRENCY: ${SHOP_CURRENCY}
+    volumes:
+      - wordpress_data:/var/www/html
+      - ./wordpress/wp-init.sh:/wp-init.sh:ro
+      - ./catalog.json:/seed/catalog.json:ro
+    user: "33:33"
+    entrypoint: ["bash", "/wp-init.sh"]
+    restart: "no"
+
   matomo:
     image: matomo:${MATOMO_VERSION}
     restart: unless-stopped
