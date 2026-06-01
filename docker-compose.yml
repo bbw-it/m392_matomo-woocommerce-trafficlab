@@ -78,7 +78,31 @@ services:
     volumes:
       - matomo_data:/var/www/html
 
+  matomo-init:
+    image: curlimages/curl:8.11.1
+    depends_on:
+      db:
+        condition: service_healthy
+      matomo:
+        condition: service_started
+    environment:
+      MATOMO_DB_NAME: ${MATOMO_DB_NAME}
+      MATOMO_DB_USER: ${MATOMO_DB_USER}
+      MATOMO_DB_PASSWORD: ${MATOMO_DB_PASSWORD}
+      MATOMO_ADMIN_USER: ${MATOMO_ADMIN_USER}
+      MATOMO_ADMIN_PASSWORD: ${MATOMO_ADMIN_PASSWORD}
+      MATOMO_ADMIN_EMAIL: ${MATOMO_ADMIN_EMAIL}
+      WORDPRESS_PORT: ${WORDPRESS_PORT}
+    volumes:
+      - matomo_data:/var/www/html
+      - ./matomo/matomo-init.sh:/matomo-init.sh:ro
+      - matomo_token:/token
+    user: "0:0"
+    entrypoint: ["sh", "/matomo-init.sh"]
+    restart: "no"
+
 volumes:
   db_data:
   wordpress_data:
   matomo_data:
+  matomo_token:
