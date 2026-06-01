@@ -50,8 +50,13 @@ unter *Matomo → E-Commerce* wieder.
 
 ## Datengenerierungstool
 
-- **Live-Tropf**: standardmäßig aktiv, sendet laufend wenige Besuche/Minute. In der UI pausierbar.
-- **Manuell**: Besuche/Käufe erzeugen, Conversion-Rate setzen, historischen Backfill starten.
+Modernes Dashboard auf http://localhost:8092 mit Live-KPIs, Aktivitäts-Chart und Protokoll.
+
+- **Live-Tropf**: standardmäßig aktiv, sendet laufend Besuche. Über Regler steuerbar:
+  - **Besucher / Stunde** (`TRAFFIC_DRIP_VISITS_PER_HOUR`, Standard 120)
+  - **Conversion-Rate** (`TRAFFIC_CONVERSION_RATE`) – die erwarteten Käufe/Stunde werden live angezeigt.
+  - per Schalter pausierbar.
+- **Manuell**: Besuche/Käufe sofort erzeugen oder historischen Backfill (Tage) starten.
 
 ## Zurücksetzen
 
