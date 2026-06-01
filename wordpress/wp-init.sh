@@ -127,6 +127,29 @@ fi
 wp rewrite structure '/%postname%/' --allow-root >/dev/null 2>&1 || true
 wp rewrite flush --allow-root >/dev/null 2>&1 || true
 
+# .htaccess mit WordPress-Rewrite-Block sicherstellen (idempotent).
+# Noetig, weil 'wp rewrite flush' im CLI-Kontext mod_rewrite nicht erkennt und
+# daher KEINE Rewrite-Regeln in .htaccess schreibt -> sonst 404 auf huebschen
+# URLs (Produktseiten, /kasse/, /checkout/order-received/...). Der Apache des
+# offiziellen WordPress-Images erlaubt .htaccess-Overrides.
+HTACCESS="/var/www/html/.htaccess"
+if ! grep -q "RewriteEngine On" "$HTACCESS" 2>/dev/null; then
+  echo "[wp-init] Schreibe WordPress-Rewrite-Block in .htaccess ..."
+  cat > "$HTACCESS" <<'HTEOF'
+# BEGIN WordPress
+<IfModule mod_rewrite.c>
+RewriteEngine On
+RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
+RewriteBase /
+RewriteRule ^index\.php$ - [L]
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule . /index.php [L]
+</IfModule>
+# END WordPress
+HTEOF
+fi
+
 # --- 10) Produktbilder (HYBRID: echtes Foto -> sonst Platzhalter), idempotent ---
 echo "[wp-init] Pruefe/setze Produktbilder ..."
 
