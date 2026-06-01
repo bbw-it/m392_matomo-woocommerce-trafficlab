@@ -25,11 +25,28 @@ dauern). Danach:
 | Matomo | http://localhost:8091 | siehe `MATOMO_ADMIN_*` in `.env` |
 | Datengenerierungstool | http://localhost:8092 | – |
 
+Der Shop nutzt das Theme **Botiga** und zeigt die Produkte mit Produktbildern.
+
 ## Was die Lernenden tun
 
 1. In Matomo einloggen und die vorhandenen Besucher-/E-Commerce-Daten auswerten.
 2. Durch den Shop klicken (eigene Besuche erscheinen unter *Besucher → in Echtzeit*).
 3. Im Datengenerierungstool gezielt Besuche/Käufe erzeugen und in Matomo beobachten.
+
+## Bezahlung (Test)
+
+Im Checkout stehen drei Test-Zahlungsmethoden bereit, mit denen die Lernenden echte
+Browser-Käufe durchspielen können:
+
+- **Kauf auf Rechnung** – die Bestellung geht als „wartet auf Zahlung" (on-hold) durch.
+- **Kreditkarte (Test)** – akzeptiert nur die Testkarte `4242 4242 4242 4242` (beliebiges
+  zukünftiges Ablaufdatum, beliebige CVC). Andere Nummern werden abgelehnt – gut für die
+  Analyse von Conversion vs. Fehlversuch.
+- **TWINT (Test)** – simuliert eine TWINT-Zahlung und wird automatisch bestätigt.
+
+Echte Browser-Käufe werden auf der Danke-/Bestellbestätigungsseite in Matomo als
+E-Commerce-Conversions getrackt. Die Lernenden finden ihre eigenen Bestellungen damit
+unter *Matomo → E-Commerce* wieder.
 
 ## Datengenerierungstool
 

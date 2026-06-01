@@ -164,7 +164,7 @@ add_action('plugins_loaded', function () {
             }
 
             wc_add_notice('Kreditkarte abgelehnt. Bitte die Testkarte 4242 4242 4242 4242 verwenden.', 'error');
-            return;
+            return false;
         }
     }
 
@@ -213,15 +213,15 @@ add_action('plugins_loaded', function () {
         }
 
         public function payment_fields() {
+            if ($this->description) {
+                echo wpautop(wp_kses_post($this->description));
+            }
             ?>
             <div class="m392-twint" style="padding:8px 0;">
                 <div style="display:flex;align-items:center;gap:10px;padding:10px;background:#000;border-radius:6px;color:#fff;">
                     <span style="font-weight:700;letter-spacing:1px;font-size:18px;">TWINT</span>
                     <span style="font-size:12px;opacity:.85;">Test-Modus</span>
                 </div>
-                <p style="margin:8px 0 6px;font-size:13px;">
-                    Simulierte TWINT-Zahlung – wird zu Demozwecken automatisch bestätigt.
-                </p>
                 <p class="form-row form-row-wide">
                     <label for="m392twint_phone">Mobilnummer (optional)</label>
                     <input id="m392twint_phone" name="m392twint_phone" type="text" autocomplete="off"
@@ -243,11 +243,12 @@ add_action('plugins_loaded', function () {
             );
         }
     }
-});
 
-add_filter('woocommerce_payment_gateways', function ($gateways) {
-    $gateways[] = 'M392_Gateway_Invoice';
-    $gateways[] = 'M392_Gateway_Card';
-    $gateways[] = 'M392_Gateway_Twint';
-    return $gateways;
+    // Gateways registrieren (co-lokalisiert mit den Klassendefinitionen oben).
+    add_filter('woocommerce_payment_gateways', function ($gateways) {
+        $gateways[] = 'M392_Gateway_Invoice';
+        $gateways[] = 'M392_Gateway_Card';
+        $gateways[] = 'M392_Gateway_Twint';
+        return $gateways;
+    });
 });

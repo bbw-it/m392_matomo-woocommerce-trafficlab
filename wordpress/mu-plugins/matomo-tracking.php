@@ -21,6 +21,8 @@ add_action('wp_head', function () {
 <?php
     // E-Commerce-Bestellung auf der Danke-/Bestellbestätigungsseite tracken,
     // damit echte Browser-Käufe in Matomo als Conversions erscheinen.
+    // Hinweis: Erneutes Tracken beim Neuladen der Seite ist unkritisch, da Matomo
+    // E-Commerce-Bestellungen anhand der Bestell-ID dedupliziert.
     if (function_exists('is_order_received_page') && is_order_received_page()) {
         global $wp;
         $order_id = absint($wp->query_vars['order-received'] ?? 0);
@@ -41,11 +43,11 @@ add_action('wp_head', function () {
                 $qty        = (int) $item->get_quantity();
                 $unit_price = $qty > 0 ? ((float) $item->get_total() + (float) $item->get_total_tax()) / $qty : 0.0;
                 ?>
-    _paq.push(['addEcommerceItem', <?php echo json_encode((string) $sku); ?>, <?php echo json_encode((string) $name); ?>, <?php echo json_encode((string) $category); ?>, <?php echo floatval($unit_price); ?>, <?php echo (int) $qty; ?>]);
+    _paq.push(['addEcommerceItem', <?php echo json_encode((string) $sku, JSON_UNESCAPED_UNICODE); ?>, <?php echo json_encode((string) $name, JSON_UNESCAPED_UNICODE); ?>, <?php echo json_encode((string) $category, JSON_UNESCAPED_UNICODE); ?>, <?php echo floatval($unit_price); ?>, <?php echo (int) $qty; ?>]);
 <?php
             }
             ?>
-    _paq.push(['trackEcommerceOrder', <?php echo json_encode((string) $order->get_order_number()); ?>, <?php echo floatval($order->get_total()); ?>, <?php echo floatval($order->get_subtotal()); ?>, <?php echo floatval($order->get_total_tax()); ?>, <?php echo floatval($order->get_shipping_total()); ?>, false]);
+    _paq.push(['trackEcommerceOrder', <?php echo json_encode((string) $order->get_order_number(), JSON_UNESCAPED_UNICODE); ?>, <?php echo floatval($order->get_total()); ?>, <?php echo floatval($order->get_subtotal()); ?>, <?php echo floatval($order->get_total_tax()); ?>, <?php echo floatval($order->get_shipping_total()); ?>, false]);
 <?php
         }
     }
