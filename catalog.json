@@ -1,0 +1,16 @@
+{
+  "currency": "CHF",
+  "categories": ["Bekleidung", "Accessoires", "Haushalt", "Elektronik"],
+  "products": [
+    { "sku": "TS-001",  "name": "Bio-Baumwoll-T-Shirt",   "price": 29.90, "category": "Bekleidung",  "popularity": 9 },
+    { "sku": "HD-002",  "name": "Kapuzenpullover Grau",    "price": 69.00, "category": "Bekleidung",  "popularity": 6 },
+    { "sku": "CAP-003", "name": "Snapback Cap Schwarz",    "price": 24.50, "category": "Accessoires", "popularity": 5 },
+    { "sku": "BAG-004", "name": "Canvas-Umhängetasche",    "price": 49.90, "category": "Accessoires", "popularity": 4 },
+    { "sku": "MUG-005", "name": "Keramik-Tasse 300ml",     "price": 14.50, "category": "Haushalt",    "popularity": 8 },
+    { "sku": "BTL-006", "name": "Edelstahl-Trinkflasche",  "price": 27.90, "category": "Haushalt",    "popularity": 7 },
+    { "sku": "CDL-007", "name": "Duftkerze Vanille",       "price": 18.00, "category": "Haushalt",    "popularity": 3 },
+    { "sku": "EAR-008", "name": "Bluetooth-Kopfhörer",     "price": 89.00, "category": "Elektronik",  "popularity": 7 },
+    { "sku": "CHG-009", "name": "USB-C Schnellladegerät",  "price": 34.90, "category": "Elektronik",  "popularity": 6 },
+    { "sku": "PWR-010", "name": "Powerbank 10000mAh",      "price": 39.90, "category": "Elektronik",  "popularity": 5 }
+  ]
+}
