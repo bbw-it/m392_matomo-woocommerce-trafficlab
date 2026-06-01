@@ -51,6 +51,37 @@ def _read_token():
         return ""
 
 
+def matomo_installed():
+    """True, wenn Matomo erreichbar UND installiert ist (Tracker antwortet)."""
+    try:
+        # /matomo.php liefert bei installiertem Matomo 200/204; der Installer
+        # leitet stattdessen auf die Installationsseite um bzw. liefert 5xx.
+        resp = requests.get(f"{MATOMO_URL}/matomo.php", timeout=10)
+        return resp.status_code in (200, 204)
+    except requests.RequestException:
+        return False
+
+
+def token_ready():
+    """True, wenn ein plausibler 32-stelliger Hex-Token vorliegt."""
+    token = _read_token()
+    return bool(token) and len(token) == 32 and all(c in "0123456789abcdef" for c in token)
+
+
+def wait_for_ready(timeout=300, interval=3):
+    """Wartet, bis Matomo installiert ist UND ein gueltiger Token vorliegt.
+
+    Gibt True zurueck, sobald beide Bedingungen erfuellt sind, sonst False nach
+    Ablauf des Timeouts. So vermeidet der Auto-Seed das Rennen mit matomo-init.
+    """
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        if matomo_installed() and token_ready():
+            return True
+        time.sleep(interval)
+    return False
+
+
 def _base_params(visitor_id, ua, when=None):
     params = {
         "idsite": ID_SITE, "rec": 1, "apiv": 1,
