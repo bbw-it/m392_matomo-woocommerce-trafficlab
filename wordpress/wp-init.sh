@@ -1,8 +1,8 @@
 #!/bin/bash
 set -euo pipefail
 
-echo "[wp-init] Warte auf WordPress/DB ..."
-until wp core is-installed --allow-root 2>/dev/null || wp db check --allow-root 2>/dev/null; do
+echo "[wp-init] Warte auf WordPress-Dateien und DB ..."
+until wp core is-installed --allow-root 2>/dev/null || { wp db check --allow-root 2>/dev/null && [ -f /var/www/html/wp-load.php ]; }; do
   sleep 3
 done
 
@@ -17,10 +17,11 @@ if ! wp core is-installed --allow-root; then
   wp site switch-language "${WP_LOCALE}" --allow-root || true
 fi
 
-# --- Numerische Admin-User-ID ermitteln (wc-Befehle wollen die ID) ---
-ADMIN_ID=$(wp user get "${WP_ADMIN_USER}" --field=ID --allow-root)
+# --- 2) Numerische Admin-User-ID ermitteln (wc-Befehle wollen die ID) ---
+ADMIN_ID=$(wp user get "${WP_ADMIN_USER}" --field=ID --allow-root) \
+  || { echo "[wp-init] FEHLER: Admin-User '${WP_ADMIN_USER}' nicht gefunden."; exit 1; }
 
-# --- 3) Idempotenz-Marker ---
+# --- 3) Idempotenz-Marker (frühzeitiger Ausstieg) ---
 if wp option get m392_shop_seeded --allow-root >/dev/null 2>&1; then
   echo "[wp-init] Shop bereits eingerichtet – überspringe."
   exit 0
@@ -41,12 +42,12 @@ fi
 
 # --- 5) Shop-Basis: Schweiz / CHF ---
 echo "[wp-init] Konfiguriere Shop-Basis (Schweiz/CHF) ..."
-wp option update woocommerce_default_country "${SHOP_COUNTRY}:*" --allow-root
-wp option update woocommerce_currency "${SHOP_CURRENCY}" --allow-root
-wp option update woocommerce_store_address "Bahnhofstrasse 1" --allow-root
-wp option update woocommerce_store_city "Zürich" --allow-root
-wp option update woocommerce_store_postcode "8001" --allow-root
-wp option update woocommerce_onboarding_profile '{"completed":true,"skipped":true}' --format=json --allow-root
+wp option update woocommerce_default_country "${SHOP_COUNTRY}:*" --allow-root || true
+wp option update woocommerce_currency "${SHOP_CURRENCY}" --allow-root || true
+wp option update woocommerce_store_address "Bahnhofstrasse 1" --allow-root || true
+wp option update woocommerce_store_city "Zürich" --allow-root || true
+wp option update woocommerce_store_postcode "8001" --allow-root || true
+wp option update woocommerce_onboarding_profile '{"completed":true,"skipped":true}' --format=json --allow-root || true
 wp option update woocommerce_task_list_hidden "yes" --allow-root || true
 
 # WooCommerce-Seiten (shop/cart/checkout) anlegen
@@ -79,7 +80,8 @@ for i in $(seq 0 $((PRODUCT_COUNT-1))); do
     continue
   fi
 
-  CAT_ID=$(wp term list product_cat --name="$CAT" --field=term_id --allow-root | head -n1)
+  CAT_ID=$(wp term list product_cat --name="$CAT" --field=term_id --allow-root 2>/dev/null | head -n1)
+  [ -z "$CAT_ID" ] && { echo "[wp-init] WARNUNG: Kategorie '$CAT' nicht gefunden, ueberspringe $SKU."; continue; }
   wp wc product create --name="$NAME" --sku="$SKU" --regular_price="$PRICE" \
     --type=simple --manage_stock=false --status=publish \
     --categories="[{\"id\":${CAT_ID}}]" --user="${ADMIN_ID}" --allow-root >/dev/null
