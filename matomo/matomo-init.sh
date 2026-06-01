@@ -174,4 +174,21 @@ if [ "$need_token" -eq 1 ]; then
   fi
 fi
 
+# --- Website-Waehrung auf CHF setzen ----------------------------------------
+# SitesManager.updateSite mit nur idSite + currency laesst alle anderen
+# Site-Einstellungen unveraendert; CHF mehrfach zu setzen ist harmlos (idempotent).
+TOKEN="$(cat "${TOKEN_FILE}")"
+if [ -n "${TOKEN:-}" ]; then
+  log "Setze Waehrung der Website auf CHF ..."
+  curl -s -o /dev/null "${BASE}/index.php" \
+    --data-urlencode "module=API" \
+    --data-urlencode "method=SitesManager.updateSite" \
+    --data-urlencode "idSite=1" \
+    --data-urlencode "currency=CHF" \
+    --data-urlencode "token_auth=${TOKEN}" \
+    --data-urlencode "format=json" || echo "[matomo-init] WARN: Waehrung konnte nicht gesetzt werden."
+else
+  log "WARN: Kein gueltiger Token vorhanden - ueberspringe Waehrungs-Einstellung."
+fi
+
 log "Fertig."
