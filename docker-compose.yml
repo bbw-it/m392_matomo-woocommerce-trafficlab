@@ -6,6 +6,14 @@ services:
     restart: unless-stopped
     environment:
       MARIADB_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      # Werden vom Init-Script (db/init) gelesen, damit die DB-Benutzer mit den
+      # Passwörtern aus .env angelegt werden (kein Hardcoding -> kein Drift).
+      WP_DB_NAME: ${WP_DB_NAME}
+      WP_DB_USER: ${WP_DB_USER}
+      WP_DB_PASSWORD: ${WP_DB_PASSWORD}
+      MATOMO_DB_NAME: ${MATOMO_DB_NAME}
+      MATOMO_DB_USER: ${MATOMO_DB_USER}
+      MATOMO_DB_PASSWORD: ${MATOMO_DB_PASSWORD}
     volumes:
       - db_data:/var/lib/mysql
       - ./db/init:/docker-entrypoint-initdb.d:ro

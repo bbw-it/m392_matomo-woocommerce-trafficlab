@@ -11,6 +11,11 @@ cp .env.example .env      # einmalig; Passwörter bei Bedarf anpassen
 docker compose up -d
 ```
 
+> **Wichtig bei Passwort-Änderungen:** Die DB-Benutzer werden beim **ersten** Start angelegt
+> (Init-Script auf leerem Daten-Volume). Wenn du Passwörter in `.env` änderst, **bevor** du das
+> erste Mal startest, passt alles automatisch. Änderst du sie **nachträglich**, einmal zurücksetzen:
+> `docker compose down -v && docker compose up -d`.
+
 Beim ersten Start werden Images gezogen und alles automatisch eingerichtet (kann einige Minuten
 dauern). Danach:
 
@@ -44,6 +49,9 @@ Image-Versionen sind in `.env` gepinnt (`MATOMO_VERSION`, `WORDPRESS_VERSION`,
 
 ## Troubleshooting
 
+- **„Error establishing a database connection" im Shop:** Du hast vermutlich Passwörter in `.env`
+  nach dem ersten Start geändert. Die DB-Benutzer haben dann noch die alten Passwörter. Lösung:
+  `docker compose down -v && docker compose up -d` (legt die DB-Benutzer mit den `.env`-Passwörtern neu an).
 - **Matomo zeigt noch den Installer:** `docker compose up matomo-init` erneut ausführen und Logs prüfen.
 - **Keine Backfill-Daten (älter als 24 h):** API-Token fehlt — `docker compose logs matomo-init` prüfen;
   ohne Token werden nur aktuelle Besuche akzeptiert.
