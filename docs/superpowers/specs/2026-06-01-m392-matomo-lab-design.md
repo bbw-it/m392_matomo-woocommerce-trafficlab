@@ -151,8 +151,9 @@ Sendet Requests an `http://matomo/matomo.php`:
 ### 6.3 Betriebsmodi
 - **Auto-Seed beim Start** (einschaltbar): einmaliger Backfill der Historie.
 - **Manuell:** über die Web-UI ausgelöst.
-- (Optional, abschaltbar) **kontinuierlicher Tropf:** wenige Ereignisse pro Minute für „lebende"
-  Echtzeit-Ansicht.
+- **Kontinuierlicher Live-Tropf:** standardmäßig **aktiv** — wenige Ereignisse pro Minute für eine
+  „lebende" Echtzeit-Ansicht. In der Web-UI per Schalter pausierbar/wieder aktivierbar (Status wird
+  angezeigt).
 
 ---
 
@@ -169,10 +170,14 @@ Sendet Requests an `http://matomo/matomo.php`:
 
 Eine zentrale Datei steuert u. a.:
 - Host-Ports (Default 8090 / 8091 / 8092)
+- **Image-Versionen** (z. B. `MATOMO_VERSION`, `WORDPRESS_VERSION`, `WOOCOMMERCE_VERSION`) — alle
+  Images sind in `docker-compose.yml` auf konkrete Versionen gepinnt, lassen sich aber bei Bedarf
+  über `.env` (oder direkt im YAML) auf andere Versionen umstellen.
 - DB-Root-/User-Passwörter
 - WordPress-Admin (User/Passwort/E-Mail), Shop-Sprache & Währung
 - Matomo-Superuser (User/Passwort/E-Mail)
-- Traffic: Standard-Conversion-Rate, Backfill-Zeitraum, Auto-Seed an/aus, kontinuierlicher Tropf an/aus
+- Traffic: Standard-Conversion-Rate, Backfill-Zeitraum, Auto-Seed an/aus, Live-Tropf default an
+  (in der Web-UI abschaltbar)
 
 Mitgeliefert als `.env.example`; `.env` selbst wird per `.gitignore` ausgeschlossen.
 
@@ -219,5 +224,5 @@ M392 Matomo/
 - **Reihenfolge/Healthchecks:** `depends_on` + Healthchecks (DB ready, Matomo ready), damit
   init-Container nicht zu früh starten.
 - **Platzhalterbilder** für Produkte halten das Image schlank; echte Bilder optional ergänzbar.
-- **Pinning:** WordPress-/WooCommerce-/Matomo-Versionen für reproduzierbare Kurse pinnen
-  (Empfehlung), statt `latest`.
+- **Versions-Pinning:** WordPress-/WooCommerce-/Matomo-Versionen sind gepinnt (reproduzierbare Kurse)
+  und über `.env`/YAML anpassbar. Empfehlung: vor jedem Semester eine Version testen und festschreiben.
