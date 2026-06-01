@@ -101,6 +101,28 @@ services:
     entrypoint: ["sh", "/matomo-init.sh"]
     restart: "no"
 
+  traffic:
+    build: ./traffic
+    restart: unless-stopped
+    depends_on:
+      matomo:
+        condition: service_started
+    ports:
+      - "${TRAFFIC_PORT}:8092"
+    environment:
+      MATOMO_INTERNAL_URL: http://matomo
+      MATOMO_ID_SITE: "1"
+      CATALOG_PATH: /seed/catalog.json
+      MATOMO_TOKEN_FILE: /token/token_auth
+      TRAFFIC_AUTO_SEED: ${TRAFFIC_AUTO_SEED}
+      TRAFFIC_BACKFILL_DAYS: ${TRAFFIC_BACKFILL_DAYS}
+      TRAFFIC_LIVE_DRIP: ${TRAFFIC_LIVE_DRIP}
+      TRAFFIC_CONVERSION_RATE: ${TRAFFIC_CONVERSION_RATE}
+      TRAFFIC_DRIP_VISITS_PER_MIN: ${TRAFFIC_DRIP_VISITS_PER_MIN}
+    volumes:
+      - ./catalog.json:/seed/catalog.json:ro
+      - matomo_token:/token:ro
+
 volumes:
   db_data:
   wordpress_data:
