@@ -1,0 +1,16 @@
+# Referenzmaterial / generierbar – nicht versionieren
+matomo-latest/
+matomo-latest.zip
+
+# Lokale Konfiguration & Secrets
+.env
+
+# OS
+.DS_Store
+
+# Python
+__pycache__/
+*.pyc
+
+# Node
+node_modules/
