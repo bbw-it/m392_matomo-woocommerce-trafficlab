@@ -162,9 +162,17 @@ function m392_create_orders(WP_REST_Request $req) {
     foreach ($name_pool as $ckey => $cdef) {
         for ($w = 0; $w < $cdef[0]; $w++) { $culture_bag[] = $ckey; }
     }
-    $cities = [['Berlin','10117'],['Berlin','10967'],['Berlin','12047'],['Hamburg','20095'],
-               ['München','80331'],['Köln','50667'],['Frankfurt am Main','60311'],['Stuttgart','70173'],
-               ['Düsseldorf','40213'],['Leipzig','04109'],['Dresden','01067'],['Bremen','28195'],['Hannover','30159']];
+    // Verkaufsländer DE/CH/AT mit Anteilen (Käufer:innen ≈ DE 65 / CH 20 / AT 15).
+    // Format: kürzel => [Gewicht, Telefon-Vorwahl, [[Stadt, PLZ], ...]]
+    $geo = [
+        'DE' => [65, '+49', [['Berlin','10117'],['Hamburg','20095'],['München','80331'],['Köln','50667'],
+                             ['Frankfurt am Main','60311'],['Stuttgart','70173'],['Leipzig','04109'],['Dresden','01067']]],
+        'CH' => [20, '+41', [['Zürich','8001'],['Genève','1201'],['Basel','4001'],['Bern','3011'],
+                             ['Lausanne','1003'],['Winterthur','8400'],['Luzern','6003']]],
+        'AT' => [15, '+43', [['Wien','1010'],['Graz','8010'],['Linz','4020'],['Salzburg','5020'],['Innsbruck','6020']]],
+    ];
+    $geo_bag = [];
+    foreach ($geo as $cc => $g) { for ($w = 0; $w < $g[0]; $w++) { $geo_bag[] = $cc; } }
     $streets = ['Hauptstraße','Bahnhofstraße','Gartenweg','Lindenallee','Friedrichstraße','Schulstraße',
                 'Bergstraße','Rosenweg','Goethestraße','Schillerstraße','Mozartweg','Ahornstraße'];
     $mail_hosts = ['example.com','example.org','mail.example','post.example'];
@@ -215,7 +223,10 @@ function m392_create_orders(WP_REST_Request $req) {
         $culture = $culture_bag[array_rand($culture_bag)];
         $fn = $name_pool[$culture][1][array_rand($name_pool[$culture][1])];
         $ln = $name_pool[$culture][2][array_rand($name_pool[$culture][2])];
-        [$city, $plz] = $cities[array_rand($cities)];
+        // Verkaufsland (DE/CH/AT) + passende Stadt/PLZ ziehen.
+        $country = $geo_bag[array_rand($geo_bag)];
+        $phone_cc = $geo[$country][1];
+        [$city, $plz] = $geo[$country][2][array_rand($geo[$country][2])];
         [$pm_id, $pm_title] = $payments[array_rand($payments)];
 
         // Kund:in bestimmen: ~35% Bestandskund:in (falls vorhanden), sonst neu.
@@ -230,10 +241,12 @@ function m392_create_orders(WP_REST_Request $req) {
                 $fn    = get_user_meta($cid, 'billing_first_name', true) ?: ($cu->first_name ?: $fn);
                 $ln    = get_user_meta($cid, 'billing_last_name', true)  ?: ($cu->last_name  ?: $ln);
                 $email = $cu->user_email;
-                $cc = get_user_meta($cid, 'billing_city', true);
-                $cp = get_user_meta($cid, 'billing_postcode', true);
-                if ($cc) { $city = $cc; }
-                if ($cp) { $plz = $cp; }
+                $rcity = get_user_meta($cid, 'billing_city', true);
+                $rplz  = get_user_meta($cid, 'billing_postcode', true);
+                $rco   = get_user_meta($cid, 'billing_country', true);
+                if ($rcity) { $city = $rcity; }
+                if ($rplz)  { $plz = $rplz; }
+                if ($rco && isset($geo[$rco])) { $country = $rco; $phone_cc = $geo[$rco][1]; }
             }
         }
         if (!$customer_id) {
@@ -251,7 +264,7 @@ function m392_create_orders(WP_REST_Request $req) {
                     update_user_meta($customer_id, 'billing_last_name',  $ln);
                     update_user_meta($customer_id, 'billing_city',       $city);
                     update_user_meta($customer_id, 'billing_postcode',   $plz);
-                    update_user_meta($customer_id, 'billing_country',    'DE');
+                    update_user_meta($customer_id, 'billing_country',    $country);
                     $customer_pool[] = $customer_id;   // ab jetzt als Bestandskund:in nutzbar
                 }
             }
@@ -285,9 +298,9 @@ function m392_create_orders(WP_REST_Request $req) {
             'address_1'  => $streets[array_rand($streets)] . ' ' . random_int(1, 180),
             'city'       => $city,
             'postcode'   => $plz,
-            'country'    => 'DE',
+            'country'    => $country,
             'email'      => $email,
-            'phone'      => '+49 ' . random_int(150, 179) . ' ' . random_int(1000000, 9999999),
+            'phone'      => $phone_cc . ' ' . random_int(60, 79) . ' ' . random_int(1000000, 9999999),
         ];
         $order->set_address($addr, 'billing');
         $order->set_address($addr, 'shipping');

@@ -254,6 +254,12 @@ echo "Gutschein {$c['code']} angelegt\n";
 PHPEOF
   wp eval-file /tmp/m392-coupon.php --allow-root || echo "[wp-init] WARN: Gutschein konnte nicht angelegt werden."
 
+  # 8f) Verkaufsländer auf DE/CH/AT beschränken (nur aus diesen Ländern wird
+  #     bestellt; übriges Europa kann ansehen, aber nicht kaufen).
+  echo "[wp-init] Beschränke Verkaufsländer auf DE/CH/AT ..."
+  wp option update woocommerce_allowed_countries specific --allow-root || true
+  wp option update woocommerce_specific_allowed_countries '["DE","CH","AT"]' --format=json --allow-root || true
+
   # 9) Caches leeren (inkl. best-effort Elementor-Cache).
   wp cache flush --allow-root || true
   wp eval 'if(class_exists("\\Elementor\\Plugin")){ \Elementor\Plugin::$instance->files_manager->clear_cache(); echo "elementor-cache-cleared"; }' --allow-root || true

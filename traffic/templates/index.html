@@ -87,9 +87,18 @@
   .act-now svg{width:16px; height:16px; stroke:var(--mut)}
   .act-now.spin svg{animation:spin .6s ease}
   @keyframes spin{to{transform:rotate(360deg)}}
-  .bars{display:flex; align-items:flex-end; gap:6px; height:60px; width:100%}
-  .bars .bar{width:12px; flex:none; border-radius:4px; background:var(--indigo); transition:height .3s ease, background .3s}
-  .bars .bar.zero{height:12px; background:var(--line)}
+  .chart-plot{position:relative; height:240px; border:1px solid var(--line); border-radius:14px;
+    padding:18px 18px 34px; background:var(--card)}
+  .chart-grid{position:absolute; left:18px; right:18px; top:18px; bottom:34px;
+    display:flex; flex-direction:column; justify-content:space-between; pointer-events:none}
+  .chart-grid i{height:1px; background:var(--line); opacity:.65}
+  .bars{position:relative; height:100%; display:flex; align-items:flex-end; gap:12px}
+  .bars .bar{position:relative; flex:1 1 0; min-width:0; min-height:6px;
+    background:linear-gradient(180deg,#6a82fb,var(--indigo)); border-radius:7px 7px 0 0;
+    transition:height .45s cubic-bezier(.2,.7,.2,1)}
+  .bars .bar.zero{background:var(--line)}
+  .bars .bar .bl{position:absolute; bottom:-26px; left:-6px; right:-6px; text-align:center;
+    font-size:12px; color:var(--mut); font-variant-numeric:tabular-nums}
 
   /* ---------- live feed ---------- */
   .feed{display:flex; flex-direction:column; gap:20px}
@@ -131,6 +140,9 @@
   input[type=number]:focus{outline:none; border-color:var(--indigo)}
   .btn{height:40px; padding:10px 16px; border-radius:8px; font-family:var(--font); font-size:14px; font-weight:600;
     border:1px solid transparent; cursor:pointer; transition:.15s; white-space:nowrap}
+  /* Manuell-Senden: gleich breite, sauber untereinander ausgerichtete Eingaben + Buttons */
+  .m-ctl input[type=number]{width:96px}
+  .m-ctl .btn{width:132px; padding-left:0; padding-right:0; text-align:center}
   .btn.primary{background:var(--indigo); color:#fff}
   .btn.primary:hover{background:#4360e6}
   .btn.amber{background:var(--amber); color:#fff}
@@ -235,7 +247,10 @@
           <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.5 9a9 9 0 0 1 14.9-3.4L23 10M1 14l4.6 4.4A9 9 0 0 0 20.5 15"/></svg>
         </div>
       </div>
-      <div class="bars" id="chart"></div>
+      <div class="chart-plot">
+        <div class="chart-grid"><i></i><i></i><i></i><i></i><i></i></div>
+        <div class="bars" id="chart"></div>
+      </div>
     </div>
 
     <div class="card feed" style="animation-delay:.22s">
@@ -278,9 +293,9 @@
         </div>
         <div class="m-item">
           <label for="m-days">Historie befüllen (Tage)</label>
-          <div class="m-ctl"><input type="number" id="m-days" value="730" min="1"><button class="btn primary" data-act="backfill">Backfill</button></div>
+          <div class="m-ctl"><input type="number" id="m-days" value="180" min="1"><button class="btn primary" data-act="backfill">Backfill</button></div>
         </div>
-        <p class="note">Backfill simuliert datierte Besuche in der Vergangenheit (für gefüllte Charts in Matomo). Standard: 730 Tage ≈ 24 Monate – das kann einige Minuten dauern.</p>
+        <p class="note">Backfill simuliert datierte Besuche in der Vergangenheit (für gefüllte Charts in Matomo). Standard: 180 Tage ≈ 6 Monate – das kann ein bis zwei Minuten dauern.</p>
       </div>
     </div>
 
@@ -356,20 +371,30 @@ function confirmClick(btn){
 
 function flash(id){ const c=$(id).closest('.kpi'); c.classList.remove('flash'); void c.offsetWidth; c.classList.add('flash'); }
 
-const BARS = 32;
+const N_BARS = 8, GROUP = 4;   // 8 Balken × 4×5s = 20s je Balken ≈ letzte ~3 Min
+function fmtClock(t){
+  const d = new Date(t*1000);
+  return String(d.getMinutes()).padStart(2,'0')+':'+String(d.getSeconds()).padStart(2,'0');
+}
 function drawChart(hist){
-  const pts=[]; for(let i=1;i<hist.length;i++) pts.push(Math.max(0, hist[i].visits-hist[i-1].visits));
-  let data = pts.slice(-BARS);
-  $('#chart-now').textContent = (data.length? data[data.length-1] : 0) + ' / 5s';
-  // links mit Leer-Slots auffüllen, damit die Leiste stets gleich breit wirkt
-  while(data.length < BARS) data.unshift(null);
-  const vals = data.filter(v=>v!=null && v>0);
-  const max = Math.max(2, ...vals);
-  const el=$('#chart');
-  el.innerHTML = data.map(v=>{
-    if(v==null || v===0) return '<div class="bar zero"></div>';
-    const h = Math.round(12 + (v/max)*36);   // 12..48px
-    return '<div class="bar" style="height:'+h+'px"></div>';
+  const pts=[];
+  for(let i=1;i<hist.length;i++) pts.push({t:hist[i].t, v:Math.max(0, hist[i].visits-hist[i-1].visits)});
+  $('#chart-now').textContent = (pts.length? pts[pts.length-1].v : 0) + ' / 5s';
+  const need=N_BARS*GROUP;
+  let slice=pts.slice(-need);
+  while(slice.length<need) slice.unshift(null);
+  const buckets=[];
+  for(let b=0;b<N_BARS;b++){
+    const seg=slice.slice(b*GROUP,(b+1)*GROUP).filter(Boolean);
+    buckets.push({ sum: seg.reduce((a,p)=>a+p.v,0), t: seg.length? seg[seg.length-1].t : null });
+  }
+  const max=Math.max(1, ...buckets.map(b=>b.sum));
+  $('#chart').innerHTML = buckets.map(b=>{
+    const zero = b.sum===0;
+    const h = zero ? 4 : Math.round(14 + (b.sum/max)*78);   // 14%..92%
+    const label = b.t ? fmtClock(b.t) : '';
+    return '<div class="bar'+(zero?' zero':'')+'" style="height:'+h+'%">'+
+           '<span class="bl">'+label+'</span></div>';
   }).join('');
 }
 

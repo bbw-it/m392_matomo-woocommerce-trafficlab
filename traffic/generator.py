@@ -77,6 +77,71 @@ USER_AGENTS = [
     "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 Chrome/130 Mobile Safari/537.36",
 ]
 
+# --- Geografie -------------------------------------------------------------
+# Verkaufsländer DE/CH/AT (können bestellen) + ~5 % „übriges Europa" (sehen
+# Produkte an, legen in den Warenkorb, können aber NICHT bestellen – WooCommerce
+# akzeptiert nur DE/CH/AT). Anteile unter den Käufer:innen ≈ DE 65 / CH 20 / AT 15.
+# (weight, country, lang, can_purchase, [(stadt, region-code)])
+_GEO = [
+    (0.62, "de", "de-DE", True, [("Berlin", "Berlin"), ("Hamburg", "Hamburg"), ("München", "Bayern"),
+                                 ("Köln", "Nordrhein-Westfalen"), ("Stuttgart", "Baden-Württemberg"),
+                                 ("Leipzig", "Sachsen"), ("Frankfurt am Main", "Hessen")]),
+    (0.19, "ch", "de-CH", True, [("Zürich", "ZH"), ("Genève", "GE"), ("Basel", "BS"), ("Bern", "BE"),
+                                 ("Lausanne", "VD"), ("Winterthur", "ZH")]),
+    (0.14, "at", "de-AT", True, [("Wien", "9"), ("Graz", "6"), ("Linz", "4"), ("Salzburg", "5"),
+                                 ("Innsbruck", "7")]),
+]
+_GEO_WEIGHTS = [w for w, *_ in _GEO]
+_EU_OTHER = [("fr", "fr-FR", "Paris"), ("it", "it-IT", "Milano"), ("nl", "nl-NL", "Amsterdam"),
+             ("be", "nl-BE", "Antwerpen"), ("es", "es-ES", "Madrid"), ("pl", "pl-PL", "Warszawa"),
+             ("se", "sv-SE", "Stockholm")]
+_EU_OTHER_WEIGHT = 0.05
+
+
+def _pick_geo():
+    """Land/Sprache/Stadt eines Besuchs + ob das Land bestellen darf."""
+    if random.random() < _EU_OTHER_WEIGHT:
+        c, lang, city = random.choice(_EU_OTHER)
+        return {"country": c, "lang": lang, "city": city, "region": "", "can_purchase": False}
+    _w, country, lang, can_purchase, cities = random.choices(_GEO, weights=_GEO_WEIGHTS, k=1)[0]
+    city, region = random.choice(cities)
+    return {"country": country, "lang": lang, "city": city, "region": region, "can_purchase": can_purchase}
+
+
+def _perf():
+    """Realistische Seitenleistungs-Timings (ms) für *Verhalten → Leistung*."""
+    return {
+        "pf_net": random.randint(10, 90), "pf_srv": random.randint(60, 380),
+        "pf_tfr": random.randint(8, 70), "pf_dm1": random.randint(90, 520),
+        "pf_dm2": random.randint(40, 260), "pf_onl": random.randint(20, 180),
+    }
+
+
+# --- Ereignisse (Verhalten → Ereignisse) -----------------------------------
+# (Gewicht, Kategorie, Aktion, name_art)  name_art: None|product|social|sort|video
+_EVENTS = [
+    (0.26, "Newsletter", "Anmeldung", None),
+    (0.22, "Produkt", "Auf Wunschliste", "product"),
+    (0.18, "Social Share", "Teilen", "social"),
+    (0.16, "Video", "Play", "video"),
+    (0.10, "Produkt", "Größentabelle geöffnet", None),
+    (0.08, "Filter", "Sortierung geändert", "sort"),
+]
+_EVENT_WEIGHTS = [w for w, *_ in _EVENTS]
+_SOCIAL = ["Instagram", "Facebook", "Pinterest", "TikTok", "WhatsApp"]
+_SORTS = ["Beliebtheit", "Preis aufsteigend", "Bewertung", "Neuheiten"]
+_VIDEOS = ["Anwendung: Reinigung", "Routine-Tipp: Feuchtigkeit", "Tutorial: Make-up"]
+
+# --- Inhalte (Verhalten → Inhalte: Banner/Promo-Blöcke) --------------------
+# (Inhaltsname, Inhaltsteil/Asset, Ziel-URL-Pfad)
+_CONTENT = [
+    ("Hero: Naturkosmetik-Aktion", "banner-aktion.jpg", "/shop/"),
+    ("Promo: Gratisversand ab 50 €", "banner-versand.jpg", "/shop/"),
+    ("Neu im Sortiment", "banner-neu.jpg", "/product-category/gesichtspflege/"),
+    ("Bestseller-Empfehlung", "block-bestseller.jpg", "/product-category/gesichtsreinigung/"),
+    ("Newsletter-Block", "block-newsletter", "/danke/"),
+]
+
 
 def _load_catalog():
     """catalog.json (Meta) + Live-Produkte aus WooCommerce.
@@ -169,19 +234,28 @@ def wait_for_ready(timeout=300, interval=3):
     return False
 
 
-def _base_params(catalog, visitor_id, ua, when=None, urlref=""):
+def _base_params(catalog, visitor_id, ua, when=None, urlref="", geo=None):
     params = {
         "idsite": ID_SITE, "rec": 1, "apiv": 1,
         "_id": visitor_id, "rand": random.randint(1, 10_000_000),
-        "ua": ua, "lang": "de-DE",
+        "ua": ua, "lang": (geo or {}).get("lang", "de-DE"),
         "res": random.choice(["1920x1080", "1440x900", "390x844", "412x915"]),
         "url": _base_url(catalog) + "/", "urlref": urlref,
     }
+    token = _read_token()
     if when is not None:
         params["cdt"] = when.strftime("%Y-%m-%d %H:%M:%S")
-        token = _read_token()
         if token:
             params["token_auth"] = token
+    # Land/Region/Stadt setzen (Override braucht token_auth – im Backfill vorhanden;
+    # im Live-Tropf ohne Token nähert Matomo das Land über `lang` an).
+    if geo and token:
+        params["country"] = geo["country"]
+        if geo.get("region"):
+            params["region"] = geo["region"]
+        if geo.get("city"):
+            params["city"] = geo["city"]
+        params["token_auth"] = token
     return params
 
 
@@ -240,6 +314,10 @@ def simulate_visit(catalog, when=None, force_purchase=False, conversion_rate=0.0
     products = catalog["products"]
     categories = _category_list(catalog)
     channel = _pick_channel()
+    geo = _pick_geo()
+    # Erzwungene Käufe müssen aus einem Verkaufsland (DE/CH/AT) kommen.
+    while force_purchase and not geo["can_purchase"]:
+        geo = _pick_geo()
     # Kanalabhaengige Conversion (Social konvertiert ueberdurchschnittlich).
     eff_cr = min(0.95, conversion_rate * channel["mult"])
 
@@ -249,7 +327,7 @@ def simulate_visit(catalog, when=None, force_purchase=False, conversion_rate=0.0
     _entry = {"ref": channel["ref"]}
 
     def mkparams():
-        p = _base_params(catalog, visitor_id, ua, when, urlref=_entry["ref"])
+        p = _base_params(catalog, visitor_id, ua, when, urlref=_entry["ref"], geo=geo)
         _entry["ref"] = ""
         return p
 
@@ -275,6 +353,7 @@ def simulate_visit(catalog, when=None, force_purchase=False, conversion_rate=0.0
         p["url"] = f"{base}/product-category/{cat['slug']}/"
         p["action_name"] = f"Kategorie: {cat['name']}"
         p["_pkc"] = cat["name"]
+        p.update(_perf())
         _send(p)
         pages += 1
         when = _advance(when)
@@ -293,12 +372,16 @@ def simulate_visit(catalog, when=None, force_purchase=False, conversion_rate=0.0
         p["_pkn"] = pr["name"]
         p["_pkc"] = pr["category"]
         p["_pkp"] = pr["price"]
+        p.update(_perf())
         _send(p)
         pages += 1
         when = _advance(when)
 
     # --- Kaufpfad -----------------------------------------------------------
-    purchased = force_purchase or (random.random() < eff_cr)
+    # „Übriges Europa" kann NICHT bestellen (WooCommerce akzeptiert nur DE/CH/AT) –
+    # diese Besuche legen aber öfter in den Warenkorb (sichtbarer Abbruch).
+    can_buy = geo.get("can_purchase", True)
+    purchased = (force_purchase or (random.random() < eff_cr)) and can_buy
     revenue = 0.0
     if purchased:
         if viewed_products and random.random() < 0.7:
@@ -325,8 +408,9 @@ def simulate_visit(catalog, when=None, force_purchase=False, conversion_rate=0.0
         p["ec_items"] = json.dumps(items, ensure_ascii=False)
         _send(p)
         pages += 1
-    elif viewed_products and random.random() < 0.20:
-        # Abgebrochener Warenkorb (Cart-Update ohne ec_id).
+    elif viewed_products and random.random() < (0.70 if not can_buy else 0.20):
+        # Abgebrochener Warenkorb (Cart-Update ohne ec_id). „Übriges Europa" landet
+        # hier häufig: sieht Produkte, legt in den Korb – kann dann aber nicht bestellen.
         cart = random.sample(viewed_products, min(random.randint(1, 2), len(viewed_products)))
         items, subtotal = [], 0.0
         for pr in cart:
@@ -366,6 +450,38 @@ def simulate_visit(catalog, when=None, force_purchase=False, conversion_rate=0.0
         when = _advance(when)
         p = mkparams(); p["url"] = thankyou; p["action_name"] = "Vielen Dank"
         _send(p); pages += 1
+
+    # --- Content-Impression/-Klick (Verhalten → Inhalte) --------------------
+    # ~45 % der Besuche sehen einen Promo-/Hero-Block; ein Teil davon klickt.
+    if random.random() < 0.45:
+        name, piece, target = random.choice(_CONTENT)
+        p = mkparams()
+        p["url"] = base + "/"
+        p["c_n"] = name
+        p["c_p"] = piece
+        p["c_t"] = base + target
+        if random.random() < 0.18:          # Interaktion (Klick) auf den Block
+            p["c_i"] = "click"
+        _send(p)
+
+    # --- Ereignisse (Verhalten → Ereignisse) --------------------------------
+    # 0–2 sinnvolle Interaktionen je Besuch (Newsletter, Wunschliste, Teilen …).
+    for _ in range(random.choices([0, 1, 2], weights=[0.5, 0.38, 0.12])[0]):
+        _w, e_cat, e_act, kind = random.choices(_EVENTS, weights=_EVENT_WEIGHTS, k=1)[0]
+        when = _advance(when)
+        p = mkparams()
+        p["url"] = base + "/"
+        p["e_c"] = e_cat
+        p["e_a"] = e_act
+        if kind == "product" and viewed_products:
+            p["e_n"] = random.choice(viewed_products)["name"]
+        elif kind == "social":
+            p["e_n"] = random.choice(_SOCIAL)
+        elif kind == "sort":
+            p["e_n"] = random.choice(_SORTS)
+        elif kind == "video":
+            p["e_n"] = random.choice(_VIDEOS); p["e_v"] = random.randint(5, 120)
+        _send(p)
 
     return {"pages": pages, "purchase": purchased, "revenue": revenue}
 

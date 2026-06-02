@@ -144,7 +144,7 @@ services:
       # Anzahl echter Bestellungen beim Init, verteilt über das Backfill-Fenster
       # (Standard: passend zur ~24-Monats-Matomo-Historie).
       TRAFFIC_SEED_ORDERS: ${TRAFFIC_SEED_ORDERS:-120}
-      TRAFFIC_SEED_ORDERS_DAYS: ${TRAFFIC_SEED_ORDERS_DAYS:-730}
+      TRAFFIC_SEED_ORDERS_DAYS: ${TRAFFIC_SEED_ORDERS_DAYS:-180}
     volumes:
       - ./catalog.json:/seed/catalog.json:ro
       - matomo_token:/token:ro

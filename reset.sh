@@ -7,7 +7,7 @@
 #    2. leert den WordPress-Bind-Mount (wordpress/www)  → frische Core-Dateien
 #    3. baut + startet den Stack neu (docker compose up -d --build)
 #    4. wartet, bis Shop + Matomo erreichbar sind
-#    5. wartet, bis die 24-Monats-Historie + Bestellungen befuellt sind,
+#    5. wartet, bis die ~6-Monats-Historie + Bestellungen befuellt sind,
 #       und archiviert Matomo → Berichte stimmen SOFORT (kein Nachladen)
 #
 #  wp-init spielt die Fixture ein (sauberer Shop, OHNE Bestellungen),
@@ -114,7 +114,7 @@ printf '   Matomo '; wait_http "http://localhost:${MATOMO_PORT}/"    "Matomo" ||
 
 if [ "$WAIT_SEED" -eq 1 ]; then
   echo
-  echo "[5/5] Warte auf die Startbefuellung (24-Monats-Historie + Bestellungen) ..."
+  echo "[5/5] Warte auf die Startbefuellung (~6-Monats-Historie + Bestellungen) ..."
   echo "      Das dauert einige Minuten – danach ist Matomo SOFORT vollstaendig."
   i=0
   while :; do
@@ -147,10 +147,10 @@ echo "    • Traffic Lab →  http://localhost:${TRAFFIC_PORT}"
 if [ "$WAIT_SEED" -eq 1 ]; then
   echo
   echo "  Matomo ist vorbefuellt UND archiviert – Berichte stimmen sofort."
-  echo "  (In Matomo ggf. Zeitraum auf 'Letzte 24 Monate' stellen.)"
+  echo "  (In Matomo ggf. Zeitraum auf 'Letzte 6 Monate' stellen.)"
 else
   echo
-  echo "  Hinweis (--no-wait): Die ~24-Monats-Historie + Bestellungen werden"
+  echo "  Hinweis (--no-wait): Die ~6-Monats-Historie + Bestellungen werden"
   echo "  im HINTERGRUND befuellt. Fortschritt:  ${DC[*]} logs -f traffic"
   echo "  Berichte erscheinen erst nach Befuellung + Archivierung vollstaendig."
 fi

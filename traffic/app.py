@@ -173,7 +173,7 @@ def gen_orders():
 
 @app.route("/api/backfill", methods=["POST"])
 def backfill():
-    days = int(request.form.get("days", 730))
+    days = int(request.form.get("days", 180))
 
     def _progress(done, total, running):
         _log(f"Backfill … {done}/{total} Tage ({running['visits']} Besuche, "
@@ -225,7 +225,7 @@ def set_drip():
 def _maybe_auto_seed():
     if os.environ.get("TRAFFIC_AUTO_SEED", "true").lower() != "true":
         return
-    days = int(os.environ.get("TRAFFIC_BACKFILL_DAYS", "730"))
+    days = int(os.environ.get("TRAFFIC_BACKFILL_DAYS", "180"))
     _set_seed("history", "running")
 
     def _progress(done, total, running):
@@ -270,7 +270,7 @@ def _maybe_seed_orders():
     # Bestellfenster = Matomo-Backfill-Fenster, damit beide denselben Zeitraum
     # abdecken (separat überschreibbar via TRAFFIC_SEED_ORDERS_DAYS).
     days = int(os.environ.get("TRAFFIC_SEED_ORDERS_DAYS",
-                              os.environ.get("TRAFFIC_BACKFILL_DAYS", "730")))
+                              os.environ.get("TRAFFIC_BACKFILL_DAYS", "180")))
     if target <= 0:
         return
     _set_seed("orders", "running")
