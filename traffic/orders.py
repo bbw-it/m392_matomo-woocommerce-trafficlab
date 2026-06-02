@@ -31,7 +31,9 @@ def wait_for_wordpress(timeout=600, interval=5):
     deadline = time.time() + timeout
     while time.time() < deadline:
         s = ping()
-        if s and s.get("ready"):
+        # Erst seeden, wenn der Shop VOLLSTÄNDIG eingerichtet ist (Produkte +
+        # Kategorien/Gutschein/Verkaufsländer) – sonst fehlt z. B. der Gutschein.
+        if s and s.get("ready") and s.get("provisioned", True):
             return s
         time.sleep(interval)
     return None

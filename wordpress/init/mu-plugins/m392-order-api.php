@@ -40,6 +40,10 @@ add_action('rest_api_init', function () {
                 'ready'    => $ready && count($products) > 0,
                 'products' => count($products),
                 'orders'   => count($orders),
+                // „vollständig eingerichtet": Marker wird am ENDE von wp-init gesetzt
+                // (nach Kategorien/Gutschein/Verkaufsländern) – verhindert, dass der
+                // Bestell-Seed startet, bevor z. B. der Gutschein existiert.
+                'provisioned' => (bool) (get_option('m392_fixture_restored') || get_option('m392_shop_seeded')),
             ];
         },
     ]);
