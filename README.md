@@ -134,6 +134,18 @@ Ein voll funktionsfähiger Demo-Shop auf Basis von WordPress + WooCommerce mit d
 (inkl. importiertem Demo-Inhalt „Cocolo" mit Produktbildern). Der Shop ist sofort kauffähig:
 Produkte ansehen, in den Warenkorb legen, zur Kasse gehen, Bestellung abschließen.
 
+Der Demo-Shop ist ein fiktiver **Kosmetik-Shop mit Sitz in Berlin**, durchgängig auf **Deutsch**
+lokalisiert und in **Euro (EUR)** ausgezeichnet (deutsches Preisformat, z. B. `18,00 €`). Er bringt
+fertig mit:
+
+- **Produkte** mit echten Bildern, deutschen Bezeichnungen und **ausführlichen, sinnvollen
+  Produktbeschreibungen** (Nutzen, Anwendung, Hauttyp – kein Lorem Ipsum).
+- **Produktbewertungen** mit Sternen: realistisch gestreut um einen **Durchschnitt von ~4,6**
+  (viele zufriedene, einige kritische, wenige sehr unzufriedene Kund:innen) – ideal, um in Matomo
+  bzw. im Shop über Kundenzufriedenheit und Conversion zu sprechen.
+- **Deutschsprachige Blog-Beiträge** (Kategorie/Ratgeber) mit thematisch passenden Beitragsbildern.
+- Saubere Seitenstruktur und Menü (Startseite, Blog, **Shop**, Kontakt).
+
 In jede Shop-Seite ist der **Matomo-Tracking-Code** eingebaut (über ein Must-Use-Plugin), sodass
 jeder Klick und jede Bestellung in Matomo erscheint.
 
@@ -214,7 +226,7 @@ Alles wird zentral über `.env` gesteuert (Kopie von `.env.example`). Wichtigste
 | `MARIADB_VERSION`, `WORDPRESS_VERSION`, `MATOMO_VERSION`, `WOOCOMMERCE_VERSION` | gepinnt | Image-/Software-Versionen (für reproduzierbare Kurse) |
 | `WP_ADMIN_USER` / `WP_ADMIN_PASSWORD` / `WP_ADMIN_EMAIL` | `admin` / `admin123` / … | Shop-Admin |
 | `MATOMO_ADMIN_USER` / `MATOMO_ADMIN_PASSWORD` / `MATOMO_ADMIN_EMAIL` | `admin` / `matomo123` / … | Matomo-Superuser |
-| `SHOP_CURRENCY` / `SHOP_COUNTRY` / `WP_LOCALE` | `EUR` / `DE` / `de_CH` | Shop-Land, Währung, Sprache |
+| `SHOP_CURRENCY` / `SHOP_COUNTRY` / `WP_LOCALE` | `EUR` / `DE` / `de_CH` | Shop-Währung, -Land, Sprachpaket |
 | `*_DB_*` / `MYSQL_ROOT_PASSWORD` | siehe Datei | Datenbank-Namen, -Benutzer, -Passwörter |
 | `TRAFFIC_AUTO_SEED` | `true` | Beim Start automatisch Historie befüllen |
 | `TRAFFIC_BACKFILL_DAYS` | `28` | Zeitraum der historischen Befüllung (Tage) |
@@ -224,6 +236,11 @@ Alles wird zentral über `.env` gesteuert (Kopie von `.env.example`). Wichtigste
 
 > **Versionen anpassen:** Alle Versionen sind gepinnt. Vor jedem Semester eine Version testen und
 > festschreiben, damit der Kurs über die Zeit reproduzierbar bleibt.
+>
+> **Sprache:** Der Shop ist durchgängig auf Deutsch lokalisiert. `WP_LOCALE` ist `de_CH` (Schweizer
+> Deutsch, identischer Wortschatz, ohne ß). Für reichsdeutsche Schreibweise (mit ß) auf `de_DE`
+> stellen und einmal zurücksetzen (`down -v && up -d`). Währung und Standort sind davon unabhängig
+> (`SHOP_CURRENCY`, `SHOP_COUNTRY`).
 
 ## Zurücksetzen & Reproduzierbarkeit
 
@@ -235,10 +252,12 @@ docker compose up -d
 docker compose down -v && docker compose up -d
 ```
 
-Der **Demo-Shop ist reproduzierbar**: Sein Stand (Theme, Demo-Produkte, Seiten, Bilder, Einstellungen)
-ist als **Fixture** eingefroren (`wordpress/fixture/`). Beim frischen Start stellt `wp-init` ihn
-automatisch wieder her – inklusive der benötigten Plugins/Theme, die in gepinnten Versionen aus dem
-WordPress-Repository nachinstalliert werden. Ein `down -v && up -d` liefert also wieder **denselben Shop**.
+Der **Demo-Shop ist reproduzierbar**: Sein vollständiger Stand – Theme, Demo-Produkte mit deutschen
+Beschreibungen, **Bewertungen/Sterne**, Blog-Beiträge, Seiten, Bilder sowie alle Einstellungen
+(Sprache, Währung EUR, Standort Berlin) – ist als **Fixture** eingefroren (`wordpress/fixture/`:
+DB-Dump + Uploads). Beim frischen Start stellt `wp-init` ihn automatisch wieder her – inklusive der
+benötigten Plugins/Theme, die in gepinnten Versionen aus dem WordPress-Repository nachinstalliert
+werden. Ein `down -v && up -d` liefert also wieder **exakt denselben Shop**.
 
 ## Projektstruktur
 
@@ -258,8 +277,9 @@ WordPress-Repository nachinstalliert werden. Ein `down -v && up -d` liefert also
 │  │  ├─ shop.sql.gz
 │  │  └─ uploads.tar.gz
 │  └─ mu-plugins/                # Immer aktive WordPress-Plugins (per Volume eingebunden)
-│     ├─ matomo-tracking.php     # Baut den Matomo-Tracking-Code ein (inkl. E-Commerce)
-│     └─ m392-test-payments.php  # Test-Zahlungsmethoden (Rechnung, Kreditkarte, TWINT)
+│     ├─ matomo-tracking.php     # Baut den Matomo-Tracking-Code ein (inkl. E-Commerce + Suche)
+│     ├─ m392-test-payments.php  # Test-Zahlungsmethoden (Rechnung, Kreditkarte, TWINT)
+│     └─ m392-german-shop.php    # Deutsche Übersetzungen/Labels (z. B. „Angebot!", Trust-Badge)
 │
 ├─ matomo/
 │  └─ matomo-init.sh             # Installiert & konfiguriert Matomo headless, erzeugt API-Token
