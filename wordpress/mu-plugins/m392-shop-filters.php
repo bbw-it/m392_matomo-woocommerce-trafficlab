@@ -123,9 +123,9 @@ body.woocommerce-shop .woocommerce-page-header { display: none !important; }
 .m392-filters{
   --m392-fg:#202833; --m392-active:#212121; --m392-mut:#9a988f;
   --m392-line:#e4e1da; --m392-border:#d7d3cb;
-  width:100%; margin:0 0 36px; padding:18px 0;
+  width:100%; margin:0 0 36px; padding:0 0 18px;
   font-family:inherit; color:var(--m392-fg);
-  border-top:1px solid var(--m392-line); border-bottom:1px solid var(--m392-line);
+  border-bottom:1px solid var(--m392-line);
 }
 .m392-filters__bar{ display:flex; align-items:center; gap:18px 34px; flex-wrap:wrap; }
 .m392-filters__filters{ display:flex; align-items:center; gap:18px 30px; flex-wrap:wrap; }
@@ -185,7 +185,9 @@ function m392_shop_filters_js() {
     // Botiga rendert den Sortier-Hook in einer halbbreiten Spalte (.row). Wir
     // ziehen die Leiste heraus, platzieren sie volle Breite über dem Raster und
     // blenden die ursprüngliche (jetzt leere) Sortier-Zeile aus.
-    var sortingRow = bar.closest('.row');
+    // Den kompletten Botiga-Sortier-Wrapper ausblenden (nicht nur die innere .row);
+    // sonst bleibt seine 1px-Unterkante als graue Linie ueber dem Filter stehen.
+    var sortingRow = bar.closest('.woocommerce-sorting-wrapper') || bar.closest('.row');
     if (grid.parentNode) { grid.parentNode.insertBefore(bar, grid); }
     if (sortingRow && sortingRow !== bar && !sortingRow.contains(grid)) {
       sortingRow.style.display = 'none';
