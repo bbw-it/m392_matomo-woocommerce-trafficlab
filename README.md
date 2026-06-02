@@ -146,8 +146,17 @@ fertig mit:
 - **Deutschsprachige Blog-Beiträge** (Kategorie/Ratgeber) mit thematisch passenden Beitragsbildern.
 - Saubere Seitenstruktur und Menü (Startseite, Blog, **Shop**, Kontakt).
 
+Auf den Shop-/Kategorieseiten gibt es eine **moderne Filter- & Sortierleiste** (Preis, Bewertung,
+nur Angebote sowie Sortierung nach Empfehlung/Beliebtheit/Bewertung/Preis/Neuheiten/Name). Sie
+wirkt **sofort im Browser** (ohne Neuladen) und liest die echten Produktdaten serverseitig aus.
+
 In jede Shop-Seite ist der **Matomo-Tracking-Code** eingebaut (über ein Must-Use-Plugin), sodass
 jeder Klick und jede Bestellung in Matomo erscheint.
+
+> **WordPress-Dateien von Hand bearbeiten:** Das komplette WordPress-Verzeichnis ist als
+> **Bind-Mount** auf den Host gelegt (`./wordpress-html/`). Dort lassen sich Plugins, Themes,
+> Uploads oder `wp-config.php` direkt importieren/bearbeiten – die Änderungen sind sofort im
+> Container sichtbar. Der Ordner wird beim ersten Start automatisch befüllt.
 
 ### 2. Matomo (Web-Analyse)
 
@@ -258,6 +267,11 @@ docker compose up -d
 docker compose down -v && docker compose up -d
 ```
 
+> **Hinweis Bind-Mount:** `down -v` entfernt die Docker-Volumes (Datenbank, Matomo), **nicht** aber
+> die WordPress-Dateien auf dem Host (`./wordpress-html/`). Beim nächsten Start spielt `wp-init` die
+> Fixture sauber darüber ein. Für ein komplett jungfräuliches Docroot zusätzlich den Ordner leeren:
+> `rm -rf ./wordpress-html/* ./wordpress-html/.htaccess` (vor `up -d`).
+
 Der **Demo-Shop ist reproduzierbar**: Sein vollständiger Stand – Theme, Demo-Produkte mit deutschen
 Beschreibungen, **Bewertungen/Sterne**, Blog-Beiträge, Seiten, Bilder sowie alle Einstellungen
 (Sprache, Währung EUR, Standort Berlin) – ist als **Fixture** eingefroren (`wordpress/fixture/`:
@@ -276,6 +290,8 @@ werden. Ein `down -v && up -d` liefert also wieder **exakt denselben Shop**.
 ├─ db/
 │  └─ init/01-init-databases.sh  # Legt beide Datenbanken + Benutzer an (Passwörter aus .env)
 │
+├─ wordpress-html/               # WordPress-Docroot als Bind-Mount (Host) – wird generiert,
+│                                #   nicht versioniert; hier von Hand Dateien importieren
 ├─ wordpress/
 │  ├─ wp-init.sh                 # Richtet Shop ein bzw. spielt die Demo-Fixture wieder ein
 │  ├─ make-placeholder.php       # Erzeugt Platzhalterbilder (Fallback ohne Internet)
@@ -285,7 +301,8 @@ werden. Ein `down -v && up -d` liefert also wieder **exakt denselben Shop**.
 │  └─ mu-plugins/                # Immer aktive WordPress-Plugins (per Volume eingebunden)
 │     ├─ matomo-tracking.php     # Baut den Matomo-Tracking-Code ein (inkl. E-Commerce + Suche)
 │     ├─ m392-test-payments.php  # Test-Zahlungsmethoden (Rechnung, Kreditkarte, TWINT)
-│     └─ m392-german-shop.php    # Deutsche Übersetzungen/Labels (z. B. „Angebot!", Trust-Badge)
+│     ├─ m392-german-shop.php    # Deutsche Übersetzungen/Labels (z. B. „Angebot!", Trust-Badge)
+│     └─ m392-shop-filters.php   # Moderne Produktfilter & Sortierung (Preis/Bewertung/Angebote)
 │
 ├─ matomo/
 │  └─ matomo-init.sh             # Installiert & konfiguriert Matomo headless, erzeugt API-Token

@@ -5,6 +5,10 @@ matomo-latest.zip
 # Lokale Konfiguration & Secrets
 .env
 
+# WordPress-Docroot (Bind-Mount): wird beim Start generiert bzw. aus der Fixture
+# wiederhergestellt -> nicht versionieren. Eigene Importe landen hier lokal.
+wordpress-html/
+
 # OS
 .DS_Store
 

@@ -37,7 +37,10 @@ services:
       WORDPRESS_DB_USER: ${WP_DB_USER}
       WORDPRESS_DB_PASSWORD: ${WP_DB_PASSWORD}
     volumes:
-      - wordpress_data:/var/www/html
+      # Bind-Mount des kompletten WordPress-Docroots auf den Host. So lassen sich
+      # Dateien von Hand importieren/bearbeiten (Plugins, Themes, Uploads, wp-config).
+      # Wird beim ersten Start vom WordPress-Image befüllt, danach von wp-init.
+      - ./wordpress-html:/var/www/html
       - ./wordpress/mu-plugins:/var/www/html/wp-content/mu-plugins:ro
 
   wp-init:
@@ -62,7 +65,7 @@ services:
       SHOP_COUNTRY: ${SHOP_COUNTRY}
       SHOP_CURRENCY: ${SHOP_CURRENCY}
     volumes:
-      - wordpress_data:/var/www/html
+      - ./wordpress-html:/var/www/html
       - ./wordpress/wp-init.sh:/wp-init.sh:ro
       - ./catalog.json:/seed/catalog.json:ro
       - ./wordpress/fixture:/fixture:ro
@@ -134,6 +137,5 @@ services:
 
 volumes:
   db_data:
-  wordpress_data:
   matomo_data:
   matomo_token:
