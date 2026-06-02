@@ -116,6 +116,10 @@ function m392_shop_filters_css() {
 /* Standard-WooCommerce-Sortierung/Zählung ausblenden – wir liefern eigene. */
 .woocommerce-ordering, .woocommerce-result-count { display: none !important; }
 
+/* Shop-Hauptseite: Kopfbereich (Titel „Shop" + Beschreibung) ausblenden für eine
+   schlanke Optik. Nur auf der Shop-Seite – Kategorieseiten behalten ihren Titel. */
+body.woocommerce-shop .woocommerce-page-header { display: none !important; }
+
 .m392-filters{
   --m392-fg:#202833; --m392-active:#212121; --m392-mut:#9a988f;
   --m392-line:#e4e1da; --m392-border:#d7d3cb;
