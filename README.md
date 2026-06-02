@@ -59,6 +59,9 @@ Mit dieser Umgebung lassen sich u. a. folgende Kompetenzen aus Modul 392 abdecke
 
 ## Architektur
 
+> 📐 **Ausführliche Architektur-Doku** (Tracking-Wege, Datenfluss, Diagramme): siehe
+> [`ARCHITECTURE.md`](ARCHITECTURE.md).
+
 Ein `docker compose` startet sechs Container (drei dauerhafte Web-Dienste, zwei einmalige
 Einrichtungs-Container und eine Datenbank):
 
