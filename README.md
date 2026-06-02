@@ -156,7 +156,10 @@ angelegt (Website-ID 1), E-Commerce aktiviert, Währung EUR. Die Lernenden logge
 arbeiten direkt mit den Berichten – ohne Setup-Hürden.
 
 Damit von der ersten Minute an aussagekräftige Berichte sichtbar sind, befüllt die Umgebung beim
-Start automatisch **rund 4 Wochen Verlaufsdaten** (Besuche, Käufe, Umsatz).
+Start automatisch **rund 24 Monate Verlaufsdaten** (Besuche, Käufe, Umsatz) – mit leichtem
+Wachstums-Trend und Wochen-Saisonalität, damit Zeitvergleiche (Monat/Jahr) etwas hergeben. Das
+Befüllen läuft im Hintergrund und dauert je nach Rechner einige Minuten; der Fortschritt ist im
+Dashboard-Log sichtbar.
 
 Getrackt werden u. a.:
 
@@ -181,8 +184,11 @@ Ein modernes Dashboard auf **http://localhost:8092** erzeugt realistischen Traff
 - **Manuell erzeugen:** sofort X Besuche oder Y Käufe auslösen, oder historische Daten (Tage)
   nachfüllen (Backfill).
 
-Die generierten Käufe nutzen denselben Produktkatalog (`catalog.json`), damit Tracking-Daten und
-Shop konsistent bleiben.
+Die generierten Daten nutzen denselben Produktkatalog (`catalog.json`) wie der echte Shop: **dieselben
+Produkte, Preise, die Kategorie „Kosmetik" und die echten Produkt-/Kategorie-URLs** (`/product/…`,
+`/product-category/cosmetics/`). Auch die E-Commerce-IDs (`wc_<id>`) entsprechen exakt dem, was ein
+echter Browser-Kauf meldet – so zeigt Matomo für synthetischen und realen Traffic **eine konsistente
+Shop-Struktur** (Produkte, Kategorien, On-Site-Suche).
 
 ## Bezahlung im Test-Shop
 
@@ -229,7 +235,7 @@ Alles wird zentral über `.env` gesteuert (Kopie von `.env.example`). Wichtigste
 | `SHOP_CURRENCY` / `SHOP_COUNTRY` / `WP_LOCALE` | `EUR` / `DE` / `de_CH` | Shop-Währung, -Land, Sprachpaket |
 | `*_DB_*` / `MYSQL_ROOT_PASSWORD` | siehe Datei | Datenbank-Namen, -Benutzer, -Passwörter |
 | `TRAFFIC_AUTO_SEED` | `true` | Beim Start automatisch Historie befüllen |
-| `TRAFFIC_BACKFILL_DAYS` | `28` | Zeitraum der historischen Befüllung (Tage) |
+| `TRAFFIC_BACKFILL_DAYS` | `730` | Zeitraum der historischen Befüllung (Tage, ≈ 24 Monate) |
 | `TRAFFIC_LIVE_DRIP` | `true` | Live-Tropf beim Start aktiv (in der UI abschaltbar) |
 | `TRAFFIC_DRIP_VISITS_PER_HOUR` | `120` | Startwert: Besucher/Stunde des Live-Tropfs |
 | `TRAFFIC_CONVERSION_RATE` | `0.04` | Startwert: Anteil Besuche mit Kauf (0–1) |

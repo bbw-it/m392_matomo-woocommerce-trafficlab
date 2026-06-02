@@ -118,10 +118,15 @@ def gen_orders():
 
 @app.route("/api/backfill", methods=["POST"])
 def backfill():
-    days = int(request.form.get("days", 28))
-    s = generator.backfill(days, conversion_rate=STATE["conversion_rate"])
+    days = int(request.form.get("days", 730))
+
+    def _progress(done, total, running):
+        _log(f"Backfill … {done}/{total} Tage ({running['visits']} Besuche, "
+             f"{running['purchases']} Käufe)")
+
+    s = generator.backfill(days, conversion_rate=STATE["conversion_rate"], progress=_progress)
     _accumulate(s)
-    _log(f"Backfill {days} Tage – {s['visits']} Besuche, {s['purchases']} Käufe")
+    _log(f"Backfill {days} Tage fertig – {s['visits']} Besuche, {s['purchases']} Käufe")
     return jsonify(s)
 
 
@@ -160,19 +165,25 @@ def set_drip():
 def _maybe_auto_seed():
     if os.environ.get("TRAFFIC_AUTO_SEED", "true").lower() != "true":
         return
-    days = int(os.environ.get("TRAFFIC_BACKFILL_DAYS", "28"))
+    days = int(os.environ.get("TRAFFIC_BACKFILL_DAYS", "730"))
+
+    def _progress(done, total, running):
+        _log(f"Auto-Seed … {done}/{total} Tage ({running['visits']} Besuche, "
+             f"{running['purchases']} Käufe)")
 
     def seed():
         # Auf Matomo-Bereitschaft warten (installiert + gueltiger Token),
         # statt blind 20 s zu schlafen. Verhindert das Rennen mit matomo-init,
         # damit der historische Backfill (braucht token_auth) zuverlaessig landet.
-        _log("Auto-Seed: warte auf Matomo-Bereitschaft (Installation + Token) ...")
+        _log(f"Auto-Seed: warte auf Matomo-Bereitschaft; befülle danach {days} Tage "
+             f"(~24 Monate) Historie ...")
         if not generator.wait_for_ready(timeout=600):
             _log("Auto-Seed-Fehler: Matomo nicht rechtzeitig bereit (Timeout).")
             return
         for attempt in range(1, 4):
             try:
-                s = generator.backfill(days, conversion_rate=STATE["conversion_rate"])
+                s = generator.backfill(days, conversion_rate=STATE["conversion_rate"],
+                                       progress=_progress)
                 _accumulate(s)
                 _log(f"Auto-Seed: {days} Tage Historie befüllt ({s['visits']} Besuche)")
                 return

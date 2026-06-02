@@ -219,8 +219,8 @@
       <div class="field"><label>Käufe erzwingen</label>
         <input type="number" id="m-orders" value="10" min="1"><button class="ghost" data-act="orders">Auslösen</button></div>
       <div class="field"><label>Historie befüllen (Tage)</label>
-        <input type="number" id="m-days" value="28" min="1"><button class="primary" data-act="backfill">Backfill</button></div>
-      <div class="hint">Backfill schreibt datierte Besuche in die Vergangenheit (für gefüllte Charts in Matomo).</div>
+        <input type="number" id="m-days" value="730" min="1"><button class="primary" data-act="backfill">Backfill</button></div>
+      <div class="hint">Backfill schreibt datierte Besuche in die Vergangenheit (für gefüllte Charts in Matomo). Standard: 730 Tage ≈ 24 Monate – das kann einige Minuten dauern.</div>
     </div>
 
     <div class="card" style="animation-delay:.32s">

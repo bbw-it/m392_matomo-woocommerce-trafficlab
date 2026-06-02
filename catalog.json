@@ -1,16 +1,22 @@
 {
   "currency": "EUR",
-  "categories": ["Bekleidung", "Accessoires", "Haushalt", "Elektronik"],
+  "shop_base_url": "http://localhost:8090",
+  "categories": [
+    { "name": "Kosmetik", "slug": "cosmetics" }
+  ],
+  "search_terms": [
+    "cleanser", "toner", "cream", "mask", "essence", "concealer", "blush",
+    "pore", "moisturizing", "serum", "kosmetik", "gesichtspflege",
+    "reinigung", "feuchtigkeit", "anti aging", "maske"
+  ],
   "products": [
-    { "sku": "TS-001",  "name": "Bio-Baumwoll-T-Shirt",   "price": 29.90, "category": "Bekleidung",  "popularity": 9, "image_keyword": "tshirt" },
-    { "sku": "HD-002",  "name": "Kapuzenpullover Grau",    "price": 69.00, "category": "Bekleidung",  "popularity": 6, "image_keyword": "hoodie,sweater" },
-    { "sku": "CAP-003", "name": "Snapback Cap Schwarz",    "price": 24.50, "category": "Accessoires", "popularity": 5, "image_keyword": "cap,hat" },
-    { "sku": "BAG-004", "name": "Canvas-Umhängetasche",    "price": 49.90, "category": "Accessoires", "popularity": 4, "image_keyword": "handbag,bag" },
-    { "sku": "MUG-005", "name": "Keramik-Tasse 300ml",     "price": 14.50, "category": "Haushalt",    "popularity": 8, "image_keyword": "mug,coffee" },
-    { "sku": "BTL-006", "name": "Edelstahl-Trinkflasche",  "price": 27.90, "category": "Haushalt",    "popularity": 7, "image_keyword": "waterbottle,bottle" },
-    { "sku": "CDL-007", "name": "Duftkerze Vanille",       "price": 18.00, "category": "Haushalt",    "popularity": 3, "image_keyword": "candle" },
-    { "sku": "EAR-008", "name": "Bluetooth-Kopfhörer",     "price": 89.00, "category": "Elektronik",  "popularity": 7, "image_keyword": "headphones" },
-    { "sku": "CHG-009", "name": "USB-C Schnellladegerät",  "price": 34.90, "category": "Elektronik",  "popularity": 6, "image_keyword": "charger,usb" },
-    { "sku": "PWR-010", "name": "Powerbank 10000mAh",      "price": 39.90, "category": "Elektronik",  "popularity": 5, "image_keyword": "powerbank,battery" }
+    { "sku": "wc_96", "slug": "vinopure-pore-purifying-gel-cleanser-salicylic-acid-combination", "name": "Vinopure Pore Purifying Gel Cleanser",      "price": 14.00, "category": "Kosmetik", "category_slug": "cosmetics", "popularity": 10 },
+    { "sku": "wc_95", "slug": "deep-sweep-2-bha-pore-cleaning-toner-with-moringa",                "name": "Deep Sweep 2% BHA Pore Cleaning Toner",     "price": 21.00, "category": "Kosmetik", "category_slug": "cosmetics", "popularity": 8 },
+    { "sku": "wc_94", "slug": "ultra-facial-moisturizing-cream-with-squalane-combination",       "name": "Ultra Facial Moisturizing Cream",           "price": 14.00, "category": "Kosmetik", "category_slug": "cosmetics", "popularity": 9 },
+    { "sku": "wc_40", "slug": "facial-treatment-essence-pitera-essence",                         "name": "Facial Treatment Essence (Pitera Essence)", "price": 18.00, "category": "Kosmetik", "category_slug": "cosmetics", "popularity": 7 },
+    { "sku": "wc_93", "slug": "watermelon-glow-hyaluronic-clay-pore-tight-facial-mask",          "name": "Watermelon Glow Hyaluronic Clay Pore",      "price": 14.00, "category": "Kosmetik", "category_slug": "cosmetics", "popularity": 6 },
+    { "sku": "wc_31", "slug": "rare-earth-deep-pore-minimizing-cleansing-clay-mask",             "name": "Rare Earth Deep Pore Minimizing Cleansing", "price": 14.00, "category": "Kosmetik", "category_slug": "cosmetics", "popularity": 5 },
+    { "sku": "wc_42", "slug": "mini-radiant-creamy-concealer-and-blush-customizable-set",        "name": "Mini Radiant Creamy Concealer and Blush",   "price": 14.00, "category": "Kosmetik", "category_slug": "cosmetics", "popularity": 6 },
+    { "sku": "wc_97", "slug": "eternal-sunset-collection-lip-and-cheek-set-with-jojoba-oil",     "name": "Eternal Sunset Collection Lip and Cheek",   "price": 12.00, "category": "Kosmetik", "category_slug": "cosmetics", "popularity": 7 }
   ]
 }
