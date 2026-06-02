@@ -180,6 +180,8 @@ Getrackt werden u. a.:
   inkl. abgebrochener Warenkörbe sowie abgeschlossene **Bestellungen** (Conversions, Umsatz)
 - **Suche auf der Website** (*Verhalten → Suche auf der Website*) – nach welchen Begriffen gesucht
   wurde und wie viele Treffer es gab
+- **Datei-Downloads als Ziel** – der „INCI-Leitfaden" (PDF) auf der Blog-Seite ist als **Matomo-Ziel**
+  hinterlegt (*Ziele*); jeder Download zählt als Conversion (auch das Traffic Lab löst ihn aus)
 
 Das gilt sowohl für echte Browser-Aktionen der Lernenden als auch für die synthetischen Daten des
 Datengenerierungstools.

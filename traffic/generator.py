@@ -277,6 +277,18 @@ def simulate_visit(catalog, when=None, force_purchase=False, conversion_rate=0.0
         _send(p)
         pages += 1
 
+    # --- Gelegentlicher PDF-Download (Blog: INCI-Leitfaden) -----------------
+    # ~3,5 % der Besuche laden den Leitfaden herunter. Matomo verbucht das als
+    # Datei-Download → loest das Ziel „PDF-Download: INCI-Leitfaden" aus.
+    pdf = catalog.get("pdf_download_url")
+    if pdf and random.random() < 0.035:
+        p = mkparams()
+        p["url"] = catalog.get("blog_url") or (base + "/")
+        p["action_name"] = "Naturkosmetik verstehen: Was steckt wirklich drin?"
+        p["download"] = pdf
+        _send(p)
+        pages += 1
+
     return {"pages": pages, "purchase": purchased, "revenue": revenue}
 
 

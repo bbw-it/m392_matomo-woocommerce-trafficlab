@@ -194,4 +194,29 @@ else
   log "WARN: Kein gueltiger Token vorhanden - ueberspringe Site-Einstellungen."
 fi
 
+# --- Ziel: PDF-Download (INCI-Leitfaden) -----------------------------------
+# Loest aus, wenn eine Datei mit "inci" im Namen heruntergeladen wird (Matomo
+# trackt PDF-Downloads automatisch via enableLinkTracking). Idempotent.
+if [ -n "${TOKEN:-}" ]; then
+  goals="$(curl -s "${BASE}/index.php?module=API&method=Goals.getGoals&idSite=1&format=json&token_auth=${TOKEN}" || true)"
+  if echo "$goals" | grep -qi 'inci'; then
+    log "Ziel 'PDF-Download INCI' bereits vorhanden."
+  else
+    log "Lege Ziel 'PDF-Download: INCI-Leitfaden' an (Datei-Download enthaelt 'inci') ..."
+    curl -s -o /dev/null "${BASE}/index.php" \
+      --data-urlencode "module=API" \
+      --data-urlencode "method=Goals.addGoal" \
+      --data-urlencode "idSite=1" \
+      --data-urlencode "name=PDF-Download: INCI-Leitfaden" \
+      --data-urlencode "matchAttribute=file" \
+      --data-urlencode "patternType=contains" \
+      --data-urlencode "pattern=inci" \
+      --data-urlencode "caseSensitive=0" \
+      --data-urlencode "allowMultipleConversionsPerVisit=1" \
+      --data-urlencode "description=Download des INCI-Leitfaden-PDFs auf der Blog-Seite" \
+      --data-urlencode "token_auth=${TOKEN}" \
+      --data-urlencode "format=json" || echo "[matomo-init] WARN: Ziel konnte nicht angelegt werden."
+  fi
+fi
+
 log "Fertig."

@@ -1,6 +1,8 @@
 {
   "currency": "EUR",
   "shop_base_url": "http://localhost:8090",
+  "blog_url": "http://localhost:8090/naturkosmetik-verstehen-was-steckt-wirklich-drin/",
+  "pdf_download_url": "http://localhost:8090/wp-content/uploads/2026/06/inci-liste-leitfaden.pdf",
   "categories": [
     { "name": "Kosmetik", "slug": "cosmetics" }
   ],
