@@ -172,6 +172,30 @@ if ($form) {
 PHPEOF
   wp eval-file /tmp/m392-thankyou.php --allow-root || echo "[wp-init] WARN: Danke-Seite/Formular-Weiterleitung konnte nicht gesetzt werden."
 
+  # 8c) Bestseller-Prior setzen: total_sales je Produkt aus catalog.json (popularity).
+  #     Die Fixture ist bestellungsfrei (total_sales=0). Damit Bestellungen vom ersten
+  #     Lab-Seed an KLAR gewichtete Bestseller zeigen – deckungsgleich mit der Matomo-
+  #     Bestseller-Gewichtung – wird hier ein Startwert gesetzt. Lab-Bestellungen
+  #     erhoehen total_sales anschliessend weiter.
+  echo "[wp-init] Setze Bestseller-Prior (total_sales aus catalog.json) ..."
+  cat > /tmp/m392-bestseller.php <<'PHPEOF'
+<?php
+$cat = json_decode(file_get_contents('/seed/catalog.json'), true);
+if (is_array($cat) && !empty($cat['products'])) {
+  foreach ($cat['products'] as $cp) {
+    $pid = 0;
+    if (!empty($cp['slug'])) { $o = get_page_by_path($cp['slug'], OBJECT, 'product'); if ($o) { $pid = (int) $o->ID; } }
+    if (!$pid && !empty($cp['sku']) && preg_match('/^wc_(\d+)$/', $cp['sku'], $m)) { $pid = (int) $m[1]; }
+    if ($pid) {
+      $p = wc_get_product($pid);
+      if ($p) { $p->set_total_sales((int) ($cp['popularity'] ?? 0)); $p->save(); }
+    }
+  }
+  echo "Bestseller-Prior gesetzt\n";
+}
+PHPEOF
+  wp eval-file /tmp/m392-bestseller.php --allow-root || echo "[wp-init] WARN: Bestseller-Prior konnte nicht gesetzt werden."
+
   # 9) Caches leeren (inkl. best-effort Elementor-Cache).
   wp cache flush --allow-root || true
   wp eval 'if(class_exists("\\Elementor\\Plugin")){ \Elementor\Plugin::$instance->files_manager->clear_cache(); echo "elementor-cache-cleared"; }' --allow-root || true

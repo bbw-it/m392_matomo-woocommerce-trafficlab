@@ -305,9 +305,11 @@ nicht über Matomo, sondern über einen geschützten REST-Endpunkt im WordPress-
   der Erzeugung unterdrückt (kein SMTP in der Lehrumgebung).
 - **Auth:** gemeinsames Secret `M392_ORDER_API_KEY` (Header `X-M392-Key`); falscher/leerer
   Schlüssel → `401`.
-- **Nicht in der Fixture:** Bestellungen sind – wie die Matomo-Daten – transiente Demodaten.
-  Der Startseed ist idempotent (füllt nur auf den Zielwert auf), bei `down -v && up -d`
-  entstehen sie frisch.
+- **Nicht in der Fixture:** Bestellungen und Kund:innen sind – wie die Matomo-Daten –
+  transiente Demodaten. Die Fixture (`shop.sql.gz`) ist **bestellungs- und kund:innenfrei**;
+  der Bestseller-Prior (`total_sales`) wird beim Restore aus `catalog.json` gesetzt (Schritt 8c
+  in `wp-init.sh`). Der Startseed ist idempotent (füllt nur auf den Zielwert auf), bei
+  `down -v && up -d` entstehen Bestellungen + Kund:innen frisch über ~24 Monate.
 
 > Hinweis: Die Bestellungen sind ein **paralleler, in sich stimmiger** Strom (gleiche
 > Produkte/Bestseller, gleiche Test-Zahlarten) – sie sind **nicht** 1:1 dieselben Transaktionen
