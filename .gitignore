@@ -7,7 +7,7 @@ matomo-latest.zip
 
 # WordPress-Docroot (Bind-Mount): wird beim Start generiert bzw. aus der Fixture
 # wiederhergestellt -> nicht versionieren. Eigene Importe landen hier lokal.
-wordpress-html/
+wordpress/www/
 
 # OS
 .DS_Store
@@ -21,6 +21,6 @@ node_modules/
 
 # Fixtures fuer reproduzierbaren Demo-Shop MUESSEN versioniert werden
 # (DB-Dump + Uploads-Archiv), daher hier explizit NICHT ignorieren.
-!wordpress/fixture/
-!wordpress/fixture/shop.sql.gz
-!wordpress/fixture/uploads.tar.gz
+!wordpress/init/fixture/
+!wordpress/init/fixture/shop.sql.gz
+!wordpress/init/fixture/uploads.tar.gz

@@ -43,8 +43,8 @@ services:
       # Bind-Mount des kompletten WordPress-Docroots auf den Host. So lassen sich
       # Dateien von Hand importieren/bearbeiten (Plugins, Themes, Uploads, wp-config).
       # Wird beim ersten Start vom WordPress-Image befüllt, danach von wp-init.
-      - ./wordpress-html:/var/www/html
-      - ./wordpress/mu-plugins:/var/www/html/wp-content/mu-plugins:ro
+      - ./wordpress/www:/var/www/html
+      - ./wordpress/init/mu-plugins:/var/www/html/wp-content/mu-plugins:ro
 
   wp-init:
     image: wordpress:cli-${WORDPRESS_CLI_VERSION}
@@ -68,10 +68,10 @@ services:
       SHOP_COUNTRY: ${SHOP_COUNTRY}
       SHOP_CURRENCY: ${SHOP_CURRENCY}
     volumes:
-      - ./wordpress-html:/var/www/html
-      - ./wordpress/wp-init.sh:/wp-init.sh:ro
+      - ./wordpress/www:/var/www/html
+      - ./wordpress/init/wp-init.sh:/wp-init.sh:ro
       - ./catalog.json:/seed/catalog.json:ro
-      - ./wordpress/fixture:/fixture:ro
+      - ./wordpress/init/fixture:/fixture:ro
     user: "33:33"
     entrypoint: ["bash", "/wp-init.sh"]
     restart: "no"

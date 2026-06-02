@@ -157,7 +157,7 @@ In jede Shop-Seite ist der **Matomo-Tracking-Code** eingebaut (über ein Must-Us
 jeder Klick und jede Bestellung in Matomo erscheint.
 
 > **WordPress-Dateien von Hand bearbeiten:** Das komplette WordPress-Verzeichnis ist als
-> **Bind-Mount** auf den Host gelegt (`./wordpress-html/`). Dort lassen sich Plugins, Themes,
+> **Bind-Mount** auf den Host gelegt (`./wordpress/www/`). Dort lassen sich Plugins, Themes,
 > Uploads oder `wp-config.php` direkt importieren/bearbeiten – die Änderungen sind sofort im
 > Container sichtbar. Der Ordner wird beim ersten Start automatisch befüllt.
 
@@ -290,13 +290,13 @@ docker compose down -v && docker compose up -d
 ```
 
 > **Hinweis Bind-Mount:** `down -v` entfernt die Docker-Volumes (Datenbank, Matomo), **nicht** aber
-> die WordPress-Dateien auf dem Host (`./wordpress-html/`). Beim nächsten Start spielt `wp-init` die
+> die WordPress-Dateien auf dem Host (`./wordpress/www/`). Beim nächsten Start spielt `wp-init` die
 > Fixture sauber darüber ein. Für ein komplett jungfräuliches Docroot zusätzlich den Ordner leeren:
-> `rm -rf ./wordpress-html/* ./wordpress-html/.htaccess` (vor `up -d`).
+> `rm -rf ./wordpress/www/* ./wordpress/www/.htaccess` (vor `up -d`).
 
 Der **Demo-Shop ist reproduzierbar**: Sein vollständiger Stand – Theme, Demo-Produkte mit deutschen
 Beschreibungen, **Bewertungen/Sterne**, Blog-Beiträge, Seiten, Bilder sowie alle Einstellungen
-(Sprache, Währung EUR, Standort Berlin) – ist als **Fixture** eingefroren (`wordpress/fixture/`:
+(Sprache, Währung EUR, Standort Berlin) – ist als **Fixture** eingefroren (`wordpress/init/fixture/`:
 DB-Dump + Uploads). Beim frischen Start stellt `wp-init` ihn automatisch wieder her – inklusive der
 benötigten Plugins/Theme, die in gepinnten Versionen aus dem WordPress-Repository nachinstalliert
 werden. Ein `down -v && up -d` liefert also wieder **exakt denselben Shop**.
@@ -312,19 +312,21 @@ werden. Ein `down -v && up -d` liefert also wieder **exakt denselben Shop**.
 ├─ db/
 │  └─ init/01-init-databases.sh  # Legt beide Datenbanken + Benutzer an (Passwörter aus .env)
 │
-├─ wordpress-html/               # WordPress-Docroot als Bind-Mount (Host) – wird generiert,
-│                                #   nicht versioniert; hier von Hand Dateien importieren
 ├─ wordpress/
-│  ├─ wp-init.sh                 # Richtet Shop ein bzw. spielt die Demo-Fixture wieder ein
-│  ├─ make-placeholder.php       # Erzeugt Platzhalterbilder (Fallback ohne Internet)
-│  ├─ fixture/                   # Eingefrorener Demo-Shop (DB-Dump + Uploads)
-│  │  ├─ shop.sql.gz
-│  │  └─ uploads.tar.gz
-│  └─ mu-plugins/                # Immer aktive WordPress-Plugins (per Volume eingebunden)
-│     ├─ matomo-tracking.php     # Baut den Matomo-Tracking-Code ein (inkl. E-Commerce + Suche)
-│     ├─ m392-test-payments.php  # Test-Zahlungsmethoden (Rechnung, Kreditkarte, TWINT)
-│     ├─ m392-german-shop.php    # Deutsche Übersetzungen/Labels (z. B. „Angebot!", Trust-Badge)
-│     └─ m392-shop-filters.php   # Moderne Produktfilter & Sortierung (Preis/Bewertung/Angebote)
+│  ├─ init/                      # Einrichtung & versioniertes Material (Bind-Mounts in Container)
+│  │  ├─ wp-init.sh              # Richtet Shop ein bzw. spielt die Demo-Fixture wieder ein
+│  │  ├─ make-placeholder.php    # Erzeugt Platzhalterbilder (Fallback ohne Internet)
+│  │  ├─ fixture/                # Eingefrorener Demo-Shop (DB-Dump + Uploads)
+│  │  │  ├─ shop.sql.gz
+│  │  │  └─ uploads.tar.gz
+│  │  └─ mu-plugins/             # Immer aktive WordPress-Plugins (per Volume eingebunden)
+│  │     ├─ matomo-tracking.php  # Baut den Matomo-Tracking-Code ein (inkl. E-Commerce + Suche)
+│  │     ├─ m392-test-payments.php  # Test-Zahlungsmethoden (Rechnung, Kreditkarte, TWINT)
+│  │     ├─ m392-german-shop.php # Deutsche Übersetzungen/Labels (z. B. „Angebot!", Trust-Badge)
+│  │     ├─ m392-shop-filters.php   # Moderne Produktfilter & Sortierung (Preis/Bewertung/Angebote)
+│  │     └─ m392-order-api.php   # REST-Endpunkt: Traffic Lab legt echte Bestellungen an
+│  └─ www/                       # WordPress-Docroot als Bind-Mount (Host) – wird generiert,
+│                                #   nicht versioniert; hier von Hand Dateien importieren
 │
 ├─ matomo/
 │  └─ matomo-init.sh             # Installiert & konfiguriert Matomo headless, erzeugt API-Token
@@ -356,7 +358,7 @@ werden. Ein `down -v && up -d` liefert also wieder **exakt denselben Shop**.
 - **Ports belegt**
   Ports in `.env` ändern (`WORDPRESS_PORT`, `MATOMO_PORT`, `TRAFFIC_PORT`). Hinweis: Der im Shop
   eingebettete Tracking-Code zeigt auf `localhost:8091`; bei geändertem `MATOMO_PORT` die Datei
-  `wordpress/mu-plugins/matomo-tracking.php` anpassen.
+  `wordpress/init/mu-plugins/matomo-tracking.php` anpassen.
 - **Erster Start hängt / lädt lange**
   Beim ersten Start werden Images, Theme/Plugins und Bilder geladen – Internet nötig, etwas Geduld.
 

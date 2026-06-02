@@ -79,8 +79,8 @@ ob von einem echten Browser (Weg A) oder vom Traffic Lab (Weg B).
 **Wichtige Volumes / Bind-Mounts**
 
 ```
-./wordpress-html      ⇄  wordpress:/var/www/html        (Bind-Mount: WP-Docroot auf dem Host)
-./wordpress/mu-plugins⇄  …/wp-content/mu-plugins (ro)   (immer aktive Plugins)
+./wordpress/www      ⇄  wordpress:/var/www/html        (Bind-Mount: WP-Docroot auf dem Host)
+./wordpress/init/mu-plugins ⇄ …/wp-content/mu-plugins (ro)  (immer aktive Plugins)
 ./catalog.json        ⇄  traffic:/seed/catalog.json (ro)(gemeinsamer Produktkatalog)
 matomo_token (Volume) ⇄  matomo-init schreibt, traffic liest   (API-Token-Austausch)
 db_data / matomo_data (Volumes)                          (persistente DB- bzw. Matomo-Dateien)
@@ -123,7 +123,7 @@ Matomo-JavaScript-Schnipsel in jede Seite ein. Der **Browser** lädt dann `matom
 Matomo (`:8091`) und schickt die Tracking-Treffer selbst dorthin. WordPress „spricht" also
 nie selbst mit Matomo.
 
-Das übernimmt das Must-Use-Plugin **`wordpress/mu-plugins/matomo-tracking.php`**. Es hängt
+Das übernimmt das Must-Use-Plugin **`wordpress/init/mu-plugins/matomo-tracking.php`**. Es hängt
 sich an `wp_head` und schreibt den Tracking-Code in den `<head>` jeder Shop-Seite:
 
 ```
@@ -300,7 +300,7 @@ Die wichtigsten Stellschrauben, mit denen das Traffic Lab die Matomo-Daten formt
 | **Produkt-Popularität** (stark gespreizt) | klare **Bestseller** + langer Schwanz | `catalog.json · popularity` |
 | **Akquise-Kanäle** (`urlref`) | **Social Media** als stärkster Verkaufskanal (Instagram/Facebook/…) | `generator.py · CHANNELS` |
 | **Conversion-Rate** (Regler) | Anteil Käufe; Schnitt bleibt erhalten (Kanal-Mult. normiert) | `app.py · STATE` / `generator.py` |
-| **Echte Bestellungen** | sichtbar in *WooCommerce → Bestellungen* (Startseed + Live) | `orders.py` + `mu-plugins/m392-order-api.php` |
+| **Echte Bestellungen** | sichtbar in *WooCommerce → Bestellungen* (Startseed + Live) | `orders.py` + `init/mu-plugins/m392-order-api.php` |
 
 **Token-Austausch:** Für **datierte** Treffer in der Vergangenheit verlangt Matomo einen
 API-Token (`token_auth`) und den Parameter `cdt`. `matomo-init` erzeugt den Token und legt
@@ -358,7 +358,7 @@ Reihenfolge. Die beiden `*-init`-Container laufen **einmal** und beenden sich.
    t │
      │  db  ──────────────► healthy ✓
      │   │
-     │   ├─► wordpress  ──► füllt ./wordpress-html mit WP-Core (falls leer)
+     │   ├─► wordpress  ──► füllt ./wordpress/www mit WP-Core (falls leer)
      │   │       │
      │   │       └─► wp-init  ─ Marker gesetzt? ── nein ─► Fixture importieren
      │   │                      (shop.sql.gz + uploads), Theme/Plugins (gepinnt)
@@ -386,7 +386,7 @@ Der Demo-Shop ist als **Fixture** eingefroren, damit ein kompletter Reset wieder
 Stand erzeugt:
 
 ```
-   wordpress/fixture/
+   wordpress/init/fixture/
      ├─ shop.sql.gz      ← kompletter WordPress-DB-Dump (Produkte, Bewertungen,
      │                      Seiten, Blog, Einstellungen: Sprache/EUR/Berlin, total_sales …)
      └─ uploads.tar.gz   ← wp-content/uploads (Produkt-/Beitragsbilder)
@@ -397,7 +397,7 @@ Stand erzeugt:
 - Die **Matomo-Daten** sind bewusst **nicht** Teil der Fixture: sie werden beim Start vom
   Traffic Lab neu erzeugt (24-Monats-Backfill). So ist die Historie immer „frisch datiert".
 - Hinweis Bind-Mount: `down -v` löscht die Docker-Volumes (DB, Matomo), **nicht** den
-  Host-Ordner `./wordpress-html`. `wp-init` spielt die Fixture sauber darüber.
+  Host-Ordner `./wordpress/www`. `wp-init` spielt die Fixture sauber darüber.
 
 ---
 
@@ -412,14 +412,16 @@ Stand erzeugt:
 ├─ db/init/01-init-databases.sh    # legt beide DBs + Benutzer an (aus .env)
 │
 ├─ wordpress/
-│  ├─ wp-init.sh                   # Fixture-Restore + Theme/Plugins + Permalinks
-│  ├─ fixture/                     # eingefrorener Shop (DB-Dump + Uploads)
-│  └─ mu-plugins/
-│     ├─ matomo-tracking.php       # ← Verbindung WP→Matomo (JS-Tracking, E-Commerce, Suche)
-│     ├─ m392-test-payments.php    # Test-Zahlarten (Rechnung, Kreditkarte, TWINT)
-│     ├─ m392-german-shop.php      # deutsche Labels/Übersetzungen
-│     ├─ m392-shop-filters.php     # Produktfilter & Sortierung im Shop
-│     └─ m392-order-api.php        # ← REST-Endpunkt: Traffic Lab legt echte Bestellungen an
+│  ├─ init/                        # Einrichtung + versioniertes Material (Bind-Mounts)
+│  │  ├─ wp-init.sh                # Fixture-Restore + Theme/Plugins + Permalinks
+│  │  ├─ fixture/                  # eingefrorener Shop (DB-Dump + Uploads)
+│  │  └─ mu-plugins/
+│  │     ├─ matomo-tracking.php    # ← Verbindung WP→Matomo (JS-Tracking, E-Commerce, Suche)
+│  │     ├─ m392-test-payments.php # Test-Zahlarten (Rechnung, Kreditkarte, TWINT)
+│  │     ├─ m392-german-shop.php   # deutsche Labels/Übersetzungen
+│  │     ├─ m392-shop-filters.php  # Produktfilter & Sortierung im Shop
+│  │     └─ m392-order-api.php     # ← REST-Endpunkt: Traffic Lab legt echte Bestellungen an
+│  └─ www/                         # WordPress-Docroot (Bind-Mount, generiert; nicht versioniert)
 │
 ├─ matomo/matomo-init.sh           # Matomo headless installieren, Site+Ziele, Token erzeugen
 │
@@ -432,7 +434,7 @@ Stand erzeugt:
 
 **Zwei Zeilen, die das Zusammenspiel definieren:**
 
-- `wordpress/mu-plugins/matomo-tracking.php` → `$matomo_url = 'http://localhost:8091/'`
+- `wordpress/init/mu-plugins/matomo-tracking.php` → `$matomo_url = 'http://localhost:8091/'`
   (Browser-seitige Matomo-URL; verbindet **echte** Besucher mit Matomo).
 - `traffic/generator.py` → `MATOMO_URL = 'http://matomo'`, `ID_SITE = 1`
   (interne Tracking-API; verbindet das **Traffic Lab** mit Matomo).
