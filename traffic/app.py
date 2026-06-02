@@ -1,5 +1,6 @@
 """Flask-Steuerpult für den Traffic-Generator (Modul 392)."""
 import os
+import random
 import threading
 import time
 
@@ -32,6 +33,15 @@ LOCK = threading.Lock()
 DRIP_MIN_PER_HOUR = 6
 DRIP_MAX_PER_HOUR = 1200
 
+# Organischer "Tropf": Besuche kommen in kleinen Schueben (mal mehrere Gaeste
+# gleichzeitig), mit zufaelligen Pausen dazwischen – kein striktes Intervall.
+# Schubgroesse: meist 1, gelegentlich mehrere. _BURST_MEAN haelt zusammen mit den
+# exponentiell verteilten Pausen den langfristigen Schnitt bei ~Besucher/Stunde.
+_BURST_WEIGHTS = [(1, 0.62), (2, 0.22), (3, 0.10), (4, 0.045), (5, 0.015)]
+_BURST_SIZES = [b for b, _ in _BURST_WEIGHTS]
+_BURST_PROBS = [w for _, w in _BURST_WEIGHTS]
+_BURST_MEAN = sum(b * w for b, w in _BURST_WEIGHTS)
+
 
 def _log(msg):
     ts = time.strftime("%H:%M:%S")
@@ -53,14 +63,22 @@ def _drip_worker():
     # ersten Besuche ins Leere, bevor matomo-init fertig ist.
     generator.wait_for_ready(timeout=600)
     while True:
-        if STATE["live_drip"]:
-            try:
-                s = generator.generate_visits(1, conversion_rate=STATE["conversion_rate"])
-                _accumulate(s)
-            except Exception as exc:
-                _log(f"Drip-Fehler: {exc}")
+        if not STATE["live_drip"]:
+            time.sleep(1.0)          # pausiert: schnell wieder aufnehmbar
+            continue
         per_hour = max(1, STATE["drip_per_hour"])
-        time.sleep(max(0.5, 3600.0 / per_hour))
+        # Schub: meist 1 Besuch, gelegentlich mehrere Gaeste "gleichzeitig".
+        burst = random.choices(_BURST_SIZES, weights=_BURST_PROBS)[0]
+        try:
+            s = generator.generate_visits(burst, conversion_rate=STATE["conversion_rate"])
+            _accumulate(s)
+        except Exception as exc:
+            _log(f"Drip-Fehler: {exc}")
+        # Exponentiell verteilte Pause (Poisson-Ankuenfte): mal Schlag auf Schlag,
+        # mal laengere Ruhe. Erwartungswert haelt den Schnitt bei ~per_hour/Std.
+        mean_gap = (3600.0 / per_hour) * _BURST_MEAN
+        gap = random.expovariate(1.0 / mean_gap)
+        time.sleep(max(0.3, min(gap, 4.0 * mean_gap)))
 
 
 def _history_worker():

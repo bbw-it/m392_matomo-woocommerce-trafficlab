@@ -188,7 +188,9 @@ Ein modernes Dashboard auf **http://localhost:8092** erzeugt realistischen Traff
 
 - **Live-KPIs & Aktivitäts-Chart:** Besuche, Käufe, Umsatz, Conversion in Echtzeit.
 - **Live-Tropf** (standardmäßig aktiv, per Schalter pausierbar) mit Reglern:
-  - **Besucher / Stunde** – wie viele Besuche kontinuierlich eintropfen.
+  - **Besucher / Stunde** – wie viele Besuche im Schnitt eintropfen. Der Tropf läuft **organisch**:
+    Besuche kommen in kleinen Schüben (mal mehrere Gäste gleichzeitig) mit zufälligen Pausen dazwischen
+    (Poisson-Ankünfte) – kein starres Intervall, aber im Mittel die eingestellte Rate.
   - **Conversion-Rate (%)** – die erwarteten Käufe pro Stunde werden live berechnet und angezeigt.
 - **Manuell erzeugen:** sofort X Besuche oder Y Käufe auslösen, oder historische Daten (Tage)
   nachfüllen (Backfill).
