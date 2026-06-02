@@ -23,12 +23,26 @@ SHOP_BASE_DEFAULT = os.environ.get("SHOP_BASE_URL", "http://localhost:8090")
 # Verbindungs-Pool: deutlich schneller beim 24-Monats-Backfill (zehntausende Requests).
 SESSION = requests.Session()
 
-REFERRERS = [
-    "https://www.google.com/", "https://www.google.com/",
-    "https://www.bing.com/", "https://www.instagram.com/",
-    "https://www.facebook.com/", "https://newsletter.example.com/",
-    "", "",
+# Akquise-Kanaele: bestimmen den Einstiegs-Referrer (urlref der ersten Aktion)
+# UND einen Conversion-Multiplikator. Social Media ist bewusst der staerkste
+# Verkaufskanal (hoher Besuchsanteil + ueberdurchschnittliche Conversion). Die
+# Multiplikatoren sind so normiert, dass der gewichtete Schnitt = 1 bleibt – die
+# im Dashboard eingestellte Conversion-Rate stimmt also im Mittel weiterhin.
+_RAW_CHANNELS = [
+    # name,        Besuchsanteil, roher Conv.-Mult., Referrer (von Matomo erkannt)
+    ("social",     0.34, 2.00, ["https://www.instagram.com/", "https://l.instagram.com/",
+                                 "https://www.facebook.com/", "https://www.pinterest.com/",
+                                 "https://www.tiktok.com/"]),
+    ("search",     0.26, 0.85, ["https://www.google.com/", "https://www.bing.com/"]),
+    ("direct",     0.22, 0.75, [""]),
+    ("newsletter", 0.10, 1.20, ["https://newsletter.example.com/"]),
+    ("referral",   0.08, 0.50, ["https://www.beautyblog.example/", "https://magazin.example/"]),
 ]
+_CH_AVG = (sum(w * m for _, w, m, _ in _RAW_CHANNELS)
+           / sum(w for _, w, m, _ in _RAW_CHANNELS))
+CHANNELS = [{"name": n, "weight": w, "mult": m / _CH_AVG, "refs": r}
+            for n, w, m, r in _RAW_CHANNELS]
+_CH_WEIGHTS = [c["weight"] for c in CHANNELS]
 USER_AGENTS = [
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/130 Safari/537.36",
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 Safari/605.1",
@@ -90,13 +104,13 @@ def wait_for_ready(timeout=300, interval=3):
     return False
 
 
-def _base_params(catalog, visitor_id, ua, when=None):
+def _base_params(catalog, visitor_id, ua, when=None, urlref=""):
     params = {
         "idsite": ID_SITE, "rec": 1, "apiv": 1,
         "_id": visitor_id, "rand": random.randint(1, 10_000_000),
         "ua": ua, "lang": "de-DE",
         "res": random.choice(["1920x1080", "1440x900", "390x844", "412x915"]),
-        "url": _base_url(catalog) + "/", "urlref": random.choice(REFERRERS),
+        "url": _base_url(catalog) + "/", "urlref": urlref,
     }
     if when is not None:
         params["cdt"] = when.strftime("%Y-%m-%d %H:%M:%S")
@@ -147,6 +161,12 @@ def _search_result_count(catalog, keyword):
     return count
 
 
+def _pick_channel():
+    """Akquise-Kanal samt Einstiegs-Referrer und Conversion-Multiplikator waehlen."""
+    c = random.choices(CHANNELS, weights=_CH_WEIGHTS, k=1)[0]
+    return {"name": c["name"], "ref": random.choice(c["refs"]), "mult": c["mult"]}
+
+
 def simulate_visit(catalog, when=None, force_purchase=False, conversion_rate=0.04):
     """Ein kompletter Besucherpfad. Gibt dict mit Kennzahlen zurück."""
     visitor_id = uuid.uuid4().hex[:16]
@@ -154,14 +174,25 @@ def simulate_visit(catalog, when=None, force_purchase=False, conversion_rate=0.0
     base = _base_url(catalog)
     products = catalog["products"]
     categories = _category_list(catalog)
+    channel = _pick_channel()
+    # Kanalabhaengige Conversion (Social konvertiert ueberdurchschnittlich).
+    eff_cr = min(0.95, conversion_rate * channel["mult"])
 
     pages = 0
+    # Einstiegs-Referrer traegt nur die ERSTE Aktion des Besuchs (Matomo nutzt den
+    # Referrer der Einstiegsseite zur Kanal-Zuordnung); Folgeaktionen sind intern.
+    _entry = {"ref": channel["ref"]}
+
+    def mkparams():
+        p = _base_params(catalog, visitor_id, ua, when, urlref=_entry["ref"])
+        _entry["ref"] = ""
+        return p
 
     # --- Optionaler Einstieg ueber eine On-Site-Suche (~30%) ----------------
     if random.random() < 0.30:
         keyword = random.choice(_search_keywords(catalog))
         count = _search_result_count(catalog, keyword)
-        p = _base_params(catalog, visitor_id, ua, when)
+        p = mkparams()
         p["url"] = f"{base}/?s={keyword.replace(' ', '+')}&post_type=product"
         # KEIN action_name: Matomo nutzt die Suche als Aktion.
         p["search"] = keyword
@@ -175,7 +206,7 @@ def simulate_visit(catalog, when=None, force_purchase=False, conversion_rate=0.0
     # --- 1-2 Kategorie-Ansichten (mit _pkc) ---------------------------------
     cat_views = random.sample(categories, min(random.randint(1, 2), len(categories))) if categories else []
     for cat in cat_views:
-        p = _base_params(catalog, visitor_id, ua, when)
+        p = mkparams()
         p["url"] = f"{base}/product-category/{cat['slug']}/"
         p["action_name"] = f"Kategorie: {cat['name']}"
         p["_pkc"] = cat["name"]
@@ -190,7 +221,7 @@ def simulate_visit(catalog, when=None, force_purchase=False, conversion_rate=0.0
     for _ in range(n_products):
         pr = random.choices(products, weights=weights, k=1)[0]
         viewed_products.append(pr)
-        p = _base_params(catalog, visitor_id, ua, when)
+        p = mkparams()
         p["url"] = f"{base}/product/{pr['slug']}/"
         p["action_name"] = pr["name"]
         p["_pks"] = pr["sku"]
@@ -202,7 +233,7 @@ def simulate_visit(catalog, when=None, force_purchase=False, conversion_rate=0.0
         when = _advance(when)
 
     # --- Kaufpfad -----------------------------------------------------------
-    purchased = force_purchase or (random.random() < conversion_rate)
+    purchased = force_purchase or (random.random() < eff_cr)
     revenue = 0.0
     if purchased:
         if viewed_products and random.random() < 0.7:
@@ -218,7 +249,7 @@ def simulate_visit(catalog, when=None, force_purchase=False, conversion_rate=0.0
             items.append([pr["sku"], pr["name"], pr["category"], pr["price"], qty])
         shipping = 0.0 if subtotal >= 50 else 4.90
         revenue = round(subtotal + shipping, 2)
-        p = _base_params(catalog, visitor_id, ua, when)
+        p = mkparams()
         p["url"] = f"{base}/checkout/order-received/"
         p["action_name"] = "Bestellbestätigung"
         p["idgoal"] = 0
@@ -237,7 +268,7 @@ def simulate_visit(catalog, when=None, force_purchase=False, conversion_rate=0.0
             qty = random.randint(1, 2)
             subtotal += pr["price"] * qty
             items.append([pr["sku"], pr["name"], pr["category"], pr["price"], qty])
-        p = _base_params(catalog, visitor_id, ua, when)
+        p = mkparams()
         p["url"] = f"{base}/cart/"
         p["action_name"] = "Warenkorb"
         p["idgoal"] = 0

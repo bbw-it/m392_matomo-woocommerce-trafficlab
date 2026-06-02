@@ -201,6 +201,18 @@ Produkte, Preise, die Kategorie „Kosmetik" und die echten Produkt-/Kategorie-U
 echter Browser-Kauf meldet – so zeigt Matomo für synthetischen und realen Traffic **eine konsistente
 Shop-Struktur** (Produkte, Kategorien, On-Site-Suche).
 
+Die Grunddaten sind bewusst **realistisch und auswertbar** angelegt:
+
+- **Klare Bestseller statt Gleichverteilung:** Produkte verkaufen sich nach gewichteter Beliebtheit –
+  einige laufen sehr gut, andere bilden den „langen Schwanz" (Top-3 ≈ ¾ des Umsatzes). Sichtbar in
+  *Matomo → E-Commerce → Produkte* sowie im Shop-Filter „Beliebtheit".
+- **Akquise-Kanäle mit Aussage:** Jeder Besuch kommt über einen Kanal (Social, Suche, Direkt,
+  Newsletter, Verweis). **Social Media** (Instagram, Facebook, Pinterest, TikTok) ist als
+  **stärkster Verkaufskanal** modelliert – hoher Besuchsanteil *und* überdurchschnittliche
+  Conversion. In *Matomo → Akquise* bzw. den E-Commerce-Berichten je Kanal wird damit ablesbar,
+  dass Social für diesen Shop am meisten Umsatz bringt. Die Kanal-Multiplikatoren sind normiert, die
+  im Dashboard eingestellte Conversion-Rate bleibt im Mittel erhalten.
+
 ## Bezahlung im Test-Shop
 
 Im Checkout stehen drei **Test-Zahlungsmethoden** bereit (komplett offline, ohne externe Konten),

@@ -10,13 +10,13 @@
     "reinigung", "feuchtigkeit", "anti aging", "maske"
   ],
   "products": [
-    { "sku": "wc_96", "slug": "vinopure-pore-purifying-gel-cleanser-salicylic-acid-combination", "name": "Vinopure Pore Purifying Gel Cleanser",      "price": 14.00, "category": "Kosmetik", "category_slug": "cosmetics", "popularity": 10 },
-    { "sku": "wc_95", "slug": "deep-sweep-2-bha-pore-cleaning-toner-with-moringa",                "name": "Deep Sweep 2% BHA Pore Cleaning Toner",     "price": 21.00, "category": "Kosmetik", "category_slug": "cosmetics", "popularity": 8 },
-    { "sku": "wc_94", "slug": "ultra-facial-moisturizing-cream-with-squalane-combination",       "name": "Ultra Facial Moisturizing Cream",           "price": 14.00, "category": "Kosmetik", "category_slug": "cosmetics", "popularity": 9 },
-    { "sku": "wc_40", "slug": "facial-treatment-essence-pitera-essence",                         "name": "Facial Treatment Essence (Pitera Essence)", "price": 18.00, "category": "Kosmetik", "category_slug": "cosmetics", "popularity": 7 },
-    { "sku": "wc_93", "slug": "watermelon-glow-hyaluronic-clay-pore-tight-facial-mask",          "name": "Watermelon Glow Hyaluronic Clay Pore",      "price": 14.00, "category": "Kosmetik", "category_slug": "cosmetics", "popularity": 6 },
-    { "sku": "wc_31", "slug": "rare-earth-deep-pore-minimizing-cleansing-clay-mask",             "name": "Rare Earth Deep Pore Minimizing Cleansing", "price": 14.00, "category": "Kosmetik", "category_slug": "cosmetics", "popularity": 5 },
-    { "sku": "wc_42", "slug": "mini-radiant-creamy-concealer-and-blush-customizable-set",        "name": "Mini Radiant Creamy Concealer and Blush",   "price": 14.00, "category": "Kosmetik", "category_slug": "cosmetics", "popularity": 6 },
-    { "sku": "wc_97", "slug": "eternal-sunset-collection-lip-and-cheek-set-with-jojoba-oil",     "name": "Eternal Sunset Collection Lip and Cheek",   "price": 12.00, "category": "Kosmetik", "category_slug": "cosmetics", "popularity": 7 }
+    { "sku": "wc_96", "slug": "vinopure-pore-purifying-gel-cleanser-salicylic-acid-combination", "name": "Vinopure Pore Purifying Gel Cleanser",      "price": 14.00, "category": "Kosmetik", "category_slug": "cosmetics", "popularity": 100 },
+    { "sku": "wc_94", "slug": "ultra-facial-moisturizing-cream-with-squalane-combination",       "name": "Ultra Facial Moisturizing Cream",           "price": 14.00, "category": "Kosmetik", "category_slug": "cosmetics", "popularity": 72 },
+    { "sku": "wc_95", "slug": "deep-sweep-2-bha-pore-cleaning-toner-with-moringa",                "name": "Deep Sweep 2% BHA Pore Cleaning Toner",     "price": 21.00, "category": "Kosmetik", "category_slug": "cosmetics", "popularity": 55 },
+    { "sku": "wc_40", "slug": "facial-treatment-essence-pitera-essence",                         "name": "Facial Treatment Essence (Pitera Essence)", "price": 18.00, "category": "Kosmetik", "category_slug": "cosmetics", "popularity": 30 },
+    { "sku": "wc_97", "slug": "eternal-sunset-collection-lip-and-cheek-set-with-jojoba-oil",     "name": "Eternal Sunset Collection Lip and Cheek",   "price": 12.00, "category": "Kosmetik", "category_slug": "cosmetics", "popularity": 26 },
+    { "sku": "wc_42", "slug": "mini-radiant-creamy-concealer-and-blush-customizable-set",        "name": "Mini Radiant Creamy Concealer and Blush",   "price": 14.00, "category": "Kosmetik", "category_slug": "cosmetics", "popularity": 16 },
+    { "sku": "wc_93", "slug": "watermelon-glow-hyaluronic-clay-pore-tight-facial-mask",          "name": "Watermelon Glow Hyaluronic Clay Pore",      "price": 14.00, "category": "Kosmetik", "category_slug": "cosmetics", "popularity": 12 },
+    { "sku": "wc_31", "slug": "rare-earth-deep-pore-minimizing-cleansing-clay-mask",             "name": "Rare Earth Deep Pore Minimizing Cleansing", "price": 14.00, "category": "Kosmetik", "category_slug": "cosmetics", "popularity": 9 }
   ]
 }
