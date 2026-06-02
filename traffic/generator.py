@@ -314,12 +314,13 @@ def generate_orders(count, when=None):
     return summary
 
 
-def _day_volume(d, days, base_per_day, day):
-    """Besuchszahl eines historischen Tages: Wachstums-Trend + Wochen-Saisonalität.
+def _trend_season(d, days, day):
+    """Deterministischer Tagesfaktor: Wachstums-Trend × Wochen-Saisonalität.
 
     `d` ist der Abstand zu heute (days..1), `day` das Datum. Über die 24 Monate
     wächst der Shop von ~40% auf ~130% des Basiswerts; Fr/Sa etwas mehr Traffic,
-    So etwas weniger – plus zufälliges Tagesrauschen.
+    So etwas weniger. Dieselbe Kurve formt sowohl die Matomo-Besuche als auch die
+    zeitliche Verteilung der echten WooCommerce-Bestellungen.
     """
     frac = (days - d) / max(1, days)          # 0 (ältester Tag) .. ~1 (heute)
     trend = 0.4 + 0.9 * frac
@@ -330,8 +331,37 @@ def _day_volume(d, days, base_per_day, day):
         season = 0.85
     else:
         season = 1.0
+    return trend * season
+
+
+def _day_volume(d, days, base_per_day, day):
+    """Besuchszahl eines historischen Tages (Trend × Saison × Tagesrauschen)."""
     noise = random.uniform(0.8, 1.2)
-    return max(1, int(round(base_per_day * trend * season * noise)))
+    return max(1, int(round(base_per_day * _trend_season(d, days, day) * noise)))
+
+
+def history_order_dates(days, count):
+    """`count` Bestell-Zeitstempel (Epoch-Sekunden), über die letzten `days` Tage
+    verteilt – mit demselben Wachstums-Trend und Wochenrhythmus wie der Matomo-
+    Backfill. So entspricht der zeitliche Verlauf der echten WooCommerce-
+    Bestellungen dem Zeitraum und Trend der Matomo-Historie.
+    """
+    if count <= 0 or days <= 0:
+        return []
+    now = datetime.now()
+    day_list, weights = [], []
+    for d in range(days, 0, -1):
+        day = now - timedelta(days=d)
+        day_list.append(day)
+        weights.append(_trend_season(d, days, day))
+    chosen = random.choices(day_list, weights=weights, k=count)
+    stamps = []
+    for day in chosen:
+        when = day.replace(hour=random.randint(8, 22),
+                           minute=random.randint(0, 59),
+                           second=random.randint(0, 59))
+        stamps.append(int(when.timestamp()))
+    return stamps
 
 
 def backfill(days, base_per_day=14, conversion_rate=0.04, progress=None):

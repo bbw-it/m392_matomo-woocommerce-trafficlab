@@ -8,7 +8,11 @@
  * Endpunkte (Namespace m392/v1):
  *   GET  /ping              → Status (WooCommerce bereit?, Produkt-/Bestellanzahl)
  *   POST /orders            → legt N realistische Bestellungen an
- *                             Body: { "count": 1..60, "days_back": 0..60 }
+ *                             Body: { "count": 1..60, "days_back": 0..1000 }
+ *                               oder { "dates": [<epoch>, ...] } für exakte
+ *                               Bestelldaten (eine Bestellung je Zeitstempel),
+ *                               damit die Bestell-Historie den Matomo-Zeitraum
+ *                               (~24 Monate) widerspiegelt.
  *                             Header: X-M392-Key: <gemeinsames Secret>
  *
  * Die Bestelldaten (Kund:innen, Adressen, Produkte, Zahlart, Status) werden hier
@@ -57,8 +61,20 @@ function m392_create_orders(WP_REST_Request $req) {
     // Während dieses Requests KEINE E-Mails verschicken (kein SMTP in der Lehrumgebung).
     add_filter('pre_wp_mail', '__return_false', 99);
 
-    $count     = max(1, min(60, (int) $req->get_param('count')));
-    $days_back = max(0, min(60, (int) $req->get_param('days_back')));
+    // Explizite Bestelldaten (Epoch-Sekunden) haben Vorrang: eine Bestellung je
+    // Zeitstempel. So kann das Traffic Lab die Bestellungen exakt über die
+    // letzten ~24 Monate verteilen (passend zur Matomo-Historie).
+    $dates = $req->get_param('dates');
+    $dates = is_array($dates)
+        ? array_values(array_filter(array_map('intval', $dates)))
+        : [];
+
+    if ($dates) {
+        $count = min(200, count($dates));      // Sicherheitsdeckel pro Request
+    } else {
+        $count = max(1, min(60, (int) $req->get_param('count')));
+    }
+    $days_back = max(0, min(1000, (int) $req->get_param('days_back')));
 
     // --- Stammdaten für realistische Bestellungen --------------------------
     $first = ['Anna','Lena','Sophie','Marie','Laura','Julia','Hannah','Emma','Mia','Lea',
@@ -151,8 +167,11 @@ function m392_create_orders(WP_REST_Request $req) {
         $note = $notes[array_rand($notes)];
         if ($note) { $order->set_customer_note($note); }
 
-        // Datiert in der jüngeren Vergangenheit (oder „jetzt")
-        if ($days_back > 0) {
+        // Bestelldatum: explizit (dates[]) oder zufällig in den letzten
+        // `days_back` Tagen – sonst „jetzt".
+        if ($dates) {
+            $order->set_date_created($dates[$i]);
+        } elseif ($days_back > 0) {
             $order->set_date_created(time() - random_int(0, $days_back * 86400) - random_int(0, 86399));
         }
 

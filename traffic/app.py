@@ -222,13 +222,17 @@ def _maybe_auto_seed():
 
 
 def _maybe_seed_orders():
-    """Startseed: einige jüngere ECHTE WooCommerce-Bestellungen anlegen, damit die
-    Bestellliste von Anfang an realistisch gefüllt ist. Idempotent: füllt nur auf
-    den Zielwert auf (kein Anwachsen bei jedem Neustart)."""
+    """Startseed: echte WooCommerce-Bestellungen anlegen, die den ZEITRAUM der
+    Matomo-Historie widerspiegeln – verteilt über die letzten ~24 Monate mit
+    demselben Wachstums-Trend/Wochenrhythmus wie der Backfill. Idempotent: füllt
+    nur auf den Zielwert auf (kein Anwachsen bei jedem Neustart)."""
     if not orders.ENABLED:
         return
-    target = int(os.environ.get("TRAFFIC_SEED_ORDERS", "30"))
-    days = int(os.environ.get("TRAFFIC_SEED_ORDERS_DAYS", "21"))
+    target = int(os.environ.get("TRAFFIC_SEED_ORDERS", "120"))
+    # Bestellfenster = Matomo-Backfill-Fenster, damit beide denselben Zeitraum
+    # abdecken (separat überschreibbar via TRAFFIC_SEED_ORDERS_DAYS).
+    days = int(os.environ.get("TRAFFIC_SEED_ORDERS_DAYS",
+                              os.environ.get("TRAFFIC_BACKFILL_DAYS", "730")))
     if target <= 0:
         return
 
@@ -243,13 +247,15 @@ def _maybe_seed_orders():
         if need == 0:
             _log(f"Bestellungen: bereits {existing} vorhanden – kein Seed nötig.")
             return
+        # Bestelldaten über das ganze Fenster verteilen (Trend + Wochenrhythmus),
+        # chronologisch anlegen und in Häppchen senden (schont WooCommerce).
+        dates = sorted(generator.history_order_dates(days, need))
         made = 0
-        while need > 0:
-            batch = min(20, need)            # Server-Limit 60/Request; schonend in Häppchen
-            made += orders.create_orders(batch, days_back=days)
-            need -= batch
+        for i in range(0, len(dates), 20):
+            made += orders.create_orders(0, dates=dates[i:i + 20])
+            _log(f"Bestellungen … {made}/{need} angelegt")
         _log(f"Bestellungen: {made} realistische Bestellungen erzeugt "
-             f"(verteilt über die letzten {days} Tage).")
+             f"(verteilt über ~{max(1, round(days / 30))} Monate, passend zur Matomo-Historie).")
 
     threading.Thread(target=seed, daemon=True).start()
 

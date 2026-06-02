@@ -202,7 +202,9 @@ Ein modernes Dashboard auf **http://localhost:8092** erzeugt realistischen Traff
 - **Echte WooCommerce-Bestellungen:** zusätzlich zum Matomo-Tracking legt das Tool echte
   Bestellungen an (sichtbar unter *WooCommerce → Bestellungen*) – mit realistischen Daten
   (deutsche Kund:innen + Adressen, nach Bestseller gewichtete Artikel, Test-Zahlarten,
-  realistischer Status-Mix). Ein Startseed füllt die Liste, Live-/Manuell-Käufe ergänzen sie.
+  realistischer Status-Mix). Der Startseed verteilt die Bestellungen über **denselben
+  ~24-Monats-Zeitraum wie die Matomo-Historie** (gleicher Wachstums-Trend/Wochenrhythmus), sodass
+  die Bestell-Historie zeitlich zum Matomo-Verlauf passt; Live-/Manuell-Käufe ergänzen sie laufend.
   Steuerbar über `TRAFFIC_CREATE_WC_ORDERS` / `TRAFFIC_SEED_ORDERS` in `.env`.
 
 Die generierten Daten nutzen denselben Produktkatalog (`catalog.json`) wie der echte Shop: **dieselben
@@ -273,7 +275,7 @@ Alles wird zentral über `.env` gesteuert (Kopie von `.env.example`). Wichtigste
 | `TRAFFIC_DRIP_VISITS_PER_HOUR` | `120` | Startwert: Besucher/Stunde des Live-Tropfs |
 | `TRAFFIC_CONVERSION_RATE` | `0.04` | Startwert: Anteil Besuche mit Kauf (0–1) |
 | `TRAFFIC_CREATE_WC_ORDERS` | `true` | Echte WooCommerce-Bestellungen anlegen (Startseed + Live) |
-| `TRAFFIC_SEED_ORDERS` / `TRAFFIC_SEED_ORDERS_DAYS` | `30` / `21` | Startseed: Anzahl Bestellungen / über die letzten N Tage |
+| `TRAFFIC_SEED_ORDERS` / `TRAFFIC_SEED_ORDERS_DAYS` | `120` / `730` | Startseed: Anzahl Bestellungen / verteilt über N Tage (Standard = Matomo-Historie) |
 | `M392_ORDER_API_KEY` | `m392-order-secret` | Gemeinsames Secret für den Bestell-Endpunkt (WP ⇄ Traffic) |
 
 > **Versionen anpassen:** Alle Versionen sind gepinnt. Vor jedem Semester eine Version testen und

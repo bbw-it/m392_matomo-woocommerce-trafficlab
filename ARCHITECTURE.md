@@ -280,8 +280,11 @@ nicht über Matomo, sondern über einen geschützten REST-Endpunkt im WordPress-
                                                       DB: wordpress  (WooCommerce-Bestellung)
 ```
 
-- **Wann:** ein Startseed (`TRAFFIC_SEED_ORDERS`, Standard 30, über die letzten Tage verteilt)
-  + laufend bei jedem Live-Drip-Kauf + beim manuellen „Käufe erzwingen".
+- **Wann:** ein Startseed (`TRAFFIC_SEED_ORDERS`, Standard 120) – über **dasselbe
+  ~24-Monats-Fenster wie die Matomo-Historie** verteilt, mit demselben Wachstums-Trend und
+  Wochenrhythmus (Python liefert pro Bestellung einen Zeitstempel; PHP datiert die Order exakt
+  darauf). So entspricht die Bestell-Historie zeitlich dem Matomo-Verlauf. Dazu laufend bei
+  jedem Live-Drip-Kauf + beim manuellen „Käufe erzwingen".
 - **Realismus liegt in PHP:** der Endpunkt hat vollen WooCommerce-Zugriff und baut die Order
   serverseitig (echte Produkte/Preise, Versand, Totalsummen, Status). E-Mails werden während
   der Erzeugung unterdrückt (kein SMTP in der Lehrumgebung).

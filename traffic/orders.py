@@ -37,16 +37,30 @@ def wait_for_wordpress(timeout=600, interval=5):
     return None
 
 
-def create_orders(count, days_back=0):
-    """Legt `count` echte Bestellungen an; gibt Anzahl angelegter zurück (0 bei Fehler)."""
-    if not ENABLED or count <= 0:
+def create_orders(count, days_back=0, dates=None):
+    """Legt echte Bestellungen an; gibt Anzahl angelegter zurück (0 bei Fehler).
+
+    Mit `dates` (Liste von Epoch-Sekunden) wird je Zeitstempel eine Bestellung
+    angelegt und auf dieses Datum datiert – so spiegelt die Bestell-Historie den
+    Matomo-Zeitraum (~24 Monate) wider. Ohne `dates` werden `count` Bestellungen
+    zufällig innerhalb der letzten `days_back` Tage angelegt.
+    """
+    if not ENABLED:
+        return 0
+    payload = {"days_back": int(days_back)}
+    if dates:
+        payload["dates"] = [int(t) for t in dates]
+        payload["count"] = len(payload["dates"])
+    else:
+        payload["count"] = int(count)
+    if payload["count"] <= 0:
         return 0
     try:
         r = SESSION.post(
             f"{WP_URL}/wp-json/m392/v1/orders",
             headers={"X-M392-Key": API_KEY},
-            json={"count": int(count), "days_back": int(days_back)},
-            timeout=120,
+            json=payload,
+            timeout=180,
         )
         r.raise_for_status()
         return int(r.json().get("count", 0))
