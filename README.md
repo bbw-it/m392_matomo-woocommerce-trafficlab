@@ -302,8 +302,15 @@ Alles wird zentral über `.env` gesteuert (Kopie von `.env.example`). Wichtigste
 docker compose up -d
 
 # Vollständiger Reset (alle Daten gelöscht, alles wird neu eingerichtet):
-docker compose down -v && docker compose up -d
+./reset.sh
 ```
+
+> **`reset.sh` – Hard-Reset auf Knopfdruck.** Stoppt den Stack, löscht alle Volumes **und** leert
+> `wordpress/www`, baut/startet neu und **wartet, bis die ~24-Monats-Historie + Bestellungen
+> befüllt sind, archiviert Matomo** und kehrt erst dann zurück – die Berichte stimmen also **sofort**
+> (kein Nachladen/„Reintröpfeln"). Mit `--no-wait` kehrt es schon nach dem Start zurück (Befüllung
+> läuft dann im Hintergrund), `-y` überspringt die Sicherheitsabfrage, `--help` zeigt die Hilfe.
+> Manuelle Variante ohne Skript: `docker compose down -v && docker compose up -d`.
 
 > **Hinweis Bind-Mount:** `down -v` entfernt die Docker-Volumes (Datenbank, Matomo), **nicht** aber
 > die WordPress-Dateien auf dem Host (`./wordpress/www/`). Beim nächsten Start spielt `wp-init` die

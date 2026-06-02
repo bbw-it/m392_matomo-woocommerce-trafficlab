@@ -28,6 +28,8 @@ STATE = {
     "totals": {"visits": 0, "purchases": 0, "revenue": 0.0},
     "last_log": [],
     "history": [],  # [{"t": epoch, "visits": kum, "purchases": kum}] für das Aktivitäts-Chart
+    # Startbefüllung: Status für reset.sh/„fertig?"-Abfrage. off|running|done|error
+    "seed": {"history": "off", "orders": "off"},
 }
 LOCK = threading.Lock()
 
@@ -49,6 +51,11 @@ def _log(msg):
     with LOCK:
         STATE["last_log"].insert(0, {"t": ts, "msg": msg})
         STATE["last_log"] = STATE["last_log"][:30]
+
+
+def _set_seed(key, value):
+    with LOCK:
+        STATE["seed"][key] = value
 
 
 def _accumulate(summary):
@@ -119,7 +126,23 @@ def status():
             "totals": STATE["totals"],
             "log": STATE["last_log"],
             "history": STATE["history"],
+            "seed": STATE["seed"],
         })
+
+
+@app.route("/api/ready")
+def ready():
+    """Fertig-Signal für reset.sh: HTTP 200, wenn die Startbefüllung (Historie +
+    Bestellungen) abgeschlossen/aus ist – sonst 202 (läuft noch). Der Body zeigt
+    den Fortschritt im Klartext, damit Shell-Skripte ihn einfach anzeigen können.
+    """
+    with LOCK:
+        seed = dict(STATE["seed"])
+        t = dict(STATE["totals"])
+    done = all(v in ("done", "off", "error") for v in seed.values())
+    body = (f"history={seed['history']} orders={seed['orders']} "
+            f"visits={t['visits']} purchases={int(t['purchases'])}\n")
+    return (body, 200 if done else 202, {"Content-Type": "text/plain; charset=utf-8"})
 
 
 @app.route("/api/generate-visits", methods=["POST"])
@@ -192,6 +215,7 @@ def _maybe_auto_seed():
     if os.environ.get("TRAFFIC_AUTO_SEED", "true").lower() != "true":
         return
     days = int(os.environ.get("TRAFFIC_BACKFILL_DAYS", "730"))
+    _set_seed("history", "running")
 
     def _progress(done, total, running):
         _log(f"Auto-Seed … {done}/{total} Tage ({running['visits']} Besuche, "
@@ -205,6 +229,7 @@ def _maybe_auto_seed():
              f"(~24 Monate) Historie ...")
         if not generator.wait_for_ready(timeout=600):
             _log("Auto-Seed-Fehler: Matomo nicht rechtzeitig bereit (Timeout).")
+            _set_seed("history", "error")
             return
         for attempt in range(1, 4):
             try:
@@ -212,11 +237,13 @@ def _maybe_auto_seed():
                                        progress=_progress)
                 _accumulate(s)
                 _log(f"Auto-Seed: {days} Tage Historie befüllt ({s['visits']} Besuche)")
+                _set_seed("history", "done")
                 return
             except Exception as exc:
                 _log(f"Auto-Seed-Versuch {attempt}/3 fehlgeschlagen: {exc}")
                 time.sleep(5)
         _log("Auto-Seed-Fehler: Backfill nach 3 Versuchen aufgegeben.")
+        _set_seed("history", "error")
 
     threading.Thread(target=seed, daemon=True).start()
 
@@ -235,17 +262,20 @@ def _maybe_seed_orders():
                               os.environ.get("TRAFFIC_BACKFILL_DAYS", "730")))
     if target <= 0:
         return
+    _set_seed("orders", "running")
 
     def seed():
         _log("Bestellungen: warte auf WooCommerce-Bereitschaft ...")
         status = orders.wait_for_wordpress(timeout=600)
         if not status:
             _log("Bestell-Seed-Fehler: WooCommerce nicht rechtzeitig bereit.")
+            _set_seed("orders", "error")
             return
         existing = int(status.get("orders", 0))
         need = max(0, target - existing)
         if need == 0:
             _log(f"Bestellungen: bereits {existing} vorhanden – kein Seed nötig.")
+            _set_seed("orders", "done")
             return
         # Bestelldaten über das ganze Fenster verteilen (Trend + Wochenrhythmus),
         # chronologisch anlegen und in Häppchen senden (schont WooCommerce).
@@ -256,6 +286,7 @@ def _maybe_seed_orders():
             _log(f"Bestellungen … {made}/{need} angelegt")
         _log(f"Bestellungen: {made} realistische Bestellungen erzeugt "
              f"(verteilt über ~{max(1, round(days / 30))} Monate, passend zur Matomo-Historie).")
+        _set_seed("orders", "done")
 
     threading.Thread(target=seed, daemon=True).start()
 

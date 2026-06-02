@@ -7,17 +7,21 @@
 #    2. leert den WordPress-Bind-Mount (wordpress/www)  → frische Core-Dateien
 #    3. baut + startet den Stack neu (docker compose up -d --build)
 #    4. wartet, bis Shop + Matomo erreichbar sind
+#    5. wartet, bis die 24-Monats-Historie + Bestellungen befuellt sind,
+#       und archiviert Matomo → Berichte stimmen SOFORT (kein Nachladen)
 #
-#  Danach spielt wp-init die Fixture ein (sauberer Shop, OHNE Bestellungen),
-#  matomo-init richtet Matomo + Ziele ein, und das Traffic Lab seedet im
-#  Hintergrund ~24 Monate Historie + echte Bestellungen/Kund:innen.
+#  wp-init spielt die Fixture ein (sauberer Shop, OHNE Bestellungen),
+#  matomo-init richtet Matomo + Ziele ein, das Traffic Lab seedet Historie
+#  + echte Bestellungen/Kund:innen. Mit --no-wait kehrt das Skript schon nach
+#  Schritt 4 zurueck (Befuellung laeuft dann im Hintergrund weiter).
 #
 #  ACHTUNG: Alle bisherigen Demodaten (Bestellungen, Kund:innen, Matomo-
 #  Historie, von Hand in wordpress/www abgelegte Dateien) gehen verloren.
 #
 #  Aufruf:
-#    ./reset.sh           interaktiv (mit Sicherheitsabfrage)
+#    ./reset.sh           interaktiv, wartet auf Befuellung + archiviert
 #    ./reset.sh -y        ohne Rueckfrage (z. B. fuer Skripte)
+#    ./reset.sh --no-wait nicht auf Befuellung warten (schnell zurueck)
 #    ./reset.sh --help    Hilfe
 # ===========================================================================
 set -euo pipefail
@@ -26,9 +30,11 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
 
 ASSUME_YES=0
+WAIT_SEED=1
 for arg in "$@"; do
   case "$arg" in
-    -y|--yes)  ASSUME_YES=1 ;;
+    -y|--yes)      ASSUME_YES=1 ;;
+    --no-wait)     WAIT_SEED=0 ;;
     -h|--help)
       awk 'NR>=2 && /^#/ {sub(/^# ?/,""); print; next} NR>=2 {exit}' "$0"
       exit 0 ;;
@@ -106,15 +112,46 @@ wait_http() {  # $1=URL  $2=Label
 printf '   Shop   '; wait_http "http://localhost:${WP_PORT}/"        "Shop"   || true
 printf '   Matomo '; wait_http "http://localhost:${MATOMO_PORT}/"    "Matomo" || true
 
+if [ "$WAIT_SEED" -eq 1 ]; then
+  echo
+  echo "[5/5] Warte auf die Startbefuellung (24-Monats-Historie + Bestellungen) ..."
+  echo "      Das dauert einige Minuten – danach ist Matomo SOFORT vollstaendig."
+  i=0
+  while :; do
+    code="$(curl -s -o /tmp/m392_ready.$$ -w '%{http_code}' "http://localhost:${TRAFFIC_PORT}/api/ready" 2>/dev/null || echo 000)"
+    body="$(cat /tmp/m392_ready.$$ 2>/dev/null | tr -d '\n')"
+    [ -n "$body" ] && printf '\r      %-70s' "$body"
+    if [ "$code" = "200" ]; then echo; break; fi
+    i=$((i + 1))
+    if [ "$i" -gt 400 ]; then   # ~20 min Sicherheits-Timeout
+      echo; echo "      (Timeout – Befuellung laeuft im Hintergrund weiter.)"; break
+    fi
+    sleep 3
+  done
+  rm -f /tmp/m392_ready.$$
+
+  echo
+  echo "      Archiviere Matomo (Berichte vorberechnen) ..."
+  "${DC[@]}" exec -T matomo php /var/www/html/console core:archive \
+      --force-idsites=1 --url="http://localhost/" >/dev/null 2>&1 \
+      && echo "      Archivierung abgeschlossen." \
+      || echo "      (Archivierung uebersprungen/fehlgeschlagen – beim ersten Bericht-Aufruf holt Matomo es nach.)"
+fi
+
 echo
 echo "============================================================"
 echo "  Fertig. Der Stack laeuft:"
 echo "    • Shop        →  http://localhost:${WP_PORT}"
 echo "    • Matomo      →  http://localhost:${MATOMO_PORT}"
 echo "    • Traffic Lab →  http://localhost:${TRAFFIC_PORT}"
-echo
-echo "  Hinweis: Das Traffic Lab befuellt im HINTERGRUND ~24 Monate"
-echo "  Matomo-Historie und seedet echte Bestellungen/Kund:innen."
-echo "  Das dauert einige Minuten – Fortschritt im Lab (Protokoll)"
-echo "  oder per:  ${DC[*]} logs -f traffic"
+if [ "$WAIT_SEED" -eq 1 ]; then
+  echo
+  echo "  Matomo ist vorbefuellt UND archiviert – Berichte stimmen sofort."
+  echo "  (In Matomo ggf. Zeitraum auf 'Letzte 24 Monate' stellen.)"
+else
+  echo
+  echo "  Hinweis (--no-wait): Die ~24-Monats-Historie + Bestellungen werden"
+  echo "  im HINTERGRUND befuellt. Fortschritt:  ${DC[*]} logs -f traffic"
+  echo "  Berichte erscheinen erst nach Befuellung + Archivierung vollstaendig."
+fi
 echo "============================================================"
