@@ -1,90 +1,310 @@
 # M392 Matomo Lab
 
-Lehrumgebung für Modul **392 – Nutzer-Daten mittels Analysetools auswerten**.
-Ein Befehl startet einen deutschsprachigen WooCommerce-Shop, ein vorkonfiguriertes Matomo und ein
-Datengenerierungstool.
+> Docker-Lehrumgebung für das Modul **392 – Nutzer-Daten mittels Analysetools auswerten**.
+> Ein einziger Befehl startet einen vollständigen Online-Shop, ein vorkonfiguriertes
+> Web-Analyse-Tool (Matomo) und ein Werkzeug, das realistischen Besucher- und Kauf-Traffic erzeugt.
+
+Die Lernenden erhalten damit eine realitätsnahe Umgebung, in der sie **Web-Analytics von A bis Z**
+üben: Tracking verstehen, Besucher- und E-Commerce-Daten auswerten, Conversions analysieren und
+eigene Hypothesen mit selbst erzeugten Daten überprüfen — alles lokal, ohne echte Nutzerdaten.
+
+---
+
+## Inhalt
+
+- [Ziel & Idee](#ziel--idee)
+- [Lernziele](#lernziele)
+- [Architektur](#architektur)
+- [Voraussetzungen](#voraussetzungen)
+- [Schnellstart](#schnellstart)
+- [Zugänge](#zugänge)
+- [Die drei Komponenten](#die-drei-komponenten)
+  - [1. Online-Shop (WordPress + WooCommerce)](#1-online-shop-wordpress--woocommerce)
+  - [2. Matomo (Web-Analyse)](#2-matomo-web-analyse)
+  - [3. Datengenerierungstool](#3-datengenerierungstool)
+- [Bezahlung im Test-Shop](#bezahlung-im-test-shop)
+- [Wie alles zusammenhängt (Datenfluss)](#wie-alles-zusammenhängt-datenfluss)
+- [Ideen für den Unterricht](#ideen-für-den-unterricht)
+- [Konfiguration (`.env`)](#konfiguration-env)
+- [Zurücksetzen & Reproduzierbarkeit](#zurücksetzen--reproduzierbarkeit)
+- [Projektstruktur](#projektstruktur)
+- [Troubleshooting](#troubleshooting)
+- [Technische Hinweise & Sicherheit](#technische-hinweise--sicherheit)
+- [Lizenz & Credits](#lizenz--credits)
+
+---
+
+## Ziel & Idee
+
+Web-Analyse lernt man am besten an echten Daten — die aber sind aus Datenschutz- und
+Praxisgründen im Unterricht schwer verfügbar. Diese Umgebung löst das Problem: Sie liefert einen
+**funktionierenden Demo-Shop**, ein **echtes Analyse-Tool** und einen **Traffic-Generator**, der
+auf Knopfdruck nachvollziehbare, realistische Daten produziert.
+
+So nehmen die Lernenden Matomo selbst in Betrieb bzw. arbeiten damit, sehen wie Tracking-Daten
+entstehen, und werten Besuche, Käufe und Conversions aus — reproduzierbar und gefahrlos.
+
+Alles läuft in Docker-Containern und ist **turnkey**: `docker compose up` genügt, der Rest wird
+automatisch eingerichtet (Shop installiert, Matomo konfiguriert, Demo-Daten befüllt).
+
+## Lernziele
+
+Mit dieser Umgebung lassen sich u. a. folgende Kompetenzen aus Modul 392 abdecken:
+
+- **Tracking verstehen:** Wie gelangt ein Seitenaufruf bzw. eine Bestellung in das Analyse-Tool?
+- **Analyse-Tool bedienen:** Matomo-Berichte lesen (Besucher, Verhalten, Akquise, E-Commerce).
+- **Kennzahlen interpretieren:** Besuche, Absprungrate, Conversion-Rate, Umsatz, Warenkorb-Wert.
+- **Hypothesen testen:** Parameter ändern (z. B. Conversion-Rate) und die Auswirkung beobachten.
+- **Datenqualität & Datenschutz reflektieren:** Was wird getrackt, was nicht, und warum.
+
+## Architektur
+
+Ein `docker compose` startet sechs Container (drei dauerhafte Web-Dienste, zwei einmalige
+Einrichtungs-Container und eine Datenbank):
+
+```
+                          ┌─────────────────────────────────────────────┐
+   Browser  ── :8090 ───► │  wordpress  (WordPress + WooCommerce, Botiga)│
+                          └───────────────┬─────────────────────────────┘
+                                          │  Matomo-Tracking (JS im <head>)
+   Browser  ── :8091 ───► ┌───────────────▼─────────────────────────────┐
+                          │  matomo     (Web-Analyse)                    │
+                          └───────────────▲─────────────────────────────┘
+                                          │  HTTP Tracking-API
+   Browser  ── :8092 ───► ┌───────────────┴─────────────────────────────┐
+                          │  traffic    (Datengenerierungstool, Flask)   │
+                          └─────────────────────────────────────────────┘
+
+   db (MariaDB, zwei Datenbanken: wordpress + matomo)
+   wp-init / matomo-init  (laufen einmal, richten Shop bzw. Matomo ein)
+```
+
+| Container | Image | Host-Port | Aufgabe |
+|---|---|---|---|
+| `db` | `mariadb:11.4` | – (intern) | Eine Instanz mit zwei Datenbanken (`wordpress`, `matomo`) |
+| `wordpress` | `wordpress:6.7-php8.3-apache` | **8090** | Online-Shop (WooCommerce, Theme Botiga) |
+| `matomo` | `matomo:5.3.0` | **8091** | Web-Analyse-Tool |
+| `traffic` | selbst gebaut (Python/Flask) | **8092** | Datengenerierungstool mit Dashboard |
+| `wp-init` | `wordpress:cli` | – (einmalig) | Richtet Shop ein / spielt Demo-Fixture ein |
+| `matomo-init` | `curlimages/curl` | – (einmalig) | Installiert & konfiguriert Matomo headless |
+
+## Voraussetzungen
+
+- **Docker** und **Docker Compose v2** (z. B. Docker Desktop). Getestet mit Docker 29.x.
+- **Internetzugang beim ersten Start** – Images, Theme/Plugins und Demo-Bilder werden geladen.
+- ~3 GB freier Speicher, die Ports **8090–8092** frei (anpassbar in `.env`).
 
 ## Schnellstart
 
 ```bash
-cp .env.example .env      # einmalig; Passwörter bei Bedarf anpassen
+cp .env.example .env      # einmalig – Passwörter bei Bedarf anpassen (siehe Hinweis unten)
 docker compose up -d
 ```
 
-> **Wichtig bei Passwort-Änderungen:** Die DB-Benutzer werden beim **ersten** Start angelegt
-> (Init-Script auf leerem Daten-Volume). Wenn du Passwörter in `.env` änderst, **bevor** du das
-> erste Mal startest, passt alles automatisch. Änderst du sie **nachträglich**, einmal zurücksetzen:
+Beim **ersten** Start werden Images gezogen und alles automatisch eingerichtet
+(Shop, Matomo, Demo-Daten). Das dauert je nach Internet einige Minuten. Den Fortschritt verfolgen:
+
+```bash
+docker compose logs -f wp-init matomo-init
+```
+
+Sind `wp-init` und `matomo-init` mit `Exited (0)` beendet, ist alles bereit.
+
+> ⚠️ **Passwörter:** Die Datenbank-Benutzer werden **einmalig** beim ersten Start angelegt (aus den
+> Werten in `.env`). Wer Passwörter **nachträglich** ändert, muss einmal zurücksetzen:
 > `docker compose down -v && docker compose up -d`.
 
-Beim ersten Start werden Images gezogen und alles automatisch eingerichtet (kann einige Minuten
-dauern). Danach:
+## Zugänge
 
 | Dienst | URL | Login |
 |---|---|---|
-| Shop (WordPress/WooCommerce) | http://localhost:8090 | Admin: `/wp-admin`, siehe `.env` |
-| Matomo | http://localhost:8091 | siehe `MATOMO_ADMIN_*` in `.env` |
-| Datengenerierungstool | http://localhost:8092 | – |
+| **Shop** (Frontend) | http://localhost:8090 | – |
+| Shop-Admin | http://localhost:8090/wp-admin | `WP_ADMIN_USER` / `WP_ADMIN_PASSWORD` aus `.env` |
+| **Matomo** | http://localhost:8091 | `MATOMO_ADMIN_USER` / `MATOMO_ADMIN_PASSWORD` aus `.env` |
+| **Datengenerierungstool** | http://localhost:8092 | – |
 
-Der Shop nutzt das Theme **Botiga** und zeigt die Produkte mit Produktbildern.
+> Die Standard-Logins stehen in `.env.example` (z. B. `admin` / `admin123` bzw. `admin` / `matomo123`).
+> Für den Unterricht bewusst einfach gehalten – **nicht für produktiven Einsatz**.
 
-## Was die Lernenden tun
+## Die drei Komponenten
 
-1. In Matomo einloggen und die vorhandenen Besucher-/E-Commerce-Daten auswerten.
-2. Durch den Shop klicken (eigene Besuche erscheinen unter *Besucher → in Echtzeit*).
-3. Im Datengenerierungstool gezielt Besuche/Käufe erzeugen und in Matomo beobachten.
+### 1. Online-Shop (WordPress + WooCommerce)
 
-## Bezahlung (Test)
+Ein voll funktionsfähiger Demo-Shop auf Basis von WordPress + WooCommerce mit dem Theme **Botiga**
+(inkl. importiertem Demo-Inhalt „Cocolo" mit Produktbildern). Der Shop ist sofort kauffähig:
+Produkte ansehen, in den Warenkorb legen, zur Kasse gehen, Bestellung abschließen.
 
-Im Checkout stehen drei Test-Zahlungsmethoden bereit, mit denen die Lernenden echte
-Browser-Käufe durchspielen können:
+In jede Shop-Seite ist der **Matomo-Tracking-Code** eingebaut (über ein Must-Use-Plugin), sodass
+jeder Klick und jede Bestellung in Matomo erscheint.
 
-- **Kauf auf Rechnung** – die Bestellung geht als „wartet auf Zahlung" (on-hold) durch.
-- **Kreditkarte (Test)** – akzeptiert nur die Testkarte `4242 4242 4242 4242` (beliebiges
-  zukünftiges Ablaufdatum, beliebige CVC). Andere Nummern werden abgelehnt – gut für die
-  Analyse von Conversion vs. Fehlversuch.
-- **TWINT (Test)** – simuliert eine TWINT-Zahlung und wird automatisch bestätigt.
+### 2. Matomo (Web-Analyse)
 
-Echte Browser-Käufe werden auf der Danke-/Bestellbestätigungsseite in Matomo als
-E-Commerce-Conversions getrackt. Die Lernenden finden ihre eigenen Bestellungen damit
-unter *Matomo → E-Commerce* wieder.
+Matomo ist **vorinstalliert und vorkonfiguriert**: Superuser-Login bereit, Website „Demo-Shop M392"
+angelegt (Website-ID 1), E-Commerce aktiviert, Währung CHF. Die Lernenden loggen sich ein und
+arbeiten direkt mit den Berichten – ohne Setup-Hürden.
 
-## Datengenerierungstool
+Damit von der ersten Minute an aussagekräftige Berichte sichtbar sind, befüllt die Umgebung beim
+Start automatisch **rund 4 Wochen Verlaufsdaten** (Besuche, Käufe, Umsatz).
 
-Modernes Dashboard auf http://localhost:8092 mit Live-KPIs, Aktivitäts-Chart und Protokoll.
+### 3. Datengenerierungstool
 
-- **Live-Tropf**: standardmäßig aktiv, sendet laufend Besuche. Über Regler steuerbar:
-  - **Besucher / Stunde** (`TRAFFIC_DRIP_VISITS_PER_HOUR`, Standard 120)
-  - **Conversion-Rate** (`TRAFFIC_CONVERSION_RATE`) – die erwarteten Käufe/Stunde werden live angezeigt.
-  - per Schalter pausierbar.
-- **Manuell**: Besuche/Käufe sofort erzeugen oder historischen Backfill (Tage) starten.
+Ein modernes Dashboard auf **http://localhost:8092** erzeugt realistischen Traffic und sendet ihn
+über die Matomo-Tracking-API. So wird sichtbar, **wie** Tracking-Daten entstehen.
 
-## Zurücksetzen
+- **Live-KPIs & Aktivitäts-Chart:** Besuche, Käufe, Umsatz, Conversion in Echtzeit.
+- **Live-Tropf** (standardmäßig aktiv, per Schalter pausierbar) mit Reglern:
+  - **Besucher / Stunde** – wie viele Besuche kontinuierlich eintropfen.
+  - **Conversion-Rate (%)** – die erwarteten Käufe pro Stunde werden live berechnet und angezeigt.
+- **Manuell erzeugen:** sofort X Besuche oder Y Käufe auslösen, oder historische Daten (Tage)
+  nachfüllen (Backfill).
+
+Die generierten Käufe nutzen denselben Produktkatalog (`catalog.json`), damit Tracking-Daten und
+Shop konsistent bleiben.
+
+## Bezahlung im Test-Shop
+
+Im Checkout stehen drei **Test-Zahlungsmethoden** bereit (komplett offline, ohne externe Konten),
+mit denen echte Browser-Käufe durchgespielt werden können:
+
+| Methode | Verhalten |
+|---|---|
+| **Kauf auf Rechnung** | Bestellung geht als „wartet auf Zahlung" (on-hold) durch. |
+| **Kreditkarte (Test)** | Akzeptiert **nur** die Testkarte `4242 4242 4242 4242` (beliebiges zukünftiges Ablaufdatum, beliebige CVC). Andere Nummern werden **abgelehnt** – ideal, um Conversion vs. Fehlversuch zu vergleichen. |
+| **TWINT (Test)** | Simuliert eine TWINT-Zahlung und wird automatisch bestätigt. |
+
+Jeder erfolgreiche Browser-Kauf wird auf der Bestellbestätigungsseite als **E-Commerce-Conversion**
+an Matomo gemeldet. Die Lernenden finden ihre eigenen Bestellungen unter *Matomo → E-Commerce*.
+
+## Wie alles zusammenhängt (Datenfluss)
+
+1. **Eigene Klicks:** Browser → Shop (`:8090`) → Matomo-JS lädt → Matomo (`:8091`) zählt den Besuch.
+2. **Eigener Kauf:** Checkout abschließen → Danke-Seite meldet die Bestellung an Matomo (E-Commerce).
+3. **Generierter Traffic:** Datengenerierungstool (`:8092`) → Matomo-Tracking-API → Besuche,
+   Conversions, Umsatz. Inklusive historischem Backfill für gefüllte Charts.
+
+## Ideen für den Unterricht
+
+- **Einstieg:** In Matomo die vorbefüllten Berichte erkunden – Besucher, Verhalten, Akquise, E-Commerce.
+- **Tracking nachvollziehen:** Im Shop klicken / einkaufen und die eigenen Aktionen unter
+  *Besucher → in Echtzeit* bzw. *E-Commerce* wiederfinden.
+- **Kennzahlen steuern:** Im Datengenerierungstool die Conversion-Rate verändern und beobachten,
+  wie sich Käufe/Umsatz in Matomo entwickeln.
+- **Last simulieren:** „Besucher/Stunde" erhöhen und einen Traffic-Anstieg im Zeitverlauf analysieren.
+- **Kampagnen-Analyse:** Käufe vs. abgelehnte Kreditkarten gegenüberstellen (Conversion-Trichter).
+- **Datenschutz-Diskussion:** Welche Daten werden erfasst, was sieht der Shop-Betreiber, was nicht?
+
+## Konfiguration (`.env`)
+
+Alles wird zentral über `.env` gesteuert (Kopie von `.env.example`). Wichtigste Variablen:
+
+| Variable | Standard | Bedeutung |
+|---|---|---|
+| `WORDPRESS_PORT` / `MATOMO_PORT` / `TRAFFIC_PORT` | `8090` / `8091` / `8092` | Host-Ports der drei Dienste |
+| `MARIADB_VERSION`, `WORDPRESS_VERSION`, `MATOMO_VERSION`, `WOOCOMMERCE_VERSION` | gepinnt | Image-/Software-Versionen (für reproduzierbare Kurse) |
+| `WP_ADMIN_USER` / `WP_ADMIN_PASSWORD` / `WP_ADMIN_EMAIL` | `admin` / `admin123` / … | Shop-Admin |
+| `MATOMO_ADMIN_USER` / `MATOMO_ADMIN_PASSWORD` / `MATOMO_ADMIN_EMAIL` | `admin` / `matomo123` / … | Matomo-Superuser |
+| `SHOP_CURRENCY` / `SHOP_COUNTRY` / `WP_LOCALE` | `CHF` / `CH` / `de_CH` | Shop-Land, Währung, Sprache |
+| `*_DB_*` / `MYSQL_ROOT_PASSWORD` | siehe Datei | Datenbank-Namen, -Benutzer, -Passwörter |
+| `TRAFFIC_AUTO_SEED` | `true` | Beim Start automatisch Historie befüllen |
+| `TRAFFIC_BACKFILL_DAYS` | `28` | Zeitraum der historischen Befüllung (Tage) |
+| `TRAFFIC_LIVE_DRIP` | `true` | Live-Tropf beim Start aktiv (in der UI abschaltbar) |
+| `TRAFFIC_DRIP_VISITS_PER_HOUR` | `120` | Startwert: Besucher/Stunde des Live-Tropfs |
+| `TRAFFIC_CONVERSION_RATE` | `0.04` | Startwert: Anteil Besuche mit Kauf (0–1) |
+
+> **Versionen anpassen:** Alle Versionen sind gepinnt. Vor jedem Semester eine Version testen und
+> festschreiben, damit der Kurs über die Zeit reproduzierbar bleibt.
+
+## Zurücksetzen & Reproduzierbarkeit
 
 ```bash
-docker compose down -v && docker compose up -d   # vollständiger Reset (alle Daten weg)
+# Sauberer Neustart ohne Datenverlust:
+docker compose up -d
+
+# Vollständiger Reset (alle Daten gelöscht, alles wird neu eingerichtet):
+docker compose down -v && docker compose up -d
 ```
 
-## Versionen anpassen
+Der **Demo-Shop ist reproduzierbar**: Sein Stand (Theme, Demo-Produkte, Seiten, Bilder, Einstellungen)
+ist als **Fixture** eingefroren (`wordpress/fixture/`). Beim frischen Start stellt `wp-init` ihn
+automatisch wieder her – inklusive der benötigten Plugins/Theme, die in gepinnten Versionen aus dem
+WordPress-Repository nachinstalliert werden. Ein `down -v && up -d` liefert also wieder **denselben Shop**.
 
-Image-Versionen sind in `.env` gepinnt (`MATOMO_VERSION`, `WORDPRESS_VERSION`,
-`WOOCOMMERCE_VERSION`, …). Vor jedem Semester eine Version testen und festschreiben.
+## Projektstruktur
+
+```
+.
+├─ docker-compose.yml            # Orchestrierung aller Container
+├─ .env.example                  # Vorlage für die Konfiguration
+├─ catalog.json                  # Gemeinsamer Produktkatalog (Shop + Traffic-Generator)
+│
+├─ db/
+│  └─ init/01-init-databases.sh  # Legt beide Datenbanken + Benutzer an (Passwörter aus .env)
+│
+├─ wordpress/
+│  ├─ wp-init.sh                 # Richtet Shop ein bzw. spielt die Demo-Fixture wieder ein
+│  ├─ make-placeholder.php       # Erzeugt Platzhalterbilder (Fallback ohne Internet)
+│  ├─ fixture/                   # Eingefrorener Demo-Shop (DB-Dump + Uploads)
+│  │  ├─ shop.sql.gz
+│  │  └─ uploads.tar.gz
+│  └─ mu-plugins/                # Immer aktive WordPress-Plugins (per Volume eingebunden)
+│     ├─ matomo-tracking.php     # Baut den Matomo-Tracking-Code ein (inkl. E-Commerce)
+│     └─ m392-test-payments.php  # Test-Zahlungsmethoden (Rechnung, Kreditkarte, TWINT)
+│
+├─ matomo/
+│  └─ matomo-init.sh             # Installiert & konfiguriert Matomo headless, erzeugt API-Token
+│
+├─ traffic/                      # Datengenerierungstool (Python/Flask)
+│  ├─ Dockerfile
+│  ├─ app.py                     # Web-Server + Dashboard-API + Live-Tropf
+│  ├─ generator.py               # Logik: Besuche/Käufe an die Matomo-Tracking-API senden
+│  ├─ requirements.txt
+│  └─ templates/index.html       # Dashboard-Oberfläche
+│
+└─ docs/                         # Interne Design-/Planungsdokumente
+```
 
 ## Troubleshooting
 
-- **„Error establishing a database connection" im Shop:** Du hast vermutlich Passwörter in `.env`
-  nach dem ersten Start geändert. Die DB-Benutzer haben dann noch die alten Passwörter. Lösung:
-  `docker compose down -v && docker compose up -d` (legt die DB-Benutzer mit den `.env`-Passwörtern neu an).
-- **Matomo zeigt noch den Installer:** `docker compose up matomo-init` erneut ausführen und Logs prüfen.
-- **Keine Backfill-Daten (älter als 24 h):** API-Token fehlt — `docker compose logs matomo-init` prüfen;
-  ohne Token werden nur aktuelle Besuche akzeptiert.
-- **Shop ohne Produkte:** `docker compose up wp-init` erneut ausführen.
-- **Ports belegt:** Ports in `.env` ändern (`WORDPRESS_PORT`, `MATOMO_PORT`, `TRAFFIC_PORT`).
-  Achtung: Die im Shop ausgelieferte Matomo-URL und die Tracking-URLs nutzen `localhost:8091` —
-  bei geändertem `MATOMO_PORT` `wordpress/mu-plugins/matomo-tracking.php` anpassen.
+- **„Error establishing a database connection" im Shop**
+  Vermutlich wurden Passwörter in `.env` **nach** dem ersten Start geändert. Die DB-Benutzer haben
+  dann noch die alten Passwörter. Lösung: `docker compose down -v && docker compose up -d`.
+- **Matomo zeigt noch den Installer**
+  `docker compose up matomo-init` erneut ausführen und `docker compose logs matomo-init` prüfen.
+- **Shop ohne Inhalte / Produkte**
+  `docker compose up wp-init` erneut ausführen und Logs prüfen.
+- **404 auf Produkt-/Checkout-Seiten**
+  Tritt auf, wenn der `.htaccess`-Rewrite-Block fehlt. `docker compose up wp-init` setzt ihn neu.
+- **Keine historischen Daten in Matomo**
+  Backfill älter als 24 h braucht einen API-Token. `docker compose logs matomo-init` prüfen
+  (Token wird dort erzeugt und im Volume `matomo_token` abgelegt).
+- **Ports belegt**
+  Ports in `.env` ändern (`WORDPRESS_PORT`, `MATOMO_PORT`, `TRAFFIC_PORT`). Hinweis: Der im Shop
+  eingebettete Tracking-Code zeigt auf `localhost:8091`; bei geändertem `MATOMO_PORT` die Datei
+  `wordpress/mu-plugins/matomo-tracking.php` anpassen.
+- **Erster Start hängt / lädt lange**
+  Beim ersten Start werden Images, Theme/Plugins und Bilder geladen – Internet nötig, etwas Geduld.
 
-## Fallback Matomo-Installation
+## Technische Hinweise & Sicherheit
 
-Falls der headless Installer bei einer neuen Matomo-Version fehlschlägt, kann ein vorab erzeugter
-SQL-Seed (`matomo`-DB-Dump) plus mitgelieferte `config/config.ini.php` eingespielt werden.
-Dump erzeugen nach einmaliger manueller Installation:
-`docker compose exec db mariadb-dump -uroot -p"$MYSQL_ROOT_PASSWORD" matomo > matomo/seed.sql`.
+> Diese Umgebung ist **ausschließlich für Schulung/Demo auf dem lokalen Rechner** gedacht – **nicht**
+> für den Produktivbetrieb.
+
+Bewusste Vereinfachungen für den Lehreinsatz:
+
+- **Schwache Standard-Passwörter** in `.env` (gut lesbar, leicht zu merken).
+- **Matomos `enable_trusted_host_check` ist deaktiviert** (Zugriff über `localhost` und intern `matomo`).
+- **Init-Container laufen teils als root**, um Volumes einzurichten.
+- **Fake-Zahlungsabwicklung** – es findet keine echte Zahlung statt; die „Kreditkarte" prüft nur
+  die Testnummer.
+
+## Lizenz & Credits
+
+Diese Umgebung kombiniert quelloffene Software:
+
+- [WordPress](https://wordpress.org/) & [WooCommerce](https://woocommerce.com/) (GPL)
+- [Botiga](https://athemes.com/theme/botiga/)-Theme und zugehörige Plugins (GPL)
+- [Matomo](https://matomo.org/) (GPL v3)
+- [MariaDB](https://mariadb.org/), [Flask](https://flask.palletsprojects.com/), [Docker](https://www.docker.com/)
+
+Die mitgelieferten Skripte und das Datengenerierungstool dieses Repositories dürfen frei für
+Unterrichtszwecke verwendet und angepasst werden.
