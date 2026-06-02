@@ -112,6 +112,12 @@ function m392_create_orders(WP_REST_Request $req) {
     }
     $days_back = max(0, min(1000, (int) $req->get_param('days_back')));
 
+    // Anteil wiederkehrender Kund:innen (0..100 %). Steuerbar aus dem Traffic Lab;
+    // Standard 35 %. Bei diesem Anteil wird – falls vorhanden – eine bestehende
+    // Kund:in aus der DB wiederverwendet statt eine neue anzulegen.
+    $returning_rate = $req->get_param('returning_rate');
+    $returning_rate = ($returning_rate === null) ? 35 : max(0, min(100, (int) $returning_rate));
+
     // --- Stammdaten für realistische Bestellungen --------------------------
     // Namen nach Herkunft gruppiert (Vor-/Nachname stammen aus derselben Kultur,
     // damit die Paare stimmig sind). ~70% deutsch, ~30% aus in Berlin stark
@@ -196,6 +202,13 @@ function m392_create_orders(WP_REST_Request $req) {
     // Bestellungen Bestandskund:innen zugeordnet wird (realistischer Mix).
     $customer_pool = array_map('intval', get_users(['role' => 'customer', 'number' => 300, 'fields' => 'ID']));
 
+    // Rabattgutschein, der „ab und zu" eingeloest wird (~18 % der Bestellungen),
+    // sofern er existiert (wird per wp-init reproduzierbar angelegt: NATUR10).
+    $coupon_code = defined('M392_COUPON_CODE') ? M392_COUPON_CODE : 'natur10';
+    $coupon_rate = 18;   // Prozent der Bestellungen mit Gutschein
+    $coupon_exists = function_exists('wc_get_coupon_id_by_code')
+        && wc_get_coupon_id_by_code($coupon_code) > 0;
+
     $created = [];
     for ($i = 0; $i < $count; $i++) {
         // Herkunft ziehen (≈70% deutsch, ≈30% divers), Vor-/Nachname daraus.
@@ -209,7 +222,7 @@ function m392_create_orders(WP_REST_Request $req) {
         // Neue Kund:innen werden als echte WooCommerce-Kund:innen (Rolle customer)
         // angelegt und der Bestellung zugeordnet → erscheinen unter „Kunden".
         $customer_id = 0; $email = '';
-        if ($customer_pool && random_int(1, 100) <= 35) {
+        if ($customer_pool && random_int(1, 100) <= $returning_rate) {
             $cid = (int) $customer_pool[array_rand($customer_pool)];
             $cu = get_userdata($cid);
             if ($cu) {
@@ -285,6 +298,11 @@ function m392_create_orders(WP_REST_Request $req) {
         $note = $notes[array_rand($notes)];
         if ($note) { $order->set_customer_note($note); }
 
+        // Gutschein „ab und zu" einloesen (vor der Summenberechnung).
+        if ($coupon_exists && random_int(1, 100) <= $coupon_rate) {
+            $order->apply_coupon($coupon_code);
+        }
+
         // Bestelldatum: explizit (dates[]) oder zufällig in den letzten
         // `days_back` Tagen – sonst „jetzt".
         if ($dates) {
@@ -294,13 +312,25 @@ function m392_create_orders(WP_REST_Request $req) {
         }
 
         $order->calculate_totals();
-        $order->set_status(m392_pick_status($pm_id));
+        $status = m392_pick_status($pm_id);
+        $order->set_status($status);
+
+        // Bezahlt-/Abschlussdatum setzen, damit Umsatz-Berichte (die nach
+        // date_paid/date_completed gruppieren) sowie die Statistik stimmen.
+        $created_dt = $order->get_date_created();
+        if ($created_dt && in_array($status, ['processing', 'completed', 'refunded'], true)) {
+            $order->set_date_paid($created_dt->getTimestamp());
+        }
+        if ($created_dt && $status === 'completed') {
+            $order->set_date_completed($created_dt->getTimestamp());
+        }
         $order->save();
 
-        // wc-admin-Kundenstatistik (Analytics → Kunden) fuer diese Bestellung
-        // aktualisieren, damit Kund:innen auch ohne laufenden Action-Scheduler
-        // sofort in den Berichten auftauchen.
-        m392_sync_order_customer($order->get_id());
+        // ALLE wc-admin-Analytics-Tabellen fuer diese Bestellung synchronisieren
+        // (Bestell-Statistik, Produkte, Gutscheine, Steuern, Kund:innen). Sonst
+        // bleiben Berichte/Statistik und Kunden-Gesamtausgaben leer (es laeuft
+        // kein Action-Scheduler, der das sonst asynchron erledigen wuerde).
+        m392_sync_order_analytics($order->get_id());
 
         $created[] = $order->get_id();
     }
@@ -308,12 +338,22 @@ function m392_create_orders(WP_REST_Request $req) {
     return new WP_REST_Response(['count' => count($created), 'created' => $created], 201);
 }
 
-/** Aktualisiert die wc-admin-Kunden-Lookup-Tabelle fuer eine Bestellung
- *  (treibt den Bericht Analytics → Kunden, auch fuer Gast-Bestellungen). */
-function m392_sync_order_customer($order_id) {
-    $cls = '\\Automattic\\WooCommerce\\Admin\\API\\Reports\\Customers\\DataStore';
-    if (class_exists($cls) && method_exists($cls, 'sync_order_customer')) {
-        try { $cls::sync_order_customer($order_id); } catch (\Throwable $e) { /* ignorieren */ }
+/** Synchronisiert ALLE wc-admin-Analytics-Tabellen fuer eine Bestellung, damit
+ *  Statistik/Berichte (Umsatz, Produkte, Gutscheine) UND die Kunden-Gesamt-
+ *  ausgaben sofort stimmen – ohne auf den Action-Scheduler zu warten.
+ *  Reihenfolge: erst Kund:in (legt customer_id an), dann die uebrigen Tabellen. */
+function m392_sync_order_analytics($order_id) {
+    $steps = [
+        ['\\Automattic\\WooCommerce\\Admin\\API\\Reports\\Customers\\DataStore', 'sync_order_customer'],
+        ['\\Automattic\\WooCommerce\\Admin\\API\\Reports\\Orders\\Stats\\DataStore', 'sync_order'],
+        ['\\Automattic\\WooCommerce\\Admin\\API\\Reports\\Products\\DataStore', 'sync_order_products'],
+        ['\\Automattic\\WooCommerce\\Admin\\API\\Reports\\Coupons\\DataStore', 'sync_order_coupons'],
+        ['\\Automattic\\WooCommerce\\Admin\\API\\Reports\\Taxes\\DataStore', 'sync_order_taxes'],
+    ];
+    foreach ($steps as [$cls, $method]) {
+        if (class_exists($cls) && method_exists($cls, $method)) {
+            try { $cls::$method($order_id); } catch (\Throwable $e) { /* ignorieren */ }
+        }
     }
 }
 

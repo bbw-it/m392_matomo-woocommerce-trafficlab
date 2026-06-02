@@ -196,6 +196,64 @@ if (is_array($cat) && !empty($cat['products'])) {
 PHPEOF
   wp eval-file /tmp/m392-bestseller.php --allow-root || echo "[wp-init] WARN: Bestseller-Prior konnte nicht gesetzt werden."
 
+  # 8d) Produktkategorien aus catalog.json anlegen + Produkte zuweisen.
+  #     Ersetzt die generische „Kosmetik"-Kategorie durch mehrere passende
+  #     Kategorien (Gesichtsreinigung/-pflege/Make-up). Idempotent.
+  echo "[wp-init] Setze Produktkategorien aus catalog.json ..."
+  cat > /tmp/m392-categories.php <<'PHPEOF'
+<?php
+$cat = json_decode(file_get_contents('/seed/catalog.json'), true);
+if (!is_array($cat) || empty($cat['categories'])) { return; }
+$slug2term = [];
+foreach ($cat['categories'] as $c) {
+  $term = get_term_by('slug', $c['slug'], 'product_cat');
+  if (!$term) {
+    $res = wp_insert_term($c['name'], 'product_cat', ['slug' => $c['slug']]);
+    if (!is_wp_error($res)) { $slug2term[$c['slug']] = (int) $res['term_id']; }
+  } else {
+    wp_update_term($term->term_id, 'product_cat', ['name' => $c['name']]);
+    $slug2term[$c['slug']] = (int) $term->term_id;
+  }
+}
+foreach ($cat['products'] as $cp) {
+  $pid = 0;
+  if (!empty($cp['slug'])) { $o = get_page_by_path($cp['slug'], OBJECT, 'product'); if ($o) { $pid = (int) $o->ID; } }
+  if (!$pid && !empty($cp['sku']) && preg_match('/^wc_(\d+)$/', $cp['sku'], $m)) { $pid = (int) $m[1]; }
+  if ($pid && !empty($cp['category_slug']) && isset($slug2term[$cp['category_slug']])) {
+    wp_set_object_terms($pid, [$slug2term[$cp['category_slug']]], 'product_cat', false);
+  }
+}
+// Alte generische Kategorie entfernen (Produkte sind bereits umgehaengt).
+foreach (['cosmetics', 'kosmetik'] as $old) {
+  $t = get_term_by('slug', $old, 'product_cat');
+  if ($t) { wp_delete_term($t->term_id, 'product_cat'); }
+}
+echo "Kategorien gesetzt\n";
+PHPEOF
+  wp eval-file /tmp/m392-categories.php --allow-root || echo "[wp-init] WARN: Kategorien konnten nicht gesetzt werden."
+
+  # 8e) Rabattgutschein aus catalog.json anlegen (wird vom Traffic Lab „ab und zu"
+  #     auf Bestellungen angewendet). Idempotent.
+  echo "[wp-init] Lege Rabattgutschein aus catalog.json an ..."
+  cat > /tmp/m392-coupon.php <<'PHPEOF'
+<?php
+$cat = json_decode(file_get_contents('/seed/catalog.json'), true);
+$c = is_array($cat) ? ($cat['coupon'] ?? null) : null;
+if (!$c || empty($c['code']) || !class_exists('WC_Coupon')) { return; }
+if (function_exists('wc_get_coupon_id_by_code') && wc_get_coupon_id_by_code($c['code']) > 0) {
+  echo "Gutschein bereits vorhanden\n"; return;
+}
+$coupon = new WC_Coupon();
+$coupon->set_code($c['code']);
+$coupon->set_discount_type($c['discount_type'] ?? 'percent');
+$coupon->set_amount((float) ($c['amount'] ?? 10));
+if (!empty($c['description'])) { $coupon->set_description($c['description']); }
+$coupon->set_individual_use(true);
+$coupon->save();
+echo "Gutschein {$c['code']} angelegt\n";
+PHPEOF
+  wp eval-file /tmp/m392-coupon.php --allow-root || echo "[wp-init] WARN: Gutschein konnte nicht angelegt werden."
+
   # 9) Caches leeren (inkl. best-effort Elementor-Cache).
   wp cache flush --allow-root || true
   wp eval 'if(class_exists("\\Elementor\\Plugin")){ \Elementor\Plugin::$instance->files_manager->clear_cache(); echo "elementor-cache-cleared"; }' --allow-root || true

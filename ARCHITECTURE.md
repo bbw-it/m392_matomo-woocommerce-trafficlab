@@ -213,7 +213,7 @@ wirken sofort. `catalog.json` liefert die Bestseller-Gewichtung und dient als Of
    [Kanal wählen] → Einstiegs-Referrer (urlref) nur auf 1. Aktion
         │
         ├─ ~30 %  On-Site-Suche       → search=…&search_count=…
-        ├─ 1–2×   Kategorie-Ansicht   → _pkc=Kosmetik
+        ├─ 1–2×   Kategorie-Ansicht   → _pkc=Gesichtsreinigung
         ├─ 1–4×   Produkt-Ansicht     → _pks/_pkn/_pkc/_pkp
         └─ Kauf?  (kanalabhängige Conversion)
                ├─ ja  → idgoal=0 & ec_id & revenue & ec_items  (Bestellung)
@@ -237,7 +237,7 @@ GET http://matomo/matomo.php
       &_id=8f3a91c2d4e5f6a7             ← Besucher-ID (gleich über alle Aktionen eines Besuchs)
       &url=http://localhost:8090/product/vinopure-…/
       &action_name=Vinopure Pore Purifying Gel Cleanser
-      &_pks=wc_96 &_pkn=Vinopure… &_pkc=Kosmetik &_pkp=14   ← E-Commerce-Produktansicht
+      &_pks=wc_96 &_pkn=Vinopure… &_pkc=Gesichtsreinigung &_pkp=14   ← E-Commerce-Produktansicht
       &urlref=https://www.instagram.com/                    ← Einstiegskanal → „Social"
 
    →  Matomo antwortet 204 (No Content) und legt einen Besuch + eine Produktansicht an.
@@ -247,7 +247,7 @@ Ein **Kauf** im selben Besuch hängt zusätzlich an:
 
 ```
       &idgoal=0 &ec_id=4f1c8a &revenue=28
-      &ec_items=[["wc_96","Vinopure…","Kosmetik",14,2]]
+      &ec_items=[["wc_96","Vinopure…","Gesichtsreinigung",14,2]]
    →  Matomo verbucht eine E-Commerce-Bestellung (Conversion + Umsatz), zugeordnet
       zum Einstiegskanal „instagram" → Bericht *Akquise → Social*.
 ```
@@ -293,7 +293,14 @@ nicht über Matomo, sondern über einen geschützten REST-Endpunkt im WordPress-
   oder – zu ~35 % – eine bestehende wiederverwendet (wiederkehrende Käufer:innen), der Bestellung
   via `set_customer_id()` zugeordnet und die wc-admin-Kunden-Lookup-Tabelle aktualisiert
   (`DataStore::sync_order_customer`). Dadurch erscheinen sie unter *WooCommerce → Kunden* bzw.
-  *Analytics → Kunden* – nicht als anonyme Gäste.
+  *Analytics → Kunden* – nicht als anonyme Gäste. Der Anteil wiederkehrender Kund:innen ist im
+  Traffic Lab regelbar (`returning_rate` → Parameter `TRAFFIC_RETURNING_RATE`).
+- **Stimmige Berichte:** Jede Bestellung wird in **alle** wc-admin-Analytics-Tabellen synchronisiert
+  (`m392_sync_order_analytics`: Bestell-Statistik, Produkte, Gutscheine, Steuern, Kund:innen) und
+  bezahlte Bestellungen erhalten `date_paid`/`date_completed`. Ohne das blieben *Statistiken/Berichte*
+  und die **Gesamtausgaben pro Kund:in** leer (es läuft kein Action-Scheduler).
+- **Gutschein:** ~18 % der Bestellungen lösen den Rabattcode **`NATUR10`** (10 %) ein – der Coupon
+  wird reproduzierbar aus `catalog.json` angelegt (`wp-init.sh` Schritt 8e).
 
 - **Wann:** ein Startseed (`TRAFFIC_SEED_ORDERS`, Standard 120) – über **dasselbe
   ~24-Monats-Fenster wie die Matomo-Historie** verteilt, mit demselben Wachstums-Trend und
@@ -326,7 +333,9 @@ Die wichtigsten Stellschrauben, mit denen das Traffic Lab die Matomo-Daten formt
 | **Produkt-Popularität** (stark gespreizt) | klare **Bestseller** + langer Schwanz | `catalog.json · popularity` |
 | **Akquise-Kanäle** (`urlref`) | **Social Media** als stärkster Verkaufskanal (Instagram/Facebook/…) | `generator.py · CHANNELS` |
 | **Conversion-Rate** (Regler) | Anteil Käufe; Schnitt bleibt erhalten (Kanal-Mult. normiert) | `app.py · STATE` / `generator.py` |
-| **Echte Bestellungen** | sichtbar in *WooCommerce → Bestellungen* (Startseed + Live) | `orders.py` + `init/mu-plugins/m392-order-api.php` |
+| **Echte Bestellungen** | sichtbar in *WooCommerce → Bestellungen* + *Statistiken* (Startseed + Live) | `orders.py` + `init/mu-plugins/m392-order-api.php` |
+| **Wiederkehrende Kunden** (Regler) | Anteil Bestellungen bestehender Kund:innen (Gesamtausgaben pro Kund:in) | `app.py · returning_rate` → `m392-order-api.php` |
+| **Gutschein `NATUR10`** | ~18 % der Bestellungen mit Rabatt (*Marketing → Gutscheine*, Statistik) | `m392-order-api.php` + `catalog.json · coupon` |
 | **PDF-Downloads** | füllen das Ziel „PDF-Download: INCI" (*Verhalten → Downloads*) | `generator.py` (~3,5 %) + `catalog.json` |
 | **Kontaktanfragen** | Aufruf `/danke/` ⇒ füllt das Ziel „Kontaktanfrage" (*Ziele*) | `generator.py` (~2 %) + `catalog.json` |
 

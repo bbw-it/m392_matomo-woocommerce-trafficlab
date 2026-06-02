@@ -37,13 +37,14 @@ def wait_for_wordpress(timeout=600, interval=5):
     return None
 
 
-def create_orders(count, days_back=0, dates=None):
+def create_orders(count, days_back=0, dates=None, returning_rate=None):
     """Legt echte Bestellungen an; gibt Anzahl angelegter zurück (0 bei Fehler).
 
     Mit `dates` (Liste von Epoch-Sekunden) wird je Zeitstempel eine Bestellung
     angelegt und auf dieses Datum datiert – so spiegelt die Bestell-Historie den
     Matomo-Zeitraum (~24 Monate) wider. Ohne `dates` werden `count` Bestellungen
-    zufällig innerhalb der letzten `days_back` Tage angelegt.
+    zufällig innerhalb der letzten `days_back` Tage angelegt. `returning_rate`
+    (0..100 %) steuert den Anteil wiederkehrender Bestandskund:innen.
     """
     if not ENABLED:
         return 0
@@ -55,6 +56,8 @@ def create_orders(count, days_back=0, dates=None):
         payload["count"] = int(count)
     if payload["count"] <= 0:
         return 0
+    if returning_rate is not None:
+        payload["returning_rate"] = int(round(returning_rate))
     try:
         r = SESSION.post(
             f"{WP_URL}/wp-json/m392/v1/orders",

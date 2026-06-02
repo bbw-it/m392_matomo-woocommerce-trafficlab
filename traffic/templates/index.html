@@ -254,6 +254,10 @@
           <div class="metric-row"><span class="m-label">Conversion-Rate</span><span class="m-val" id="cr-val">4.0%</span></div>
           <input type="range" class="amb" id="cr" min="0" max="25" step="0.5" value="4">
         </div>
+        <div class="metric">
+          <div class="metric-row"><span class="m-label">Wiederkehrende Kunden</span><span class="m-val" id="ret-val">35%</span></div>
+          <input type="range" class="ind" id="ret" min="0" max="100" step="5" value="35">
+        </div>
         <div class="metric-row"><span class="m-label">Erwartete Käufe</span><span class="m-val" id="pph">≈ 5 / Std</span></div>
       </div>
     </div>
@@ -310,17 +314,19 @@ async function post(url, data){
 
 // drip toggle + sliders
 $('#drip-toggle').addEventListener('change', ()=> post('/api/toggle-drip'));
-['vph','cr'].forEach(id=>{
+['vph','cr','ret'].forEach(id=>{
   const el=$('#'+id);
   el.addEventListener('input', ()=>{ dragging=true; setFill(el); renderDerived(); });
   el.addEventListener('change', ()=>{
     dragging=false;
-    post('/api/set-drip', {visitors_per_hour:$('#vph').value, conversion_rate:($('#cr').value/100)});
+    post('/api/set-drip', {visitors_per_hour:$('#vph').value, conversion_rate:($('#cr').value/100),
+                           returning_rate:($('#ret').value/100)});
   });
 });
 function renderDerived(){
   $('#vph-val').textContent = $('#vph').value;
   $('#cr-val').textContent = (+$('#cr').value).toFixed(1)+'%';
+  $('#ret-val').textContent = $('#ret').value+'%';
   const pph = Math.round($('#vph').value * ($('#cr').value/100) * 10)/10;
   $('#pph').textContent = '≈ '+ pph +' / Std';
 }
@@ -382,7 +388,8 @@ async function refresh(){
 
   if(!initialised){
     $('#vph').value=s.drip_per_hour; $('#cr').value=(s.conversion_rate*100).toFixed(1);
-    setFill($('#vph')); setFill($('#cr')); renderDerived(); initialised=true;
+    $('#ret').value=Math.round((s.returning_rate ?? 0.35)*100);
+    setFill($('#vph')); setFill($('#cr')); setFill($('#ret')); renderDerived(); initialised=true;
   } else if(!dragging){ renderDerived(); }
 
   drawChart(s.history||[]);

@@ -24,6 +24,9 @@ def _initial_drip_per_hour():
 STATE = {
     "live_drip": os.environ.get("TRAFFIC_LIVE_DRIP", "true").lower() == "true",
     "conversion_rate": float(os.environ.get("TRAFFIC_CONVERSION_RATE", "0.04")),
+    # Anteil wiederkehrender Kund:innen (0..1) – steuert, wie oft Bestellungen
+    # bestehenden WooCommerce-Kund:innen zugeordnet werden statt neuen.
+    "returning_rate": float(os.environ.get("TRAFFIC_RETURNING_RATE", "0.35")),
     "drip_per_hour": _initial_drip_per_hour(),
     "totals": {"visits": 0, "purchases": 0, "revenue": 0.0},
     "last_log": [],
@@ -82,7 +85,8 @@ def _drip_worker():
             _accumulate(s)
             # Käufe zusätzlich als ECHTE WooCommerce-Bestellungen anlegen (Live).
             if s.get("purchases"):
-                made = orders.create_orders(s["purchases"], days_back=0)
+                made = orders.create_orders(s["purchases"], days_back=0,
+                                            returning_rate=STATE["returning_rate"] * 100)
                 if made:
                     _log(f"{made} Bestellung(en) im Shop angelegt (Live)")
         except Exception as exc:
@@ -123,6 +127,7 @@ def status():
             "drip_per_hour": per_hour,
             "purchases_per_hour": round(per_hour * rate, 1),
             "drip_bounds": {"min": DRIP_MIN_PER_HOUR, "max": DRIP_MAX_PER_HOUR},
+            "returning_rate": STATE["returning_rate"],
             "totals": STATE["totals"],
             "log": STATE["last_log"],
             "history": STATE["history"],
@@ -159,7 +164,8 @@ def gen_orders():
     count = int(request.form.get("count", 10))
     s = generator.generate_orders(count)
     _accumulate({"purchases": s["purchases"], "revenue": s["revenue"]})
-    made = orders.create_orders(count, days_back=0)   # echte WooCommerce-Bestellungen
+    made = orders.create_orders(count, days_back=0,                 # echte WooCommerce-Bestellungen
+                                returning_rate=STATE["returning_rate"] * 100)
     extra = f" · {made} Shop-Bestellungen" if made else ""
     _log(f"{count} Käufe erzwungen – EUR {s['revenue']:.2f}{extra}")
     return jsonify(s)
@@ -200,13 +206,18 @@ def set_drip():
         if request.form.get("conversion_rate") not in (None, ""):
             STATE["conversion_rate"] = max(0.0, min(1.0, float(request.form["conversion_rate"])))
             changed.append(f"{STATE['conversion_rate'] * 100:.1f}% Conversion")
+        if request.form.get("returning_rate") not in (None, ""):
+            STATE["returning_rate"] = max(0.0, min(1.0, float(request.form["returning_rate"])))
+            changed.append(f"{STATE['returning_rate'] * 100:.0f}% Wiederkehrer")
         per_hour = STATE["drip_per_hour"]
         rate = STATE["conversion_rate"]
+        ret = STATE["returning_rate"]
     if changed:
         _log("Live-Tropf eingestellt: " + ", ".join(changed))
     return jsonify({
         "drip_per_hour": per_hour,
         "conversion_rate": rate,
+        "returning_rate": ret,
         "purchases_per_hour": round(per_hour * rate, 1),
     })
 
@@ -282,7 +293,8 @@ def _maybe_seed_orders():
         dates = sorted(generator.history_order_dates(days, need))
         made = 0
         for i in range(0, len(dates), 20):
-            made += orders.create_orders(0, dates=dates[i:i + 20])
+            made += orders.create_orders(0, dates=dates[i:i + 20],
+                                         returning_rate=STATE["returning_rate"] * 100)
             _log(f"Bestellungen … {made}/{need} angelegt")
         _log(f"Bestellungen: {made} realistische Bestellungen erzeugt "
              f"(verteilt über ~{max(1, round(days / 30))} Monate, passend zur Matomo-Historie).")

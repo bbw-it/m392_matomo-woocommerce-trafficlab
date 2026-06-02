@@ -142,7 +142,9 @@ lokalisiert und in **Euro (EUR)** ausgezeichnet (deutsches Preisformat, z. B. `1
 fertig mit:
 
 - **Produkte** mit echten Bildern, deutschen Bezeichnungen und **ausführlichen, sinnvollen
-  Produktbeschreibungen** (Nutzen, Anwendung, Hauttyp – kein Lorem Ipsum).
+  Produktbeschreibungen** (Nutzen, Anwendung, Hauttyp – kein Lorem Ipsum), eingeordnet in die
+  **Produktkategorien** *Gesichtsreinigung*, *Gesichtspflege* und *Make-up*.
+- **Rabattgutschein `NATUR10`** (10 %), der im Demo-Betrieb ab und zu eingelöst wird.
 - **Produktbewertungen** mit Sternen: realistisch gestreut um einen **Durchschnitt von ~4,6**
   (viele zufriedene, einige kritische, wenige sehr unzufriedene Kund:innen) – ideal, um in Matomo
   bzw. im Shop über Kundenzufriedenheit und Conversion zu sprechen.
@@ -200,6 +202,8 @@ Ein modernes Dashboard auf **http://localhost:8092** erzeugt realistischen Traff
     Besuche kommen in kleinen Schüben (mal mehrere Gäste gleichzeitig) mit zufälligen Pausen dazwischen
     (Poisson-Ankünfte) – kein starres Intervall, aber im Mittel die eingestellte Rate.
   - **Conversion-Rate (%)** – die erwarteten Käufe pro Stunde werden live berechnet und angezeigt.
+  - **Wiederkehrende Kunden (%)** – wie oft eine Bestellung einer **bestehenden** WooCommerce-Kund:in
+    zugeordnet wird (aus der DB gelesen) statt einer neuen. So entstehen wiederkehrende Käufer:innen.
 - **Manuell erzeugen:** sofort X Besuche oder Y Käufe auslösen, oder historische Daten (Tage)
   nachfüllen (Backfill).
 - **Echte WooCommerce-Bestellungen:** zusätzlich zum Matomo-Tracking legt das Tool echte
@@ -211,7 +215,11 @@ Ein modernes Dashboard auf **http://localhost:8092** erzeugt realistischen Traff
   (inkl. einiger **wiederkehrender** Kund:innen mit mehreren Bestellungen). Der Startseed verteilt
   die Bestellungen über **denselben ~24-Monats-Zeitraum wie die Matomo-Historie** (gleicher
   Wachstums-Trend/Wochenrhythmus); Live-/Manuell-Käufe ergänzen sie laufend.
-  Steuerbar über `TRAFFIC_CREATE_WC_ORDERS` / `TRAFFIC_SEED_ORDERS` in `.env`.
+  Steuerbar über `TRAFFIC_CREATE_WC_ORDERS` / `TRAFFIC_SEED_ORDERS` / `TRAFFIC_RETURNING_RATE` in `.env`.
+  Jede Bestellung wird in **alle WooCommerce-Analytics-Tabellen** synchronisiert (Bestell-Statistik,
+  Produkte, Gutscheine, Kund:innen) und mit `date_paid` versehen – dadurch stimmen *WooCommerce →
+  Statistiken/Berichte* und die **Gesamtausgaben pro Kund:in** sofort. **Ab und zu** (~18 %) lösen
+  Kund:innen den Rabattgutschein **`NATUR10`** (10 %) ein (sichtbar unter *Marketing → Gutscheine*).
 
 Die generierten Daten spiegeln **live den echten Shop**: Das Traffic Lab liest die Produkte über einen
 Sync-Endpunkt direkt aus WooCommerce (`/wp-json/m392/v1/products`) – **echte Namen, Preise, Kategorie
