@@ -23,5 +23,16 @@ add_filter('gettext', function ($translated, $text) {
         'Add to wishlist'        => 'Zur Merkliste hinzufügen',
         'Free shipping'          => 'Kostenloser Versand',
     ];
-    return $map[$text] ?? $translated;
+    if (isset($map[$text])) { return $map[$text]; }
+    // Fragment-Ersatz, falls der Quellstring zusätzliche Zeichen enthält (z. B. Emoji-Präfix).
+    if (strpos($translated, 'Safe & Secure Checkout') !== false
+        || strpos($translated, 'Money Back') !== false
+        || strpos($translated, 'Free Shipping') !== false) {
+        return str_replace(
+            ['Safe & Secure Checkout', 'Money Back Guarantee', 'Money Back', 'Free Shipping'],
+            ['Sicherer & geschützter Checkout', 'Geld-zurück-Garantie', 'Geld zurück', 'Kostenloser Versand'],
+            $translated
+        );
+    }
+    return $translated;
 }, 20, 2);
