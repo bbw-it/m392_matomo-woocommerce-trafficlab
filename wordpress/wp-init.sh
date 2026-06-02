@@ -97,6 +97,15 @@ if [ -f "$FIXTURE_DB" ]; then
   install_plugin merchant 2.2.7
   install_plugin wpforms-lite 1.10.1
 
+  # 4b) Deutsche Sprachpakete installieren. Die .mo-Dateien liegen NICHT im
+  #     DB-Dump/Uploads-Archiv und muessen aus wp.org nachgeladen werden, damit
+  #     WooCommerce/WP-Strings auf Deutsch erscheinen (Locale de_CH kommt aus dem Dump).
+  echo "[wp-init] Installiere deutsche Sprachpakete (de_CH) ..."
+  wp language core install de_CH --allow-root >/dev/null 2>&1 || true
+  wp language plugin install --all de_CH --allow-root >/dev/null 2>&1 || true
+  wp language theme install --all de_CH --allow-root >/dev/null 2>&1 || true
+  wp site switch-language de_CH --allow-root >/dev/null 2>&1 || true
+
   # 5) Uploads-Archiv entpacken (legt wp-content/uploads/... an).
   if [ -f "$FIXTURE_UPLOADS" ]; then
     echo "[wp-init] Entpacke Uploads-Archiv ..."
