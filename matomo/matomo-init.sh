@@ -174,21 +174,24 @@ if [ "$need_token" -eq 1 ]; then
   fi
 fi
 
-# --- Website-Waehrung auf CHF setzen ----------------------------------------
-# SitesManager.updateSite mit nur idSite + currency laesst alle anderen
-# Site-Einstellungen unveraendert; CHF mehrfach zu setzen ist harmlos (idempotent).
+# --- Website: Waehrung CHF + E-Commerce + On-Site-Suche aktivieren ----------
+# SitesManager.updateSite laesst nicht uebergebene Site-Einstellungen
+# unveraendert; diese Werte mehrfach zu setzen ist harmlos (idempotent).
+# siteSearch=1 sorgt dafuer, dass Matomo die Site-Search-Reports verarbeitet.
 TOKEN="$(cat "${TOKEN_FILE}")"
 if [ -n "${TOKEN:-}" ]; then
-  log "Setze Waehrung der Website auf CHF ..."
+  log "Setze Waehrung (CHF), E-Commerce und On-Site-Suche der Website ..."
   curl -s -o /dev/null "${BASE}/index.php" \
     --data-urlencode "module=API" \
     --data-urlencode "method=SitesManager.updateSite" \
     --data-urlencode "idSite=1" \
     --data-urlencode "currency=CHF" \
+    --data-urlencode "ecommerce=1" \
+    --data-urlencode "siteSearch=1" \
     --data-urlencode "token_auth=${TOKEN}" \
-    --data-urlencode "format=json" || echo "[matomo-init] WARN: Waehrung konnte nicht gesetzt werden."
+    --data-urlencode "format=json" || echo "[matomo-init] WARN: Site-Einstellungen konnten nicht gesetzt werden."
 else
-  log "WARN: Kein gueltiger Token vorhanden - ueberspringe Waehrungs-Einstellung."
+  log "WARN: Kein gueltiger Token vorhanden - ueberspringe Site-Einstellungen."
 fi
 
 log "Fertig."

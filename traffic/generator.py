@@ -104,26 +104,106 @@ def _send(params):
     return resp
 
 
+def _advance(when):
+    """Verschiebt den historischen Zeitstempel um ein paar Sekunden (oder None)."""
+    if when is None:
+        return None
+    return when + timedelta(seconds=random.randint(20, 90))
+
+
+def _search_keywords(catalog):
+    """Leitet such-taugliche Stichwoerter aus Produktnamen/Kategorien ab."""
+    words = set()
+    for cat in catalog.get("categories", []):
+        words.add(cat.lower())
+    for pr in catalog.get("products", []):
+        words.add(pr["category"].lower())
+        # Einzelne Woerter aus dem Produktnamen (laenger als 3 Zeichen),
+        # Bindestriche aufgeloest -> z.B. "Bio-Baumwoll-T-Shirt".
+        for token in pr["name"].replace("-", " ").split():
+            token = token.strip().lower()
+            if len(token) >= 4:
+                words.add(token)
+    return sorted(words)
+
+
+def _search_result_count(catalog, keyword):
+    """Grobe Anzahl Treffer: Produkte, deren Name/Kategorie das Wort enthaelt."""
+    kw = keyword.lower()
+    count = 0
+    for pr in catalog.get("products", []):
+        haystack = (pr["name"] + " " + pr["category"]).lower()
+        if kw in haystack:
+            count += 1
+    return count
+
+
 def simulate_visit(catalog, when=None, force_purchase=False, conversion_rate=0.04):
     """Ein kompletter Besucherpfad. Gibt dict mit Kennzahlen zurück."""
     visitor_id = uuid.uuid4().hex[:16]
     ua = random.choice(USER_AGENTS)
-    n_pages = random.randint(1, 5)
-    viewed = random.sample(PAGES, min(n_pages, len(PAGES)))
-    for path, title in viewed:
-        p = _base_params(visitor_id, ua, when)
-        p["url"] = f"http://localhost:8090{path}"
-        p["action_name"] = title
-        _send(p)
-        if when is not None:
-            when = when + timedelta(seconds=random.randint(20, 90))
+    products = catalog["products"]
+    categories = catalog.get("categories", [])
 
+    pages = 0
+
+    # --- Optionaler Einstieg ueber eine On-Site-Suche (~30%) ----------------
+    if random.random() < 0.30:
+        keyword = random.choice(_search_keywords(catalog))
+        count = _search_result_count(catalog, keyword)
+        p = _base_params(visitor_id, ua, when)
+        p["url"] = f"http://localhost:8090/?s={keyword}&post_type=product"
+        # KEIN action_name: Matomo nutzt die Suche als Aktion.
+        p["search"] = keyword
+        p["search_count"] = count
+        if count > 0 and random.random() < 0.5:
+            # Optional eine Kategorie als Such-Kontext mitschicken.
+            p["search_cat"] = random.choice(categories) if categories else ""
+        _send(p)
+        pages += 1
+        when = _advance(when)
+
+    # --- 1-3 Kategorie-Ansichten (mit _pkc) ---------------------------------
+    cat_views = random.sample(categories, min(random.randint(1, 3), len(categories))) if categories else []
+    for cat in cat_views:
+        p = _base_params(visitor_id, ua, when)
+        slug = cat.lower().replace(" ", "-")
+        p["url"] = f"http://localhost:8090/kategorie/{slug}/"
+        p["action_name"] = f"Kategorie: {cat}"
+        p["_pkc"] = cat
+        _send(p)
+        pages += 1
+        when = _advance(when)
+
+    # --- 1-4 Produkt-Ansichten (gewichtet nach popularity, mit _pks/_pkn/_pkc/_pkp)
+    weights = [pr.get("popularity", 1) for pr in products]
+    n_products = random.randint(1, 4)
+    viewed_products = []
+    for _ in range(n_products):
+        pr = random.choices(products, weights=weights, k=1)[0]
+        viewed_products.append(pr)
+        p = _base_params(visitor_id, ua, when)
+        slug = pr["sku"].lower()
+        p["url"] = f"http://localhost:8090/produkt/{slug}/"
+        p["action_name"] = pr["name"]
+        p["_pks"] = pr["sku"]
+        p["_pkn"] = pr["name"]
+        p["_pkc"] = pr["category"]
+        p["_pkp"] = pr["price"]
+        _send(p)
+        pages += 1
+        when = _advance(when)
+
+    # --- Kaufpfad (Conversion-Logik unveraendert) ---------------------------
     purchased = force_purchase or (random.random() < conversion_rate)
     revenue = 0.0
     if purchased:
-        products = _load_catalog()["products"]
-        weights = [pr.get("popularity", 1) for pr in products]
-        cart = random.choices(products, weights=weights, k=random.randint(1, 3))
+        if viewed_products and random.random() < 0.7:
+            base = viewed_products
+        else:
+            base = products
+        cart = random.choices(base, weights=[pr.get("popularity", 1) for pr in base],
+                              k=random.randint(1, 3))
         items, subtotal = [], 0.0
         for pr in cart:
             qty = random.randint(1, 2)
@@ -141,8 +221,25 @@ def simulate_visit(catalog, when=None, force_purchase=False, conversion_rate=0.0
         p["ec_sh"] = shipping
         p["ec_items"] = json.dumps(items, ensure_ascii=False)
         _send(p)
+        pages += 1
+    elif viewed_products and random.random() < 0.20:
+        # Abgebrochener Warenkorb (Cart-Update ohne ec_id).
+        cart = random.sample(viewed_products, min(random.randint(1, 2), len(viewed_products)))
+        items, subtotal = [], 0.0
+        for pr in cart:
+            qty = random.randint(1, 2)
+            subtotal += pr["price"] * qty
+            items.append([pr["sku"], pr["name"], pr["category"], pr["price"], qty])
+        p = _base_params(visitor_id, ua, when)
+        p["url"] = "http://localhost:8090/warenkorb/"
+        p["action_name"] = "Warenkorb"
+        p["idgoal"] = 0
+        p["ec_items"] = json.dumps(items, ensure_ascii=False)
+        p["revenue"] = round(subtotal, 2)
+        _send(p)
+        pages += 1
 
-    return {"pages": len(viewed), "purchase": purchased, "revenue": revenue}
+    return {"pages": pages, "purchase": purchased, "revenue": revenue}
 
 
 def generate_visits(count, conversion_rate=0.04, when=None):
