@@ -241,16 +241,54 @@ Ein **Kauf** im selben Besuch hängt zusätzlich an:
       zum Einstiegskanal „instagram" → Bericht *Akquise → Social*.
 ```
 
-Wichtig – was dabei **nicht** passiert:
+Wichtig – was auf **diesem** Weg (Matomo-Tracking) **nicht** passiert:
 
-- Es wird **keine** WordPress-Seite geladen und **keine** echte WooCommerce-Bestellung
-  angelegt. `wp_posts`/`wp_options` werden nie angefasst → der **Shop bleibt unverändert**.
+- Es wird **keine** WordPress-Seite geladen und der **Shop-Katalog nicht verändert**
+  (Produkte, Seiten, Einstellungen bleiben unangetastet).
 - Es wird **nicht** direkt in Matomos DB geschrieben – Matomo *protokolliert* nur, was ihm
   gemeldet wird. Damit es stimmig aussieht, nutzt der Generator in `catalog.json` exakt
   dieselben Produkte/SKUs/URLs wie der echte Shop.
 
 Genau dieselbe Art Request schickt auch der echte Browser (über `matomo.js`) – nur dass dort
 der Browser den Treffer baut und das Traffic Lab ihn in Python (`requests.get`) baut.
+
+### Echte WooCommerce-Bestellungen (zweiter Schreib-Weg)
+
+Zusätzlich zum Matomo-Tracking legt das Traffic Lab **echte Bestellungen** an, die im
+WP-Admin unter *WooCommerce → Bestellungen* erscheinen. Das ist ein **getrennter** Weg:
+nicht über Matomo, sondern über einen geschützten REST-Endpunkt im WordPress-Container.
+
+```
+   traffic (app.py / orders.py)                         wordpress :8090
+   ────────────────────────────                         ───────────────
+     POST http://wordpress/wp-json/m392/v1/orders        mu-plugin
+          Header  X-M392-Key: <gemeinsames Secret>  ───►  m392-order-api.php
+          Body    { count, days_back }                    │
+                                                           ▼  wc_create_order():
+                                                      realistische Bestellung
+                                                      (dt. Kund:in + Adresse,
+                                                       Bestseller-gewichtete Artikel,
+                                                       Test-Zahlart, Status-Mix, datiert)
+                                                           │
+                                                           ▼
+                                                      DB: wordpress  (WooCommerce-Bestellung)
+```
+
+- **Wann:** ein Startseed (`TRAFFIC_SEED_ORDERS`, Standard 30, über die letzten Tage verteilt)
+  + laufend bei jedem Live-Drip-Kauf + beim manuellen „Käufe erzwingen".
+- **Realismus liegt in PHP:** der Endpunkt hat vollen WooCommerce-Zugriff und baut die Order
+  serverseitig (echte Produkte/Preise, Versand, Totalsummen, Status). E-Mails werden während
+  der Erzeugung unterdrückt (kein SMTP in der Lehrumgebung).
+- **Auth:** gemeinsames Secret `M392_ORDER_API_KEY` (Header `X-M392-Key`); falscher/leerer
+  Schlüssel → `401`.
+- **Nicht in der Fixture:** Bestellungen sind – wie die Matomo-Daten – transiente Demodaten.
+  Der Startseed ist idempotent (füllt nur auf den Zielwert auf), bei `down -v && up -d`
+  entstehen sie frisch.
+
+> Hinweis: Die Bestellungen sind ein **paralleler, in sich stimmiger** Strom (gleiche
+> Produkte/Bestseller, gleiche Test-Zahlarten) – sie sind **nicht** 1:1 dieselben Transaktionen
+> wie die 24-Monats-Matomo-Historie (das würde die Bestellliste fluten). Für die Lehre zählt,
+> dass Shop **und** Matomo dieselbe Geschichte erzählen.
 
 Die wichtigsten Stellschrauben, mit denen das Traffic Lab die Matomo-Daten formt:
 
@@ -262,6 +300,7 @@ Die wichtigsten Stellschrauben, mit denen das Traffic Lab die Matomo-Daten formt
 | **Produkt-Popularität** (stark gespreizt) | klare **Bestseller** + langer Schwanz | `catalog.json · popularity` |
 | **Akquise-Kanäle** (`urlref`) | **Social Media** als stärkster Verkaufskanal (Instagram/Facebook/…) | `generator.py · CHANNELS` |
 | **Conversion-Rate** (Regler) | Anteil Käufe; Schnitt bleibt erhalten (Kanal-Mult. normiert) | `app.py · STATE` / `generator.py` |
+| **Echte Bestellungen** | sichtbar in *WooCommerce → Bestellungen* (Startseed + Live) | `orders.py` + `mu-plugins/m392-order-api.php` |
 
 **Token-Austausch:** Für **datierte** Treffer in der Vergangenheit verlangt Matomo einen
 API-Token (`token_auth`) und den Parameter `cdt`. `matomo-init` erzeugt den Token und legt
@@ -379,13 +418,15 @@ Stand erzeugt:
 │     ├─ matomo-tracking.php       # ← Verbindung WP→Matomo (JS-Tracking, E-Commerce, Suche)
 │     ├─ m392-test-payments.php    # Test-Zahlarten (Rechnung, Kreditkarte, TWINT)
 │     ├─ m392-german-shop.php      # deutsche Labels/Übersetzungen
-│     └─ m392-shop-filters.php     # Produktfilter & Sortierung im Shop
+│     ├─ m392-shop-filters.php     # Produktfilter & Sortierung im Shop
+│     └─ m392-order-api.php        # ← REST-Endpunkt: Traffic Lab legt echte Bestellungen an
 │
 ├─ matomo/matomo-init.sh           # Matomo headless installieren, Site+Ziele, Token erzeugen
 │
 └─ traffic/                        # „Traffic Lab"
    ├─ app.py                       # Flask: Dashboard, Live-Tropf, Manuell, Backfill, Status
-   ├─ generator.py                 # ← Einfluss aufs Tracking: baut Besuche/Käufe via Tracking-API
+   ├─ generator.py                 # ← Tracking: baut Besuche/Käufe via Matomo-API
+   ├─ orders.py                    # ← ruft den Order-API-Endpunkt auf (echte Bestellungen)
    └─ templates/index.html         # Dashboard-Oberfläche
 ```
 

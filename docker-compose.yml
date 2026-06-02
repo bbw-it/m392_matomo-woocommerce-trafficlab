@@ -36,6 +36,9 @@ services:
       WORDPRESS_DB_NAME: ${WP_DB_NAME}
       WORDPRESS_DB_USER: ${WP_DB_USER}
       WORDPRESS_DB_PASSWORD: ${WP_DB_PASSWORD}
+      # Gemeinsames Secret für den Order-API-Endpunkt (mu-plugin m392-order-api.php),
+      # über den das Traffic Lab echte WooCommerce-Bestellungen anlegt.
+      M392_ORDER_API_KEY: ${M392_ORDER_API_KEY:-m392-order-secret}
     volumes:
       # Bind-Mount des kompletten WordPress-Docroots auf den Host. So lassen sich
       # Dateien von Hand importieren/bearbeiten (Plugins, Themes, Uploads, wp-config).
@@ -119,6 +122,8 @@ services:
     depends_on:
       matomo:
         condition: service_started
+      wordpress:
+        condition: service_started
     ports:
       - "${TRAFFIC_PORT}:8092"
     environment:
@@ -131,6 +136,12 @@ services:
       TRAFFIC_LIVE_DRIP: ${TRAFFIC_LIVE_DRIP}
       TRAFFIC_CONVERSION_RATE: ${TRAFFIC_CONVERSION_RATE}
       TRAFFIC_DRIP_VISITS_PER_HOUR: ${TRAFFIC_DRIP_VISITS_PER_HOUR:-120}
+      # Echte WooCommerce-Bestellungen (über das Order-API-mu-plugin)
+      WORDPRESS_INTERNAL_URL: http://wordpress
+      M392_ORDER_API_KEY: ${M392_ORDER_API_KEY:-m392-order-secret}
+      TRAFFIC_CREATE_WC_ORDERS: ${TRAFFIC_CREATE_WC_ORDERS:-true}
+      TRAFFIC_SEED_ORDERS: ${TRAFFIC_SEED_ORDERS:-30}
+      TRAFFIC_SEED_ORDERS_DAYS: ${TRAFFIC_SEED_ORDERS_DAYS:-21}
     volumes:
       - ./catalog.json:/seed/catalog.json:ro
       - matomo_token:/token:ro

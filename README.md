@@ -197,6 +197,11 @@ Ein modernes Dashboard auf **http://localhost:8092** erzeugt realistischen Traff
   - **Conversion-Rate (%)** – die erwarteten Käufe pro Stunde werden live berechnet und angezeigt.
 - **Manuell erzeugen:** sofort X Besuche oder Y Käufe auslösen, oder historische Daten (Tage)
   nachfüllen (Backfill).
+- **Echte WooCommerce-Bestellungen:** zusätzlich zum Matomo-Tracking legt das Tool echte
+  Bestellungen an (sichtbar unter *WooCommerce → Bestellungen*) – mit realistischen Daten
+  (deutsche Kund:innen + Adressen, nach Bestseller gewichtete Artikel, Test-Zahlarten,
+  realistischer Status-Mix). Ein Startseed füllt die Liste, Live-/Manuell-Käufe ergänzen sie.
+  Steuerbar über `TRAFFIC_CREATE_WC_ORDERS` / `TRAFFIC_SEED_ORDERS` in `.env`.
 
 Die generierten Daten nutzen denselben Produktkatalog (`catalog.json`) wie der echte Shop: **dieselben
 Produkte, Preise, die Kategorie „Kosmetik" und die echten Produkt-/Kategorie-URLs** (`/product/…`,

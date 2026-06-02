@@ -7,6 +7,7 @@ import time
 from flask import Flask, jsonify, render_template, request
 
 import generator
+import orders
 
 app = Flask(__name__)
 
@@ -72,6 +73,11 @@ def _drip_worker():
         try:
             s = generator.generate_visits(burst, conversion_rate=STATE["conversion_rate"])
             _accumulate(s)
+            # Käufe zusätzlich als ECHTE WooCommerce-Bestellungen anlegen (Live).
+            if s.get("purchases"):
+                made = orders.create_orders(s["purchases"], days_back=0)
+                if made:
+                    _log(f"{made} Bestellung(en) im Shop angelegt (Live)")
         except Exception as exc:
             _log(f"Drip-Fehler: {exc}")
         # Exponentiell verteilte Pause (Poisson-Ankuenfte): mal Schlag auf Schlag,
@@ -130,7 +136,9 @@ def gen_orders():
     count = int(request.form.get("count", 10))
     s = generator.generate_orders(count)
     _accumulate({"purchases": s["purchases"], "revenue": s["revenue"]})
-    _log(f"{count} Käufe erzwungen – EUR {s['revenue']:.2f}")
+    made = orders.create_orders(count, days_back=0)   # echte WooCommerce-Bestellungen
+    extra = f" · {made} Shop-Bestellungen" if made else ""
+    _log(f"{count} Käufe erzwungen – EUR {s['revenue']:.2f}{extra}")
     return jsonify(s)
 
 
@@ -213,9 +221,43 @@ def _maybe_auto_seed():
     threading.Thread(target=seed, daemon=True).start()
 
 
+def _maybe_seed_orders():
+    """Startseed: einige jüngere ECHTE WooCommerce-Bestellungen anlegen, damit die
+    Bestellliste von Anfang an realistisch gefüllt ist. Idempotent: füllt nur auf
+    den Zielwert auf (kein Anwachsen bei jedem Neustart)."""
+    if not orders.ENABLED:
+        return
+    target = int(os.environ.get("TRAFFIC_SEED_ORDERS", "30"))
+    days = int(os.environ.get("TRAFFIC_SEED_ORDERS_DAYS", "21"))
+    if target <= 0:
+        return
+
+    def seed():
+        _log("Bestellungen: warte auf WooCommerce-Bereitschaft ...")
+        status = orders.wait_for_wordpress(timeout=600)
+        if not status:
+            _log("Bestell-Seed-Fehler: WooCommerce nicht rechtzeitig bereit.")
+            return
+        existing = int(status.get("orders", 0))
+        need = max(0, target - existing)
+        if need == 0:
+            _log(f"Bestellungen: bereits {existing} vorhanden – kein Seed nötig.")
+            return
+        made = 0
+        while need > 0:
+            batch = min(20, need)            # Server-Limit 60/Request; schonend in Häppchen
+            made += orders.create_orders(batch, days_back=days)
+            need -= batch
+        _log(f"Bestellungen: {made} realistische Bestellungen erzeugt "
+             f"(verteilt über die letzten {days} Tage).")
+
+    threading.Thread(target=seed, daemon=True).start()
+
+
 threading.Thread(target=_drip_worker, daemon=True).start()
 threading.Thread(target=_history_worker, daemon=True).start()
 _maybe_auto_seed()
+_maybe_seed_orders()
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=8092)
