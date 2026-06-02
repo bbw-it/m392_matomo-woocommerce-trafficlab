@@ -1,5 +1,5 @@
 {
-  "currency": "CHF",
+  "currency": "EUR",
   "categories": ["Bekleidung", "Accessoires", "Haushalt", "Elektronik"],
   "products": [
     { "sku": "TS-001",  "name": "Bio-Baumwoll-T-Shirt",   "price": 29.90, "category": "Bekleidung",  "popularity": 9, "image_keyword": "tshirt" },

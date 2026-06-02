@@ -103,7 +103,7 @@ def gen_visits():
     count = int(request.form.get("count", 50))
     s = generator.generate_visits(count, conversion_rate=STATE["conversion_rate"])
     _accumulate(s)
-    _log(f"{count} Besuche erzeugt – {s['purchases']} Käufe, CHF {s['revenue']:.2f}")
+    _log(f"{count} Besuche erzeugt – {s['purchases']} Käufe, EUR {s['revenue']:.2f}")
     return jsonify(s)
 
 
@@ -112,7 +112,7 @@ def gen_orders():
     count = int(request.form.get("count", 10))
     s = generator.generate_orders(count)
     _accumulate({"purchases": s["purchases"], "revenue": s["revenue"]})
-    _log(f"{count} Käufe erzwungen – CHF {s['revenue']:.2f}")
+    _log(f"{count} Käufe erzwungen – EUR {s['revenue']:.2f}")
     return jsonify(s)
 
 

@@ -140,7 +140,7 @@ jeder Klick und jede Bestellung in Matomo erscheint.
 ### 2. Matomo (Web-Analyse)
 
 Matomo ist **vorinstalliert und vorkonfiguriert**: Superuser-Login bereit, Website „Demo-Shop M392"
-angelegt (Website-ID 1), E-Commerce aktiviert, Währung CHF. Die Lernenden loggen sich ein und
+angelegt (Website-ID 1), E-Commerce aktiviert, Währung EUR. Die Lernenden loggen sich ein und
 arbeiten direkt mit den Berichten – ohne Setup-Hürden.
 
 Damit von der ersten Minute an aussagekräftige Berichte sichtbar sind, befüllt die Umgebung beim
@@ -214,7 +214,7 @@ Alles wird zentral über `.env` gesteuert (Kopie von `.env.example`). Wichtigste
 | `MARIADB_VERSION`, `WORDPRESS_VERSION`, `MATOMO_VERSION`, `WOOCOMMERCE_VERSION` | gepinnt | Image-/Software-Versionen (für reproduzierbare Kurse) |
 | `WP_ADMIN_USER` / `WP_ADMIN_PASSWORD` / `WP_ADMIN_EMAIL` | `admin` / `admin123` / … | Shop-Admin |
 | `MATOMO_ADMIN_USER` / `MATOMO_ADMIN_PASSWORD` / `MATOMO_ADMIN_EMAIL` | `admin` / `matomo123` / … | Matomo-Superuser |
-| `SHOP_CURRENCY` / `SHOP_COUNTRY` / `WP_LOCALE` | `CHF` / `CH` / `de_CH` | Shop-Land, Währung, Sprache |
+| `SHOP_CURRENCY` / `SHOP_COUNTRY` / `WP_LOCALE` | `EUR` / `DE` / `de_CH` | Shop-Land, Währung, Sprache |
 | `*_DB_*` / `MYSQL_ROOT_PASSWORD` | siehe Datei | Datenbank-Namen, -Benutzer, -Passwörter |
 | `TRAFFIC_AUTO_SEED` | `true` | Beim Start automatisch Historie befüllen |
 | `TRAFFIC_BACKFILL_DAYS` | `28` | Zeitraum der historischen Befüllung (Tage) |

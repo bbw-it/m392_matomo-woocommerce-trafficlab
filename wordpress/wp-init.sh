@@ -202,8 +202,8 @@ if [ "$SHOP_SEEDED" = "0" ]; then
     wp theme install storefront --allow-root
   fi
 
-  # --- 5) Shop-Basis: Schweiz / CHF ---
-  echo "[wp-init] Konfiguriere Shop-Basis (Schweiz/CHF) ..."
+  # --- 5) Shop-Basis: Deutschland / EUR ---
+  echo "[wp-init] Konfiguriere Shop-Basis (Deutschland/EUR) ..."
   wp option update woocommerce_default_country "${SHOP_COUNTRY}:*" --allow-root || true
   wp option update woocommerce_currency "${SHOP_CURRENCY}" --allow-root || true
   wp option update woocommerce_store_address "Bahnhofstrasse 1" --allow-root || true
