@@ -51,7 +51,43 @@ add_action('rest_api_init', function () {
         },
         'callback'            => 'm392_create_orders',
     ]);
+
+    // Live-Produktliste fuer das Traffic Lab: liefert SKU/Name/Preis/Kategorie
+    // EXAKT so, wie der Matomo-Tracker echte Shop-Aktionen erfasst (SKU = echte
+    // SKU oder 'wc_<id>'). So bleiben synthetische Matomo-Daten und realer Shop
+    // deckungsgleich – und neu angelegte Produkte werden automatisch beruecksichtigt.
+    register_rest_route('m392/v1', '/products', [
+        'methods'             => 'GET',
+        'permission_callback' => '__return_true',
+        'callback'            => 'm392_list_products',
+    ]);
 });
+
+/** Live-Produkte des Shops im selben Schema wie der Matomo-Tracker. */
+function m392_list_products() {
+    if (!function_exists('wc_get_products')) {
+        return new WP_REST_Response(['products' => []], 200);
+    }
+    $out = [];
+    foreach (wc_get_products(['limit' => -1, 'status' => 'publish']) as $p) {
+        $sku = $p->get_sku();
+        if (!$sku) { $sku = 'wc_' . $p->get_id(); }    // identisch zur Tracker-Logik
+        $cat_name = ''; $cat_slug = '';
+        $terms = get_the_terms($p->get_id(), 'product_cat');
+        if ($terms && !is_wp_error($terms)) { $cat_name = $terms[0]->name; $cat_slug = $terms[0]->slug; }
+        $out[] = [
+            'id'            => $p->get_id(),
+            'sku'           => $sku,
+            'name'          => $p->get_name(),
+            'price'         => (float) $p->get_price(),
+            'category'      => $cat_name,
+            'category_slug' => $cat_slug,
+            'slug'          => $p->get_slug(),
+            'total_sales'   => (int) $p->get_total_sales(),
+        ];
+    }
+    return new WP_REST_Response(['products' => $out], 200);
+}
 
 /** Legt `count` realistische Bestellungen an (datiert innerhalb `days_back` Tage). */
 function m392_create_orders(WP_REST_Request $req) {
@@ -156,6 +192,10 @@ function m392_create_orders(WP_REST_Request $req) {
         return $ids;
     };
 
+    // Kundenstamm fuer „wiederkehrende" Kaeufer einsammeln, damit ein Teil der
+    // Bestellungen Bestandskund:innen zugeordnet wird (realistischer Mix).
+    $customer_pool = array_map('intval', get_users(['role' => 'customer', 'number' => 300, 'fields' => 'ID']));
+
     $created = [];
     for ($i = 0; $i < $count; $i++) {
         // Herkunft ziehen (≈70% deutsch, ≈30% divers), Vor-/Nachname daraus.
@@ -165,8 +205,48 @@ function m392_create_orders(WP_REST_Request $req) {
         [$city, $plz] = $cities[array_rand($cities)];
         [$pm_id, $pm_title] = $payments[array_rand($payments)];
 
+        // Kund:in bestimmen: ~35% Bestandskund:in (falls vorhanden), sonst neu.
+        // Neue Kund:innen werden als echte WooCommerce-Kund:innen (Rolle customer)
+        // angelegt und der Bestellung zugeordnet → erscheinen unter „Kunden".
+        $customer_id = 0; $email = '';
+        if ($customer_pool && random_int(1, 100) <= 35) {
+            $cid = (int) $customer_pool[array_rand($customer_pool)];
+            $cu = get_userdata($cid);
+            if ($cu) {
+                $customer_id = $cid;
+                $fn    = get_user_meta($cid, 'billing_first_name', true) ?: ($cu->first_name ?: $fn);
+                $ln    = get_user_meta($cid, 'billing_last_name', true)  ?: ($cu->last_name  ?: $ln);
+                $email = $cu->user_email;
+                $cc = get_user_meta($cid, 'billing_city', true);
+                $cp = get_user_meta($cid, 'billing_postcode', true);
+                if ($cc) { $city = $cc; }
+                if ($cp) { $plz = $cp; }
+            }
+        }
+        if (!$customer_id) {
+            $email = m392_email_local($fn, $ln) . random_int(1, 99) . '@' . $mail_hosts[array_rand($mail_hosts)];
+            $existing = get_user_by('email', $email);
+            if ($existing) {
+                $customer_id = (int) $existing->ID;
+            } elseif (function_exists('wc_create_new_customer')) {
+                $uname = m392_email_local($fn, $ln) . random_int(100, 9999);
+                $new = wc_create_new_customer($email, $uname, wp_generate_password(12, false),
+                                              ['first_name' => $fn, 'last_name' => $ln]);
+                if (!is_wp_error($new)) {
+                    $customer_id = (int) $new;
+                    update_user_meta($customer_id, 'billing_first_name', $fn);
+                    update_user_meta($customer_id, 'billing_last_name',  $ln);
+                    update_user_meta($customer_id, 'billing_city',       $city);
+                    update_user_meta($customer_id, 'billing_postcode',   $plz);
+                    update_user_meta($customer_id, 'billing_country',    'DE');
+                    $customer_pool[] = $customer_id;   // ab jetzt als Bestandskund:in nutzbar
+                }
+            }
+        }
+
         $order = wc_create_order();
         if (is_wp_error($order)) { continue; }
+        if ($customer_id) { $order->set_customer_id($customer_id); }
 
         // Positionen
         $subtotal = 0.0;
@@ -193,8 +273,7 @@ function m392_create_orders(WP_REST_Request $req) {
             'city'       => $city,
             'postcode'   => $plz,
             'country'    => 'DE',
-            'email'      => m392_email_local($fn, $ln) . random_int(1, 99)
-                            . '@' . $mail_hosts[array_rand($mail_hosts)],
+            'email'      => $email,
             'phone'      => '+49 ' . random_int(150, 179) . ' ' . random_int(1000000, 9999999),
         ];
         $order->set_address($addr, 'billing');
@@ -218,10 +297,24 @@ function m392_create_orders(WP_REST_Request $req) {
         $order->set_status(m392_pick_status($pm_id));
         $order->save();
 
+        // wc-admin-Kundenstatistik (Analytics → Kunden) fuer diese Bestellung
+        // aktualisieren, damit Kund:innen auch ohne laufenden Action-Scheduler
+        // sofort in den Berichten auftauchen.
+        m392_sync_order_customer($order->get_id());
+
         $created[] = $order->get_id();
     }
 
     return new WP_REST_Response(['count' => count($created), 'created' => $created], 201);
+}
+
+/** Aktualisiert die wc-admin-Kunden-Lookup-Tabelle fuer eine Bestellung
+ *  (treibt den Bericht Analytics → Kunden, auch fuer Gast-Bestellungen). */
+function m392_sync_order_customer($order_id) {
+    $cls = '\\Automattic\\WooCommerce\\Admin\\API\\Reports\\Customers\\DataStore';
+    if (class_exists($cls) && method_exists($cls, 'sync_order_customer')) {
+        try { $cls::sync_order_customer($order_id); } catch (\Throwable $e) { /* ignorieren */ }
+    }
 }
 
 /** Realistischer Status-Mix, leicht abhängig von der Zahlart. */

@@ -199,10 +199,11 @@ Warenkörben und Käufen.
                        └────────────────────────┘
 ```
 
-**Warum die Daten zum echten Shop passen:** `catalog.json` spiegelt exakt die 8 echten
-WooCommerce-Produkte (Name, Preis, Kategorie „Kosmetik", echte Slugs und die E-Commerce-IDs
-`wc_<id>`). Dadurch erscheinen synthetische und echte Käufe in Matomo unter **denselben**
-Produkten/Kategorien/URLs — eine konsistente Shop-Struktur.
+**Warum die Daten zum echten Shop passen:** Der Generator **synchronisiert die Produkte live aus
+WooCommerce** (Name, Preis, Kategorie, echte Slugs und die E-Commerce-IDs `wc_<id>`) – siehe
+„Produkt-Sync" weiter unten. Dadurch erscheinen synthetische und echte Käufe in Matomo unter
+**denselben** Produkten/Kategorien/URLs, neue Produkte sind automatisch dabei, und Preisänderungen
+wirken sofort. `catalog.json` liefert die Bestseller-Gewichtung und dient als Offline-Fallback.
 
 **Was der Generator pro „Besuch" sendet** (`generator.py → simulate_visit`):
 
@@ -256,8 +257,11 @@ Wichtig – was auf **diesem** Weg (Matomo-Tracking) **nicht** passiert:
 - Es wird **keine** WordPress-Seite geladen und der **Shop-Katalog nicht verändert**
   (Produkte, Seiten, Einstellungen bleiben unangetastet).
 - Es wird **nicht** direkt in Matomos DB geschrieben – Matomo *protokolliert* nur, was ihm
-  gemeldet wird. Damit es stimmig aussieht, nutzt der Generator in `catalog.json` exakt
-  dieselben Produkte/SKUs/URLs wie der echte Shop.
+  gemeldet wird. Damit es stimmig aussieht, **synchronisiert** der Generator die Produkte live
+  aus WooCommerce (`GET /wp-json/m392/v1/products`, gecacht ~5 min): echte SKU `wc_<id>`, voller
+  Name, echter Preis, Kategorie und Slug – exakt wie der Matomo-Tracker echte Browser-Käufe meldet.
+  So stimmen Matomo-Produktberichte und Shop überein und **neue Produkte sind automatisch dabei**.
+  `catalog.json` dient als Fallback und liefert die Bestseller-Gewichtung (`popularity`).
 
 Genau dieselbe Art Request schickt auch der echte Browser (über `matomo.js`) – nur dass dort
 der Browser den Treffer baut und das Traffic Lab ihn in Python (`requests.get`) baut.
@@ -276,13 +280,20 @@ nicht über Matomo, sondern über einen geschützten REST-Endpunkt im WordPress-
           Body    { count, days_back }                    │
                                                            ▼  wc_create_order():
                                                       realistische Bestellung
-                                                      (dt. Kund:in + Adresse,
+                                                      (diverse Kund:in als echtes
+                                                       Kund:innen-Konto + Adresse,
                                                        Bestseller-gewichtete Artikel,
                                                        Test-Zahlart, Status-Mix, datiert)
                                                            │
                                                            ▼
-                                                      DB: wordpress  (WooCommerce-Bestellung)
+                                                      DB: wordpress  (Bestellung + Kund:in)
 ```
+
+- **Kund:innen:** Pro Bestellung wird eine **echte WooCommerce-Kund:in** (Rolle *customer*) angelegt
+  oder – zu ~35 % – eine bestehende wiederverwendet (wiederkehrende Käufer:innen), der Bestellung
+  via `set_customer_id()` zugeordnet und die wc-admin-Kunden-Lookup-Tabelle aktualisiert
+  (`DataStore::sync_order_customer`). Dadurch erscheinen sie unter *WooCommerce → Kunden* bzw.
+  *Analytics → Kunden* – nicht als anonyme Gäste.
 
 - **Wann:** ein Startseed (`TRAFFIC_SEED_ORDERS`, Standard 120) – über **dasselbe
   ~24-Monats-Fenster wie die Matomo-Historie** verteilt, mit demselben Wachstums-Trend und

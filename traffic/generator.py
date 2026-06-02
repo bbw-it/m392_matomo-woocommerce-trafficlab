@@ -19,9 +19,36 @@ ID_SITE = int(os.environ.get("MATOMO_ID_SITE", "1"))
 CATALOG_PATH = os.environ.get("CATALOG_PATH", "/seed/catalog.json")
 TOKEN_FILE = os.environ.get("MATOMO_TOKEN_FILE", "/token/token_auth")
 SHOP_BASE_DEFAULT = os.environ.get("SHOP_BASE_URL", "http://localhost:8090")
+# Interne WordPress-URL fuer den Produkt-Sync (Container-Netz).
+WP_INTERNAL_URL = os.environ.get("WORDPRESS_INTERNAL_URL", "http://wordpress").rstrip("/")
 
 # Verbindungs-Pool: deutlich schneller beim 24-Monats-Backfill (zehntausende Requests).
 SESSION = requests.Session()
+
+# Live-Produkte des Shops (gecacht), damit Matomo-Daten und realer Shop
+# deckungsgleich bleiben und neu angelegte Produkte automatisch beruecksichtigt
+# werden. Faellt bei Nichterreichbarkeit auf catalog.json zurueck.
+_PRODUCT_CACHE = {"ts": 0.0, "data": None}
+_PRODUCT_TTL = 300.0
+
+
+def _fetch_live_products():
+    """Holt die Live-Produktliste vom Shop (gecacht ~5 min). None bei Fehler."""
+    now = time.time()
+    cached = _PRODUCT_CACHE["data"]
+    if cached is not None and (now - _PRODUCT_CACHE["ts"]) < _PRODUCT_TTL:
+        return cached
+    try:
+        r = SESSION.get(f"{WP_INTERNAL_URL}/wp-json/m392/v1/products", timeout=10)
+        if r.status_code == 200:
+            prods = r.json().get("products", [])
+            if prods:
+                _PRODUCT_CACHE["data"] = prods
+                _PRODUCT_CACHE["ts"] = now
+                return prods
+    except (requests.RequestException, ValueError):
+        pass
+    return cached  # ggf. None -> Aufrufer nutzt catalog.json
 
 # Akquise-Kanaele: bestimmen den Einstiegs-Referrer (urlref der ersten Aktion)
 # UND einen Conversion-Multiplikator. Social Media ist bewusst der staerkste
@@ -52,8 +79,46 @@ USER_AGENTS = [
 
 
 def _load_catalog():
+    """catalog.json (Meta) + Live-Produkte aus WooCommerce.
+
+    Produkte/Kategorien werden – wenn der Shop erreichbar ist – live uebernommen
+    (echte SKU `wc_<id>`, voller Name, echter Preis, echte Kategorie). So stimmen
+    die Matomo-Daten exakt mit dem Shop ueberein und neue Produkte sind automatisch
+    dabei. Die `popularity` (Bestseller-Gewichtung) kommt weiterhin aus catalog.json
+    je SKU; unbekannte/neue Produkte erhalten einen mittleren Default. Faellt der
+    Sync aus, gelten die statischen catalog.json-Produkte.
+    """
     with open(CATALOG_PATH, encoding="utf-8") as f:
-        return json.load(f)
+        catalog = json.load(f)
+
+    live = _fetch_live_products()
+    if not live:
+        return catalog
+
+    pops = {p.get("sku"): p.get("popularity") for p in catalog.get("products", [])}
+    known = sorted(v for v in pops.values() if isinstance(v, (int, float)))
+    default_pop = known[len(known) // 2] if known else 20      # Median bekannter Produkte
+
+    products, cats = [], {}
+    for p in live:
+        sku = p.get("sku")
+        products.append({
+            "sku": sku,
+            "slug": p.get("slug", ""),
+            "name": p.get("name", ""),
+            "price": float(p.get("price") or 0),
+            "category": p.get("category", ""),
+            "category_slug": p.get("category_slug", ""),
+            "popularity": pops.get(sku) or default_pop,
+        })
+        if p.get("category"):
+            cats[p["category"]] = {"name": p["category"], "slug": p.get("category_slug", "")}
+
+    catalog = dict(catalog)
+    catalog["products"] = products
+    if cats:
+        catalog["categories"] = list(cats.values())
+    return catalog
 
 
 def _base_url(catalog):

@@ -204,17 +204,23 @@ Ein modernes Dashboard auf **http://localhost:8092** erzeugt realistischen Traff
   nachfüllen (Backfill).
 - **Echte WooCommerce-Bestellungen:** zusätzlich zum Matomo-Tracking legt das Tool echte
   Bestellungen an (sichtbar unter *WooCommerce → Bestellungen*) – mit realistischen Daten
-  (deutsche Kund:innen + Adressen, nach Bestseller gewichtete Artikel, Test-Zahlarten,
-  realistischer Status-Mix). Der Startseed verteilt die Bestellungen über **denselben
-  ~24-Monats-Zeitraum wie die Matomo-Historie** (gleicher Wachstums-Trend/Wochenrhythmus), sodass
-  die Bestell-Historie zeitlich zum Matomo-Verlauf passt; Live-/Manuell-Käufe ergänzen sie laufend.
+  (Kund:innen + Adressen, nach Bestseller gewichtete Artikel, Test-Zahlarten, realistischer
+  Status-Mix). Die Kund:innen sind passend zu Berlin **divers** (~70 % deutsche, ~30 % aus weiteren
+  Communities) und werden als **echte WooCommerce-Kund:innen** angelegt (Rolle *customer*) und der
+  Bestellung zugeordnet – so erscheinen sie unter *WooCommerce → Kunden* bzw. *Analytics → Kunden*
+  (inkl. einiger **wiederkehrender** Kund:innen mit mehreren Bestellungen). Der Startseed verteilt
+  die Bestellungen über **denselben ~24-Monats-Zeitraum wie die Matomo-Historie** (gleicher
+  Wachstums-Trend/Wochenrhythmus); Live-/Manuell-Käufe ergänzen sie laufend.
   Steuerbar über `TRAFFIC_CREATE_WC_ORDERS` / `TRAFFIC_SEED_ORDERS` in `.env`.
 
-Die generierten Daten nutzen denselben Produktkatalog (`catalog.json`) wie der echte Shop: **dieselben
-Produkte, Preise, die Kategorie „Kosmetik" und die echten Produkt-/Kategorie-URLs** (`/product/…`,
-`/product-category/cosmetics/`). Auch die E-Commerce-IDs (`wc_<id>`) entsprechen exakt dem, was ein
-echter Browser-Kauf meldet – so zeigt Matomo für synthetischen und realen Traffic **eine konsistente
-Shop-Struktur** (Produkte, Kategorien, On-Site-Suche).
+Die generierten Daten spiegeln **live den echten Shop**: Das Traffic Lab liest die Produkte über einen
+Sync-Endpunkt direkt aus WooCommerce (`/wp-json/m392/v1/products`) – **echte Namen, Preise, Kategorie
+und Slugs**, identifiziert über dieselbe E-Commerce-ID `wc_<id>`, die auch ein echter Browser-Kauf
+meldet. Dadurch stimmen die Matomo-Produktberichte exakt mit dem Shop überein, **neu angelegte
+Produkte werden automatisch berücksichtigt**, und Preisänderungen wirken sich sofort aus. Fällt der
+Shop kurzzeitig aus, greift `catalog.json` als Fallback (und liefert weiterhin die Bestseller-
+Gewichtung `popularity` je SKU). So zeigt Matomo für synthetischen und realen Traffic **eine
+konsistente Shop-Struktur** (Produkte, Kategorien, On-Site-Suche).
 
 Die Grunddaten sind bewusst **realistisch und auswertbar** angelegt:
 
