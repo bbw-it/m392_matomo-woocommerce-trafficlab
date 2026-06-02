@@ -140,6 +140,38 @@ if [ -f "$FIXTURE_DB" ]; then
   wp rewrite flush --allow-root || true
   ensure_htaccess
 
+  # 8b) Danke-Seite + Kontaktformular-Weiterleitung sicherstellen.
+  #     Das Kontaktformular (WPForms) leitet nach dem Absenden auf /danke/ weiter,
+  #     damit Matomo den Seitenaufruf als Ziel „Kontaktanfrage" zaehlen kann.
+  echo "[wp-init] Stelle Danke-Seite + Kontaktformular-Weiterleitung sicher ..."
+  cat > /tmp/m392-thankyou.php <<'PHPEOF'
+<?php
+// 1) Danke-Seite (idempotent ueber Slug "danke")
+$page = get_page_by_path('danke');
+$content = "<!-- wp:paragraph -->\n<p>Vielen Dank für deine Nachricht! Wir haben deine Anfrage erhalten und melden uns so bald wie möglich bei dir – in der Regel innerhalb von ein bis zwei Werktagen.</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:paragraph -->\n<p>In der Zwischenzeit kannst du gerne weiter in unserem Sortiment stöbern.</p>\n<!-- /wp:paragraph -->\n\n<!-- wp:buttons -->\n<div class=\"wp-block-buttons\"><!-- wp:button -->\n<div class=\"wp-block-button\"><a class=\"wp-block-button__link wp-element-button\" href=\"/shop/\">Weiter zum Shop</a></div>\n<!-- /wp:button --></div>\n<!-- /wp:buttons -->";
+$args = ['post_title'=>'Vielen Dank','post_name'=>'danke','post_status'=>'publish','post_type'=>'page','post_content'=>$content];
+if ($page) { $args['ID'] = $page->ID; $id = wp_update_post($args); } else { $id = wp_insert_post($args); }
+
+// 2) WPForms-Kontaktformular auf Seiten-Weiterleitung umstellen (ID 438, sonst erstes Formular)
+$form = get_post(438);
+if (!$form || $form->post_type !== 'wpforms') {
+  $forms = get_posts(['post_type'=>'wpforms','numberposts'=>1,'post_status'=>'any']);
+  $form = $forms ? $forms[0] : null;
+}
+if ($form) {
+  $cfg = json_decode($form->post_content, true);
+  if (is_array($cfg) && isset($cfg['settings'])) {
+    if (!isset($cfg['settings']['confirmations']['1'])) { $cfg['settings']['confirmations']['1'] = []; }
+    $cfg['settings']['confirmations']['1']['type'] = 'page';
+    $cfg['settings']['confirmations']['1']['page'] = (string)$id;
+    $cfg['settings']['confirmations']['1']['redirect'] = '';
+    wp_update_post(['ID'=>$form->ID, 'post_content'=>wp_slash(wp_json_encode($cfg))]);
+    echo "Danke-Seite {$id}, Formular {$form->ID} -> Seiten-Weiterleitung\n";
+  }
+}
+PHPEOF
+  wp eval-file /tmp/m392-thankyou.php --allow-root || echo "[wp-init] WARN: Danke-Seite/Formular-Weiterleitung konnte nicht gesetzt werden."
+
   # 9) Caches leeren (inkl. best-effort Elementor-Cache).
   wp cache flush --allow-root || true
   wp eval 'if(class_exists("\\Elementor\\Plugin")){ \Elementor\Plugin::$instance->files_manager->clear_cache(); echo "elementor-cache-cleared"; }' --allow-root || true

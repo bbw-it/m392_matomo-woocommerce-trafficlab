@@ -289,6 +289,19 @@ def simulate_visit(catalog, when=None, force_purchase=False, conversion_rate=0.0
         _send(p)
         pages += 1
 
+    # --- Gelegentliche Kontaktanfrage (Kontaktformular -> Danke-Seite) -------
+    # ~2 % der Besuche senden das Kontaktformular ab: erst die Kontaktseite,
+    # dann die Bestaetigungsseite /danke/. Matomo verbucht den Aufruf von
+    # /danke/ als Ziel „Kontaktanfrage (Danke-Seite)".
+    thankyou = catalog.get("thankyou_url")
+    if thankyou and not purchased and random.random() < 0.02:
+        contact = catalog.get("contact_url") or (base + "/kontakt/")
+        p = mkparams(); p["url"] = contact; p["action_name"] = "Kontakt"
+        _send(p); pages += 1
+        when = _advance(when)
+        p = mkparams(); p["url"] = thankyou; p["action_name"] = "Vielen Dank"
+        _send(p); pages += 1
+
     return {"pages": pages, "purchase": purchased, "revenue": revenue}
 
 

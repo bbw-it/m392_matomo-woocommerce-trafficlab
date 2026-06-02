@@ -219,4 +219,29 @@ if [ -n "${TOKEN:-}" ]; then
   fi
 fi
 
+# --- Ziel: Kontaktanfrage (Danke-Seite) ------------------------------------
+# Loest aus, wenn die Bestaetigungsseite /danke/ aufgerufen wird (WPForms leitet
+# nach dem Absenden des Kontaktformulars dorthin weiter). Idempotent.
+if [ -n "${TOKEN:-}" ]; then
+  goals="$(curl -s "${BASE}/index.php?module=API&method=Goals.getGoals&idSite=1&format=json&token_auth=${TOKEN}" || true)"
+  if echo "$goals" | grep -qi '/danke'; then
+    log "Ziel 'Kontaktanfrage (Danke-Seite)' bereits vorhanden."
+  else
+    log "Lege Ziel 'Kontaktanfrage (Danke-Seite)' an (URL enthaelt '/danke') ..."
+    curl -s -o /dev/null "${BASE}/index.php" \
+      --data-urlencode "module=API" \
+      --data-urlencode "method=Goals.addGoal" \
+      --data-urlencode "idSite=1" \
+      --data-urlencode "name=Kontaktanfrage (Danke-Seite)" \
+      --data-urlencode "matchAttribute=url" \
+      --data-urlencode "patternType=contains" \
+      --data-urlencode "pattern=/danke" \
+      --data-urlencode "caseSensitive=0" \
+      --data-urlencode "allowMultipleConversionsPerVisit=0" \
+      --data-urlencode "description=Absenden des Kontaktformulars (Weiterleitung auf /danke/)" \
+      --data-urlencode "token_auth=${TOKEN}" \
+      --data-urlencode "format=json" || echo "[matomo-init] WARN: Ziel konnte nicht angelegt werden."
+  fi
+fi
+
 log "Fertig."

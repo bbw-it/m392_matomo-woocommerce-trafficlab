@@ -182,6 +182,9 @@ Getrackt werden u. a.:
   wurde und wie viele Treffer es gab
 - **Datei-Downloads als Ziel** – der „INCI-Leitfaden" (PDF) auf der Blog-Seite ist als **Matomo-Ziel**
   hinterlegt (*Ziele*); jeder Download zählt als Conversion (auch das Traffic Lab löst ihn aus)
+- **Kontaktanfragen als Ziel** – das Kontaktformular leitet nach dem Absenden auf die Seite
+  `/danke/` weiter; dieser Seitenaufruf ist als **Matomo-Ziel** „Kontaktanfrage (Danke-Seite)"
+  hinterlegt (URL enthält `/danke`) und zählt als Conversion (auch das Traffic Lab löst ihn aus)
 
 Das gilt sowohl für echte Browser-Aktionen der Lernenden als auch für die synthetischen Daten des
 Datengenerierungstools.

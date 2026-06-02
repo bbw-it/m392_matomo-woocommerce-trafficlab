@@ -157,14 +157,18 @@ Welche Ereignisse das Plugin meldet (kontextabhängig pro Seitentyp):
 | Warenkorb | `addEcommerceItem(…)` + `trackEcommerceCartUpdate(total)` | E-Commerce → Warenkörbe |
 | Bestellbestätigung (`order-received`) | `addEcommerceItem(…)` + `trackEcommerceOrder(id,total,…)` | E-Commerce → Bestellungen (Conversion) |
 | Klick auf PDF-Link (Blog) | automatisch via `enableLinkTracking` → Datei-Download | Verhalten → Downloads + **Ziel** „PDF-Download: INCI" |
+| Kontaktformular abgesendet → `/danke/` | normaler Seitenaufruf der Danke-Seite (WPForms-Weiterleitung) | **Ziel** „Kontaktanfrage (Danke-Seite)" |
 
 Der im HTML eingebettete Tracker zeigt auf `http://localhost:8091/` (Host-Port), weil der
 Code im **Browser** der Lernenden läuft — nicht im Docker-Netz.
 
-> **Ziele (Goals):** Neben E-Commerce-Conversions ist ein **Datei-Download-Ziel** hinterlegt –
-> der „INCI-Leitfaden" (PDF) auf der Blog-Seite. Das Ziel matcht auf einen Datei-Download, dessen
-> URL `inci` enthält, und wird von `matomo-init.sh` reproduzierbar angelegt. Das Traffic Lab löst
-> es bei ~3,5 % der Besuche aus (siehe Kapitel 5), damit das Ziel echte Conversions zeigt.
+> **Ziele (Goals):** Neben E-Commerce-Conversions sind zwei weitere **Ziele** hinterlegt, beide
+> von `matomo-init.sh` reproduzierbar angelegt:
+> - **„PDF-Download: INCI-Leitfaden"** – matcht einen Datei-Download, dessen URL `inci` enthält
+>   (der Leitfaden auf der Blog-Seite). Das Traffic Lab löst ihn bei ~3,5 % der Besuche aus.
+> - **„Kontaktanfrage (Danke-Seite)"** – matcht einen Seitenaufruf, dessen URL `/danke` enthält.
+>   Das Kontaktformular (WPForms) leitet nach dem Absenden auf `/danke/` weiter; `wp-init.sh` stellt
+>   Seite und Weiterleitung reproduzierbar her. Das Traffic Lab löst das Ziel bei ~2 % der Besuche aus.
 
 ---
 
@@ -311,6 +315,7 @@ Die wichtigsten Stellschrauben, mit denen das Traffic Lab die Matomo-Daten formt
 | **Conversion-Rate** (Regler) | Anteil Käufe; Schnitt bleibt erhalten (Kanal-Mult. normiert) | `app.py · STATE` / `generator.py` |
 | **Echte Bestellungen** | sichtbar in *WooCommerce → Bestellungen* (Startseed + Live) | `orders.py` + `init/mu-plugins/m392-order-api.php` |
 | **PDF-Downloads** | füllen das Ziel „PDF-Download: INCI" (*Verhalten → Downloads*) | `generator.py` (~3,5 %) + `catalog.json` |
+| **Kontaktanfragen** | Aufruf `/danke/` ⇒ füllt das Ziel „Kontaktanfrage" (*Ziele*) | `generator.py` (~2 %) + `catalog.json` |
 
 **Token-Austausch:** Für **datierte** Treffer in der Vergangenheit verlangt Matomo einen
 API-Token (`token_auth`) und den Parameter `cdt`. `matomo-init` erzeugt den Token und legt
