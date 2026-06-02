@@ -156,9 +156,15 @@ Welche Ereignisse das Plugin meldet (kontextabhängig pro Seitentyp):
 | Suchergebnis (`/?s=…`) | `trackSiteSearch(begriff, …, treffer)` (statt PageView) | Verhalten → Suche |
 | Warenkorb | `addEcommerceItem(…)` + `trackEcommerceCartUpdate(total)` | E-Commerce → Warenkörbe |
 | Bestellbestätigung (`order-received`) | `addEcommerceItem(…)` + `trackEcommerceOrder(id,total,…)` | E-Commerce → Bestellungen (Conversion) |
+| Klick auf PDF-Link (Blog) | automatisch via `enableLinkTracking` → Datei-Download | Verhalten → Downloads + **Ziel** „PDF-Download: INCI" |
 
 Der im HTML eingebettete Tracker zeigt auf `http://localhost:8091/` (Host-Port), weil der
 Code im **Browser** der Lernenden läuft — nicht im Docker-Netz.
+
+> **Ziele (Goals):** Neben E-Commerce-Conversions ist ein **Datei-Download-Ziel** hinterlegt –
+> der „INCI-Leitfaden" (PDF) auf der Blog-Seite. Das Ziel matcht auf einen Datei-Download, dessen
+> URL `inci` enthält, und wird von `matomo-init.sh` reproduzierbar angelegt. Das Traffic Lab löst
+> es bei ~3,5 % der Besuche aus (siehe Kapitel 5), damit das Ziel echte Conversions zeigt.
 
 ---
 
@@ -301,6 +307,7 @@ Die wichtigsten Stellschrauben, mit denen das Traffic Lab die Matomo-Daten formt
 | **Akquise-Kanäle** (`urlref`) | **Social Media** als stärkster Verkaufskanal (Instagram/Facebook/…) | `generator.py · CHANNELS` |
 | **Conversion-Rate** (Regler) | Anteil Käufe; Schnitt bleibt erhalten (Kanal-Mult. normiert) | `app.py · STATE` / `generator.py` |
 | **Echte Bestellungen** | sichtbar in *WooCommerce → Bestellungen* (Startseed + Live) | `orders.py` + `init/mu-plugins/m392-order-api.php` |
+| **PDF-Downloads** | füllen das Ziel „PDF-Download: INCI" (*Verhalten → Downloads*) | `generator.py` (~3,5 %) + `catalog.json` |
 
 **Token-Austausch:** Für **datierte** Treffer in der Vergangenheit verlangt Matomo einen
 API-Token (`token_auth`) und den Parameter `cdt`. `matomo-init` erzeugt den Token und legt

@@ -272,6 +272,9 @@ Alles wird zentral über `.env` gesteuert (Kopie von `.env.example`). Wichtigste
 | `TRAFFIC_LIVE_DRIP` | `true` | Live-Tropf beim Start aktiv (in der UI abschaltbar) |
 | `TRAFFIC_DRIP_VISITS_PER_HOUR` | `120` | Startwert: Besucher/Stunde des Live-Tropfs |
 | `TRAFFIC_CONVERSION_RATE` | `0.04` | Startwert: Anteil Besuche mit Kauf (0–1) |
+| `TRAFFIC_CREATE_WC_ORDERS` | `true` | Echte WooCommerce-Bestellungen anlegen (Startseed + Live) |
+| `TRAFFIC_SEED_ORDERS` / `TRAFFIC_SEED_ORDERS_DAYS` | `30` / `21` | Startseed: Anzahl Bestellungen / über die letzten N Tage |
+| `M392_ORDER_API_KEY` | `m392-order-secret` | Gemeinsames Secret für den Bestell-Endpunkt (WP ⇄ Traffic) |
 
 > **Versionen anpassen:** Alle Versionen sind gepinnt. Vor jedem Semester eine Version testen und
 > festschreiben, damit der Kurs über die Zeit reproduzierbar bleibt.
@@ -336,7 +339,8 @@ werden. Ein `down -v && up -d` liefert also wieder **exakt denselben Shop**.
 ├─ traffic/                      # Datengenerierungstool (Python/Flask)
 │  ├─ Dockerfile
 │  ├─ app.py                     # Web-Server + Dashboard-API + Live-Tropf
-│  ├─ generator.py               # Logik: Besuche/Käufe an die Matomo-Tracking-API senden
+│  ├─ generator.py               # Logik: Besuche/Käufe/Downloads an die Matomo-Tracking-API senden
+│  ├─ orders.py                  # legt echte WooCommerce-Bestellungen an (Order-API)
 │  ├─ requirements.txt
 │  └─ templates/index.html       # Dashboard-Oberfläche
 │
