@@ -26,39 +26,42 @@ Drei browser-erreichbare Dienste, eine gemeinsame Datenbank und zwei einmalige
 Einrichtungs-Container. Alles läuft lokal in Docker.
 
 ```
-                                  ┌───────────────────────────┐
-                                  │        Browser            │
-                                  │   (Lehrperson / Lernende) │
-                                  └─────┬───────┬───────┬──────┘
-                          :8090 │       :8091  │       │ :8092
-                  (Shop-HTML)   ▼              ▼       ▼  (Dashboard-UI)
-        ┌───────────────────────────┐  ┌──────────────┐  ┌─────────────────────────┐
-        │  wordpress                │  │   matomo     │  │  traffic  (Flask)       │
-        │  WordPress 6.7 + Apache   │  │  Matomo 5.3  │  │  „Traffic Lab"          │
-        │  WooCommerce + Botiga     │  │  Web-Analyse │  │  app.py + generator.py  │
-        │  + mu-plugins (Tracking)  │  │              │  │                         │
-        └─────────────┬─────────────┘  └──────┬───────┘  └────────────┬────────────┘
-                      │ wordpress-DB          │ matomo-DB              │
-                      ▼                        ▼                       │
-        ┌─────────────────────────────────────────────┐               │
-        │  db   ·  MariaDB 11.4                        │               │
-        │  ┌───────────────┐   ┌───────────────────┐   │               │
-        │  │ DB: wordpress │   │ DB: matomo        │   │               │
-        │  └───────────────┘   └───────────────────┘   │               │
-        └─────────────────────────────────────────────┘               │
-                                                                       │
-   Einmalige Einrichtung (laufen einmal, beenden mit Exit 0):         │
-        ┌──────────────────────┐      ┌───────────────────────┐        │
-        │ wp-init              │      │ matomo-init           │ ◄──────┘
-        │ (wordpress:cli)      │      │ (curl)                │  liest Token
-        │ spielt Fixture ein   │      │ installiert Matomo,   │
-        │ Theme/Plugins        │      │ erzeugt API-Token     │
-        └──────────────────────┘      └───────────────────────┘
+   ┌──────────────────────── Browser (Lehrperson / Lernende) ─────────────────────────┐
+   │   Shop  :8090        Matomo-Berichte  :8091        Traffic-Lab-Dashboard  :8092   │
+   └────┬──────────────────────────┬───────────────────────────────────┬──────────────┘
+        │ Shop-HTML                 │ Berichte ansehen   +   Tracking    │ Dashboard
+        │ (+ Matomo-Snippet)        │ senden  (Weg A, via matomo.js)     │ bedienen
+        ▼                           ▼                                    ▼
+   ┌───────────────┐         ┌─────────────────────────┐         ┌────────────────────┐
+   │  wordpress    │         │        matomo  :8091    │         │  traffic  :8092    │
+   │  :8090        │         │                         │         │  (Flask)           │
+   │  Shop+Botiga  │         │   ┌─────────────────┐   │  Weg B  │  „Traffic Lab"     │
+   │  + Tracking-  │         │   │   matomo.php    │   │ HTTP GET│  app.py +          │
+   │    Snippet    │         │   │  TRACKING-API   │◄──┼─────────┤  generator.py      │
+   │               │         │   │ (einziger       │   │ /matomo │  → sendet          │
+   │               │         │   │  Dateneingang)  │   │ .php?…  │    /matomo.php?…    │
+   │               │         │   └────────┬────────┘   │         └─────────┬──────────┘
+   └──────┬────────┘         │            ▼            │                   ╎ liest Token
+          │ DB: wordpress    │       DB: matomo        │                   ╎ (nur Historie)
+          ▼                  └─────────────────────────┘             ┌─────▼──────┐
+        (DB: wordpress und DB: matomo liegen in EINER MariaDB „db".)  │  Volume    │
+                                                                      │matomo_token│
+   Einrichtung (einmalig, dann Exit 0):                               └─────▲──────┘
+     • wp-init     – spielt die Fixture ein, installiert Theme/Plugins        ╎ schreibt
+     • matomo-init – installiert Matomo, erzeugt den API-Token  ──────────────┘ (matomo-init)
+
+   ════════════════════════════════════════════════════════════════════════════════════
+   Weg A = echte Besucher: der Browser lädt matomo.js von :8091 und sendet die Treffer selbst.
+   Weg B = Traffic Lab:   generator.py ruft dieselbe Tracking-API serverseitig auf (kein Browser).
+   →  BEIDE Wege landen auf demselben Endpunkt  /matomo.php ; Matomo unterscheidet sie nicht
+      und schreibt daraus die Zeilen in „DB: matomo". (Details: Kapitel 4–6.)
 ```
 
 Alle Dienste liegen im selben Docker-Netzwerk und erreichen sich **intern** über ihren
 Service-Namen (`db`, `matomo`, `wordpress`). Der **Browser** erreicht sie über die
-veröffentlichten Host-Ports `8090/8091/8092` (`localhost`).
+veröffentlichten Host-Ports `8090/8091/8092` (`localhost`). Der entscheidende Punkt:
+**Daten gelangen ausschließlich über die HTTP-Tracking-API `/matomo.php` in Matomo** – egal
+ob von einem echten Browser (Weg A) oder vom Traffic Lab (Weg B).
 
 ---
 
@@ -206,6 +209,49 @@ Produkten/Kategorien/URLs — eine konsistente Shop-Struktur.
                └─ nein, aber Warenkorb (~20 %) → ec_items ohne ec_id (Abbruch)
 ```
 
+### Konkret: so „schreibt" das Traffic Lab in Matomo
+
+Der häufigste Denkfehler ist, „Daten schreiben" hieße „in eine Datenbank schreiben". Hier
+läuft es anders: Das Traffic Lab schreibt **weder** in die Webseite (WordPress) **noch**
+direkt in eine Datenbank. Es ruft denselben HTTP-Endpunkt auf, den auch ein echter Browser
+benutzt – **`/matomo.php`**, die Matomo-Tracking-API. Matomo parst die Parameter und legt
+selbst die Zeilen in *seiner* Datenbank an. Es kann nicht unterscheiden, ob ein Browser oder
+ein Python-Skript den Treffer geschickt hat.
+
+So sieht ein **echter** Aufruf aus `generator.py` aus – eine Produktansicht:
+
+```
+GET http://matomo/matomo.php
+      ?idsite=1 &rec=1                  ← „nimm einen Treffer für Website 1 auf"
+      &_id=8f3a91c2d4e5f6a7             ← Besucher-ID (gleich über alle Aktionen eines Besuchs)
+      &url=http://localhost:8090/product/vinopure-…/
+      &action_name=Vinopure Pore Purifying Gel Cleanser
+      &_pks=wc_96 &_pkn=Vinopure… &_pkc=Kosmetik &_pkp=14   ← E-Commerce-Produktansicht
+      &urlref=https://www.instagram.com/                    ← Einstiegskanal → „Social"
+
+   →  Matomo antwortet 204 (No Content) und legt einen Besuch + eine Produktansicht an.
+```
+
+Ein **Kauf** im selben Besuch hängt zusätzlich an:
+
+```
+      &idgoal=0 &ec_id=4f1c8a &revenue=28
+      &ec_items=[["wc_96","Vinopure…","Kosmetik",14,2]]
+   →  Matomo verbucht eine E-Commerce-Bestellung (Conversion + Umsatz), zugeordnet
+      zum Einstiegskanal „instagram" → Bericht *Akquise → Social*.
+```
+
+Wichtig – was dabei **nicht** passiert:
+
+- Es wird **keine** WordPress-Seite geladen und **keine** echte WooCommerce-Bestellung
+  angelegt. `wp_posts`/`wp_options` werden nie angefasst → der **Shop bleibt unverändert**.
+- Es wird **nicht** direkt in Matomos DB geschrieben – Matomo *protokolliert* nur, was ihm
+  gemeldet wird. Damit es stimmig aussieht, nutzt der Generator in `catalog.json` exakt
+  dieselben Produkte/SKUs/URLs wie der echte Shop.
+
+Genau dieselbe Art Request schickt auch der echte Browser (über `matomo.js`) – nur dass dort
+der Browser den Treffer baut und das Traffic Lab ihn in Python (`requests.get`) baut.
+
 Die wichtigsten Stellschrauben, mit denen das Traffic Lab die Matomo-Daten formt:
 
 | Mechanismus | Wirkung in Matomo | Wo im Code |
@@ -234,19 +280,27 @@ Der Kern der Architektur: **zwei** Wege münden in **dieselbe** Matomo-Instanz u
 dieselben Berichte.
 
 ```
-   WEG A — echte Besucher (clientseitig, über den Browser)
-   ════════════════════════════════════════════════════════
-     Browser ──GET──► wordpress(:8090) ──HTML+JS──► Browser ──matomo.php──► matomo(:8091)
-                                                     (matomo.js sendet)        │
-                                                                               ▼
-   WEG B — Traffic Lab (serverseitig, ohne Browser/WordPress)            ┌───────────┐
-   ════════════════════════════════════════════════════════════         │  matomo   │
-     traffic(:8092) generator.py ───────HTTP Tracking-API──────────────► │  DB matomo│
-                                  http://matomo/matomo.php               │  Berichte │
-                                                                         └───────────┘
-                                                                               ▲
-   Gemeinsame Basis:  catalog.json  (Traffic Lab)  ≡  echte WooCommerce-Produkte (Shop)
-   ⇒ beide Wege erzeugen Daten unter denselben Produkten/Kategorien/URLs.
+   WEG A — echte Besucher (clientseitig)
+   ─────────────────────────────────────
+     Browser ─GET─► wordpress :8090 ─HTML + matomo.js─► Browser ───┐
+                                                  (der Browser       │
+                                                   sendet den Treffer)│ HTTP GET
+   WEG B — Traffic Lab (serverseitig, ohne Browser/WordPress)        │ /matomo.php?…
+   ──────────────────────────────────────────────────────────       │
+     traffic :8092 · generator.py ─────────────────────────────┐    │
+                                                                ▼    ▼
+                                              ┌──────────────────────────────────┐
+                                              │  matomo  :8091                    │
+                                              │    /matomo.php                    │
+                                              │    EIN Endpunkt für ALLE          │
+                                              │    Tracking-Treffer (A wie B)     │
+                                              │          │ schreibt               │
+                                              │          ▼                        │
+                                              │    DB: matomo  ──►  Berichte      │
+                                              └──────────────────────────────────┘
+
+   Gemeinsame Basis:  catalog.json (Traffic Lab)  ≡  echte WooCommerce-Produkte (Shop)
+   ⇒ beide Wege erzeugen Daten unter denselben Produkten / Kategorien / URLs.
 ```
 
 - **Weg A** ist „echt": WordPress liefert nur das Tracking-Snippet; das eigentliche Tracking
