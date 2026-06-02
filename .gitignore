@@ -14,3 +14,9 @@ __pycache__/
 
 # Node
 node_modules/
+
+# Fixtures fuer reproduzierbaren Demo-Shop MUESSEN versioniert werden
+# (DB-Dump + Uploads-Archiv), daher hier explizit NICHT ignorieren.
+!wordpress/fixture/
+!wordpress/fixture/shop.sql.gz
+!wordpress/fixture/uploads.tar.gz

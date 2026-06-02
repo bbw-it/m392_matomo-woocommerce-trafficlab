@@ -1,6 +1,154 @@
 #!/bin/bash
 set -euo pipefail
 
+FIXTURE_DB="/fixture/shop.sql.gz"
+FIXTURE_UPLOADS="/fixture/uploads.tar.gz"
+
+# .htaccess mit WordPress-Rewrite-Block sicherstellen (idempotent, von beiden
+# Modi genutzt). Noetig, weil 'wp rewrite flush' im CLI-Kontext mod_rewrite
+# nicht erkennt und daher KEINE Rewrite-Regeln in .htaccess schreibt -> sonst
+# 404 auf huebschen URLs. Der Apache des offiziellen WordPress-Images erlaubt
+# .htaccess-Overrides.
+ensure_htaccess() {
+  local HTACCESS="/var/www/html/.htaccess"
+  if ! grep -q "RewriteEngine On" "$HTACCESS" 2>/dev/null; then
+    echo "[wp-init] Schreibe WordPress-Rewrite-Block in .htaccess ..."
+    cat > "$HTACCESS" <<'HTEOF'
+# BEGIN WordPress
+<IfModule mod_rewrite.c>
+RewriteEngine On
+RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
+RewriteBase /
+RewriteRule ^index\.php$ - [L]
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule . /index.php [L]
+</IfModule>
+# END WordPress
+HTEOF
+  fi
+}
+
+# ===========================================================================
+#  FIXTURE-MODUS: vorhandenes Demo-Shop-Abbild (DB-Dump + Uploads) einspielen.
+#  Aktiv, wenn der DB-Dump existiert UND der Marker noch nicht gesetzt ist.
+#  In diesem Modus ist WordPress nach dem Import vollstaendig -> KEIN
+#  core install / Katalog-Seeding (das uebernimmt der Legacy-Modus als
+#  Fallback, falls keine Fixture vorliegt).
+# ===========================================================================
+if [ -f "$FIXTURE_DB" ]; then
+  echo "[wp-init] Fixture gefunden – pruefe Restore-Marker ..."
+
+  # 1) Auf WP-Core-Dateien + DB-Erreichbarkeit warten. Im Fixture-Modus ist WP
+  #    noch NICHT 'installiert' (keine Tabellen) -> nur DB-Connectivity pruefen.
+  echo "[wp-init] Warte auf WordPress-Dateien und DB-Verbindung ..."
+  until [ -f /var/www/html/wp-load.php ] && wp db check --allow-root >/dev/null 2>&1; do
+    sleep 3
+  done
+
+  # Marker schon gesetzt? -> Restore bereits erfolgt, idempotent aussteigen.
+  if wp option get m392_fixture_restored --allow-root >/dev/null 2>&1; then
+    echo "[wp-init] Fixture bereits eingespielt (Marker gesetzt) – nichts zu tun."
+    exit 0
+  fi
+
+  echo "[wp-init] === FIXTURE-RESTORE startet ==="
+
+  # 2) .htaccess-Rewrite-Block sicherstellen.
+  ensure_htaccess
+
+  # 3) DB-Dump importieren (legt alle Tabellen + Optionen inkl. siteurl/home und
+  #    active_plugins an).
+  echo "[wp-init] Importiere DB-Dump ..."
+  gunzip -c "$FIXTURE_DB" | wp db import - --allow-root
+  echo "[wp-init] DB-Dump importiert."
+
+  # 3b) active_plugins voruebergehend leeren – die Plugin-DATEIEN liegen erst
+  #     nach 'wp plugin install' auf der Platte. Wuerde WP-CLI jetzt die aktiven
+  #     Plugins bootstrappen, scheiterte das an fehlenden Dateien. Wir leeren die
+  #     Option per direktem DB-Query (kein Plugin-Bootstrap) und aktivieren die
+  #     Plugins gleich beim Installieren neu.
+  echo "[wp-init] Setze active_plugins temporaer leer (DB-Query) ..."
+  TABLE_PREFIX="$(wp config get table_prefix --allow-root 2>/dev/null || echo 'wp_')"
+  wp db query "UPDATE ${TABLE_PREFIX}options SET option_value='a:0:{}' WHERE option_name='active_plugins';" --allow-root
+
+  # 4) Theme + Plugins in gepinnten Versionen installieren (Dateien auf Platte).
+  echo "[wp-init] Installiere Botiga-Theme (2.4.5) ..."
+  wp theme install botiga --version=2.4.5 --force --allow-root || wp theme install botiga --force --allow-root
+  wp theme activate botiga --allow-root
+
+  # Plugin-Slug + gepinnte Version, je Zeile. Bei nicht verfuegbarer Version:
+  # Fallback auf latest + Warnung (nicht den ganzen Run abbrechen).
+  install_plugin() {
+    local slug="$1" ver="$2"
+    echo "[wp-init] Installiere Plugin ${slug} (${ver}) ..."
+    if wp plugin install "$slug" --version="$ver" --force --activate --allow-root; then
+      return 0
+    fi
+    echo "[wp-init] WARNUNG: ${slug} ${ver} nicht verfuegbar – Fallback auf latest."
+    wp plugin install "$slug" --force --activate --allow-root \
+      || echo "[wp-init] WARNUNG: ${slug} konnte nicht installiert werden."
+  }
+
+  install_plugin woocommerce 9.5.1
+  install_plugin elementor 4.1.1
+  install_plugin athemes-addons-for-elementor-lite 1.1.9
+  install_plugin athemes-starter-sites 1.1.9
+  install_plugin merchant 2.2.7
+  install_plugin wpforms-lite 1.10.1
+
+  # 5) Uploads-Archiv entpacken (legt wp-content/uploads/... an).
+  if [ -f "$FIXTURE_UPLOADS" ]; then
+    echo "[wp-init] Entpacke Uploads-Archiv ..."
+    tar xzf "$FIXTURE_UPLOADS" -C /var/www/html/wp-content
+    chown -R 33:33 /var/www/html/wp-content/uploads 2>/dev/null \
+      || echo "[wp-init] (chown uploads uebersprungen – vermutlich bereits Eigentuemer)"
+  else
+    echo "[wp-init] WARNUNG: Uploads-Archiv ${FIXTURE_UPLOADS} fehlt."
+  fi
+
+  # 6) Port-Korrektheit: falls abweichender Port, in allen Tabellen ersetzen.
+  if [ "${WORDPRESS_PORT}" != "8090" ]; then
+    echo "[wp-init] Passe Port 8090 -> ${WORDPRESS_PORT} an (search-replace) ..."
+    wp search-replace 'localhost:8090' "localhost:${WORDPRESS_PORT}" --all-tables --allow-root || true
+  fi
+  wp option update home "http://localhost:${WORDPRESS_PORT}" --allow-root
+  wp option update siteurl "http://localhost:${WORDPRESS_PORT}" --allow-root
+
+  # 7) Admin-Account aus .env durchsetzen (damit Login-Creds funktionieren).
+  if wp user get "${WP_ADMIN_USER}" --allow-root >/dev/null 2>&1; then
+    echo "[wp-init] Aktualisiere Admin-User '${WP_ADMIN_USER}' ..."
+    ADMIN_ID=$(wp user get "${WP_ADMIN_USER}" --field=ID --allow-root)
+    wp user update "$ADMIN_ID" --user_pass="${WP_ADMIN_PASSWORD}" --user_email="${WP_ADMIN_EMAIL}" --allow-root
+  else
+    echo "[wp-init] Lege Admin-User '${WP_ADMIN_USER}' an ..."
+    wp user create "${WP_ADMIN_USER}" "${WP_ADMIN_EMAIL}" \
+      --role=administrator --user_pass="${WP_ADMIN_PASSWORD}" --allow-root
+  fi
+
+  # 8) Schoene Permalinks.
+  wp rewrite structure '/%postname%/' --allow-root
+  wp rewrite flush --allow-root || true
+  ensure_htaccess
+
+  # 9) Caches leeren (inkl. best-effort Elementor-Cache).
+  wp cache flush --allow-root || true
+  wp eval 'if(class_exists("\\Elementor\\Plugin")){ \Elementor\Plugin::$instance->files_manager->clear_cache(); echo "elementor-cache-cleared"; }' --allow-root || true
+
+  # 10) Marker setzen + Erfolg melden.
+  wp option update m392_fixture_restored 1 --allow-root
+  echo "[wp-init] === FIXTURE-RESTORE erfolgreich abgeschlossen ==="
+  echo "[wp-init] Aktive Plugins: $(wp plugin list --status=active --field=name --allow-root | tr '\n' ',')"
+  exit 0
+fi
+
+# ===========================================================================
+#  LEGACY-MODUS (Fallback): kein Fixture-Abbild vorhanden -> Shop von Grund auf
+#  aufbauen (Core-Install, Katalog-Produkte, Botiga, Produktbilder). Bleibt
+#  unveraendert erhalten, falls jemand die Fixture loescht.
+# ===========================================================================
+echo "[wp-init] Keine Fixture gefunden – Legacy-Setup (Aufbau von Grund auf)."
+
 echo "[wp-init] Warte auf WordPress-Dateien und DB ..."
 until wp core is-installed --allow-root 2>/dev/null || { wp db check --allow-root 2>/dev/null && [ -f /var/www/html/wp-load.php ]; }; do
   sleep 3
