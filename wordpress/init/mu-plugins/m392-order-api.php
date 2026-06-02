@@ -77,12 +77,49 @@ function m392_create_orders(WP_REST_Request $req) {
     $days_back = max(0, min(1000, (int) $req->get_param('days_back')));
 
     // --- Stammdaten für realistische Bestellungen --------------------------
-    $first = ['Anna','Lena','Sophie','Marie','Laura','Julia','Hannah','Emma','Mia','Lea',
-              'Lukas','Leon','Paul','Jonas','Finn','Noah','Elias','Felix','Max','Tim',
-              'Martina','Sandra','Nicole','Stefan','Andreas','Thomas','Michael','Daniel','Sarah','Katrin'];
-    $last  = ['Müller','Schmidt','Schneider','Fischer','Weber','Meyer','Wagner','Becker','Schulz',
-              'Hoffmann','Koch','Bauer','Richter','Klein','Wolf','Schröder','Neumann','Braun',
-              'Krüger','Hofmann','Zimmermann','Hartmann','Lange','Werner','Krause','Lehmann','König','Walter'];
+    // Namen nach Herkunft gruppiert (Vor-/Nachname stammen aus derselben Kultur,
+    // damit die Paare stimmig sind). ~70% deutsch, ~30% aus in Berlin stark
+    // vertretenen Communities (türkisch, arabisch, polnisch, vietnamesisch,
+    // russisch, italienisch) – spiegelt die Vielfalt der Stadt wider.
+    // Format: 'kürzel' => [Gewicht, [Vornamen...], [Nachnamen...]]
+    $name_pool = [
+        'de' => [70,
+            ['Anna','Lena','Sophie','Marie','Laura','Julia','Hannah','Emma','Mia','Lea',
+             'Lukas','Leon','Paul','Jonas','Finn','Noah','Elias','Felix','Max','Tim',
+             'Martina','Sandra','Nicole','Stefan','Andreas','Thomas','Michael','Daniel','Sarah','Katrin'],
+            ['Müller','Schmidt','Schneider','Fischer','Weber','Meyer','Wagner','Becker','Schulz',
+             'Hoffmann','Koch','Bauer','Richter','Klein','Wolf','Schröder','Neumann','Braun',
+             'Krüger','Hofmann','Zimmermann','Hartmann','Lange','Werner','Krause','Lehmann','König','Walter']],
+        'tr' => [8,
+            ['Mehmet','Emre','Mustafa','Hakan','Can','Murat','Burak','Kerem',
+             'Aylin','Elif','Zeynep','Fatma','Esra','Merve','Selin','Derya'],
+            ['Yılmaz','Demir','Şahin','Çelik','Kaya','Yıldız','Öztürk','Aydın','Arslan','Doğan']],
+        'ar' => [6,
+            ['Omar','Yusuf','Amir','Karim','Hassan','Tarek','Samir','Bilal',
+             'Layla','Nour','Fatima','Yasmin','Amira','Salma','Rania','Dana'],
+            ['Haddad','Nasser','Khalil','Ibrahim','Saleh','Mansour','Hamdan','Karam','Najjar','Rashid']],
+        'pl' => [5,
+            ['Piotr','Tomasz','Marek','Krzysztof','Michał','Paweł',
+             'Katarzyna','Agnieszka','Magdalena','Joanna','Aleksandra','Natalia'],
+            ['Nowak','Kowalski','Wiśniewski','Wójcik','Kowalczyk','Zieliński','Lewandowski','Szymański','Kaczmarek','Mazur']],
+        'vn' => [3,
+            ['Minh','Huy','Duc','Quan','Tuan','Nam',
+             'Anh','Linh','Trang','Mai','Thao','Ngoc'],
+            ['Nguyen','Tran','Le','Pham','Hoang','Vu','Dang','Bui','Do','Phan']],
+        'ru' => [4,
+            ['Dmitri','Sergei','Ivan','Alexei','Andrei','Nikolai',
+             'Olga','Natalia','Tatiana','Irina','Elena','Anastasia'],
+            ['Iwanow','Petrow','Sokolow','Wolkow','Kusnezow','Popow','Smirnow','Nowikow','Morozow','Kozlow']],
+        'it' => [4,
+            ['Luca','Marco','Matteo','Alessandro','Giuseppe','Davide',
+             'Giulia','Francesca','Chiara','Sofia','Martina','Valentina'],
+            ['Rossi','Russo','Ferrari','Esposito','Bianchi','Romano','Greco','Conti','Ricci','Marino']],
+    ];
+    // Gewichtetes Lostöpfchen der Herkünfte (Summe der Gewichte = 100 → Prozent).
+    $culture_bag = [];
+    foreach ($name_pool as $ckey => $cdef) {
+        for ($w = 0; $w < $cdef[0]; $w++) { $culture_bag[] = $ckey; }
+    }
     $cities = [['Berlin','10117'],['Berlin','10967'],['Berlin','12047'],['Hamburg','20095'],
                ['München','80331'],['Köln','50667'],['Frankfurt am Main','60311'],['Stuttgart','70173'],
                ['Düsseldorf','40213'],['Leipzig','04109'],['Dresden','01067'],['Bremen','28195'],['Hannover','30159']];
@@ -121,8 +158,10 @@ function m392_create_orders(WP_REST_Request $req) {
 
     $created = [];
     for ($i = 0; $i < $count; $i++) {
-        $fn = $first[array_rand($first)];
-        $ln = $last[array_rand($last)];
+        // Herkunft ziehen (≈70% deutsch, ≈30% divers), Vor-/Nachname daraus.
+        $culture = $culture_bag[array_rand($culture_bag)];
+        $fn = $name_pool[$culture][1][array_rand($name_pool[$culture][1])];
+        $ln = $name_pool[$culture][2][array_rand($name_pool[$culture][2])];
         [$city, $plz] = $cities[array_rand($cities)];
         [$pm_id, $pm_title] = $payments[array_rand($payments)];
 
@@ -154,7 +193,7 @@ function m392_create_orders(WP_REST_Request $req) {
             'city'       => $city,
             'postcode'   => $plz,
             'country'    => 'DE',
-            'email'      => strtolower(m392_translit($fn . '.' . $ln)) . random_int(1, 99)
+            'email'      => m392_email_local($fn, $ln) . random_int(1, 99)
                             . '@' . $mail_hosts[array_rand($mail_hosts)],
             'phone'      => '+49 ' . random_int(150, 179) . ' ' . random_int(1000000, 9999999),
         ];
@@ -204,8 +243,27 @@ function m392_pick_status($payment_id) {
     return 'cancelled';
 }
 
-/** Umlaute/ß für E-Mail-Adressen vereinfachen. */
+/** Umlaute/ß und gängige diakritische Zeichen für E-Mail-Adressen vereinfachen. */
 function m392_translit($s) {
-    $map = ['ä'=>'ae','ö'=>'oe','ü'=>'ue','ß'=>'ss','Ä'=>'ae','Ö'=>'oe','Ü'=>'ue'];
+    $map = [
+        // Deutsch
+        'ä'=>'ae','ö'=>'oe','ü'=>'ue','ß'=>'ss','Ä'=>'ae','Ö'=>'oe','Ü'=>'ue',
+        // Türkisch
+        'ı'=>'i','İ'=>'i','ş'=>'s','Ş'=>'s','ç'=>'c','Ç'=>'c','ğ'=>'g','Ğ'=>'g',
+        // Polnisch
+        'ł'=>'l','Ł'=>'l','ś'=>'s','ż'=>'z','ź'=>'z','ć'=>'c','ń'=>'n','ą'=>'a','ę'=>'e','ó'=>'o',
+        // weitere Latin-Akzente (it./fr./vn. Restbestände)
+        'à'=>'a','á'=>'a','â'=>'a','ã'=>'a','è'=>'e','é'=>'e','ê'=>'e','ë'=>'e',
+        'ì'=>'i','í'=>'i','î'=>'i','ï'=>'i','ò'=>'o','ô'=>'o','õ'=>'o','ù'=>'u','ú'=>'u','û'=>'u',
+        'ñ'=>'n','đ'=>'d','Đ'=>'d',
+    ];
     return strtr($s, $map);
+}
+
+/** Lokaler Teil einer Demo-E-Mail aus Vor-/Nachname (nur a-z0-9.). */
+function m392_email_local($fn, $ln) {
+    $local = strtolower(m392_translit($fn . '.' . $ln));
+    // Restliche Nicht-ASCII-Zeichen (z. B. vietnamesische Tonzeichen) entfernen.
+    $local = preg_replace('/[^a-z0-9.]+/', '', $local);
+    return trim($local, '.') ?: 'kunde';
 }
