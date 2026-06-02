@@ -158,6 +158,10 @@ Welche Ereignisse das Plugin meldet (kontextabhängig pro Seitentyp):
 | Bestellbestätigung (`order-received`) | `addEcommerceItem(…)` + `trackEcommerceOrder(id,total,…)` | E-Commerce → Bestellungen (Conversion) |
 | Klick auf PDF-Link (Blog) | automatisch via `enableLinkTracking` → Datei-Download | Verhalten → Downloads + **Ziel** „PDF-Download: INCI" |
 | Kontaktformular abgesendet → `/danke/` | normaler Seitenaufruf der Danke-Seite (WPForms-Weiterleitung) | **Ziel** „Kontaktanfrage (Danke-Seite)" |
+| Interaktionen (Newsletter, Wunschliste, Teilen, Video …) | Ereignis `e_c`/`e_a`/`e_n`/`e_v` | Verhalten → Ereignisse |
+| Hero-/Promo-Banner | Content-Impression `c_n`/`c_p`/`c_t` (+ `c_i=click`) | Verhalten → Inhalte |
+| Seitenaufrufe | Performance-Timings `pf_net`/`pf_srv`/`pf_dm1` … | Verhalten → Leistung |
+| Land/Region/Stadt | `country`/`region`/`city` (Override mit `token_auth`) | Besucher → Orte |
 
 Der im HTML eingebettete Tracker zeigt auf `http://localhost:8091/` (Host-Port), weil der
 Code im **Browser** der Lernenden läuft — nicht im Docker-Netz.
@@ -303,7 +307,7 @@ nicht über Matomo, sondern über einen geschützten REST-Endpunkt im WordPress-
   wird reproduzierbar aus `catalog.json` angelegt (`wp-init.sh` Schritt 8e).
 
 - **Wann:** ein Startseed (`TRAFFIC_SEED_ORDERS`, Standard 120) – über **dasselbe
-  ~24-Monats-Fenster wie die Matomo-Historie** verteilt, mit demselben Wachstums-Trend und
+  ~6-Monats-Fenster wie die Matomo-Historie** verteilt, mit demselben Wachstums-Trend und
   Wochenrhythmus (Python liefert pro Bestellung einen Zeitstempel; PHP datiert die Order exakt
   darauf). So entspricht die Bestell-Historie zeitlich dem Matomo-Verlauf. Dazu laufend bei
   jedem Live-Drip-Kauf + beim manuellen „Käufe erzwingen".
@@ -316,11 +320,11 @@ nicht über Matomo, sondern über einen geschützten REST-Endpunkt im WordPress-
   transiente Demodaten. Die Fixture (`shop.sql.gz`) ist **bestellungs- und kund:innenfrei**;
   der Bestseller-Prior (`total_sales`) wird beim Restore aus `catalog.json` gesetzt (Schritt 8c
   in `wp-init.sh`). Der Startseed ist idempotent (füllt nur auf den Zielwert auf), bei
-  `down -v && up -d` entstehen Bestellungen + Kund:innen frisch über ~24 Monate.
+  `down -v && up -d` entstehen Bestellungen + Kund:innen frisch über ~6 Monate.
 
 > Hinweis: Die Bestellungen sind ein **paralleler, in sich stimmiger** Strom (gleiche
 > Produkte/Bestseller, gleiche Test-Zahlarten) – sie sind **nicht** 1:1 dieselben Transaktionen
-> wie die 24-Monats-Matomo-Historie (das würde die Bestellliste fluten). Für die Lehre zählt,
+> wie die 6-Monats-Matomo-Historie (das würde die Bestellliste fluten). Für die Lehre zählt,
 > dass Shop **und** Matomo dieselbe Geschichte erzählen.
 
 Die wichtigsten Stellschrauben, mit denen das Traffic Lab die Matomo-Daten formt:
@@ -329,7 +333,7 @@ Die wichtigsten Stellschrauben, mit denen das Traffic Lab die Matomo-Daten formt
 |---|---|---|
 | **Live-Tropf** (organisch, Poisson-Schübe) | laufend neue Besuche/Käufe in Echtzeit | `app.py · _drip_worker` |
 | **Manuell senden** | sofort X Besuche / Y Käufe | `app.py · /api/generate-*` |
-| **Backfill** (Standard 730 Tage) | **datierte Historie** (`cdt`) ⇒ gefüllte Zeitreihen über 24 Monate | `generator.py · backfill` |
+| **Backfill** (Standard 180 Tage) | **datierte Historie** (`cdt`) ⇒ gefüllte Zeitreihen über 6 Monate | `generator.py · backfill` |
 | **Produkt-Popularität** (stark gespreizt) | klare **Bestseller** + langer Schwanz | `catalog.json · popularity` |
 | **Akquise-Kanäle** (`urlref`) | **Social Media** als stärkster Verkaufskanal (Instagram/Facebook/…) | `generator.py · CHANNELS` |
 | **Conversion-Rate** (Regler) | Anteil Käufe; Schnitt bleibt erhalten (Kanal-Mult. normiert) | `app.py · STATE` / `generator.py` |
@@ -338,6 +342,10 @@ Die wichtigsten Stellschrauben, mit denen das Traffic Lab die Matomo-Daten formt
 | **Gutschein `NATUR10`** | ~18 % der Bestellungen mit Rabatt (*Marketing → Gutscheine*, Statistik) | `m392-order-api.php` + `catalog.json · coupon` |
 | **PDF-Downloads** | füllen das Ziel „PDF-Download: INCI" (*Verhalten → Downloads*) | `generator.py` (~3,5 %) + `catalog.json` |
 | **Kontaktanfragen** | Aufruf `/danke/` ⇒ füllt das Ziel „Kontaktanfrage" (*Ziele*) | `generator.py` (~2 %) + `catalog.json` |
+| **Ereignisse** | Newsletter/Wunschliste/Teilen/Video (*Verhalten → Ereignisse*) | `generator.py · _EVENTS` |
+| **Inhalte** | Banner-Impressionen + Klicks (*Verhalten → Inhalte*) | `generator.py · _CONTENT` |
+| **Leistung** | Seitenleistungs-Timings (*Verhalten → Leistung*) | `generator.py · _perf` |
+| **Geografie** | DE/CH/AT + ~5 % übriges Europa (sieht/legt in Korb, kauft nicht) | `generator.py · _GEO` / `order-api` |
 
 **Token-Austausch:** Für **datierte** Treffer in der Vergangenheit verlangt Matomo einen
 API-Token (`token_auth`) und den Parameter `cdt`. `matomo-init` erzeugt den Token und legt
@@ -406,7 +414,7 @@ Reihenfolge. Die beiden `*-init`-Container laufen **einmal** und beenden sich.
      │                       erzeugt token_auth → Volume matomo_token → Exit 0
      │
      │  traffic  ─ wartet auf Matomo (installiert + Token) ─►
-     │              Auto-Seed: Backfill 730 Tage (~24 Monate)  ─►  Live-Tropf läuft
+     │              Auto-Seed: Backfill 180 Tage (~6 Monate)  ─►  Live-Tropf läuft
      ▼
 ```
 
@@ -432,7 +440,7 @@ Stand erzeugt:
 - Beim frischen Start (`down -v && up -d`) spielt `wp-init` die Fixture ein und installiert
   Theme/Plugins in **gepinnten** Versionen nach → identischer Shop.
 - Die **Matomo-Daten** sind bewusst **nicht** Teil der Fixture: sie werden beim Start vom
-  Traffic Lab neu erzeugt (24-Monats-Backfill). So ist die Historie immer „frisch datiert".
+  Traffic Lab neu erzeugt (6-Monats-Backfill). So ist die Historie immer „frisch datiert".
 - Hinweis Bind-Mount: `down -v` löscht die Docker-Volumes (DB, Matomo), **nicht** den
   Host-Ordner `./wordpress/www`. `wp-init` spielt die Fixture sauber darüber.
 

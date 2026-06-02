@@ -83,9 +83,9 @@ USER_AGENTS = [
 # akzeptiert nur DE/CH/AT). Anteile unter den Käufer:innen ≈ DE 65 / CH 20 / AT 15.
 # (weight, country, lang, can_purchase, [(stadt, region-code)])
 _GEO = [
-    (0.62, "de", "de-DE", True, [("Berlin", "Berlin"), ("Hamburg", "Hamburg"), ("München", "Bayern"),
-                                 ("Köln", "Nordrhein-Westfalen"), ("Stuttgart", "Baden-Württemberg"),
-                                 ("Leipzig", "Sachsen"), ("Frankfurt am Main", "Hessen")]),
+    (0.62, "de", "de-DE", True, [("Berlin", "BE"), ("Hamburg", "HH"), ("München", "BY"),
+                                 ("Köln", "NW"), ("Stuttgart", "BW"),
+                                 ("Leipzig", "SN"), ("Frankfurt am Main", "HE")]),
     (0.19, "ch", "de-CH", True, [("Zürich", "ZH"), ("Genève", "GE"), ("Basel", "BS"), ("Bern", "BE"),
                                  ("Lausanne", "VD"), ("Winterthur", "ZH")]),
     (0.14, "at", "de-AT", True, [("Wien", "9"), ("Graz", "6"), ("Linz", "4"), ("Salzburg", "5"),

@@ -170,7 +170,7 @@ angelegt (Website-ID 1), E-Commerce aktiviert, Währung EUR. Die Lernenden logge
 arbeiten direkt mit den Berichten – ohne Setup-Hürden.
 
 Damit von der ersten Minute an aussagekräftige Berichte sichtbar sind, befüllt die Umgebung beim
-Start automatisch **rund 24 Monate Verlaufsdaten** (Besuche, Käufe, Umsatz) – mit leichtem
+Start automatisch **rund 6 Monate Verlaufsdaten** (Besuche, Käufe, Umsatz) – mit leichtem
 Wachstums-Trend und Wochen-Saisonalität, damit Zeitvergleiche (Monat/Jahr) etwas hergeben. Das
 Befüllen läuft im Hintergrund und dauert je nach Rechner einige Minuten; der Fortschritt ist im
 Dashboard-Log sichtbar.
@@ -182,6 +182,13 @@ Getrackt werden u. a.:
   inkl. abgebrochener Warenkörbe sowie abgeschlossene **Bestellungen** (Conversions, Umsatz)
 - **Suche auf der Website** (*Verhalten → Suche auf der Website*) – nach welchen Begriffen gesucht
   wurde und wie viele Treffer es gab
+- **Ereignisse** (*Verhalten → Ereignisse*) – Interaktionen wie Newsletter-Anmeldung, „Auf
+  Wunschliste", Social-Share, Video-Play oder Sortierung ändern
+- **Inhalte** (*Verhalten → Inhalte*) – Impressionen und Klicks auf Hero-/Promo-Banner
+- **Leistung** (*Verhalten → Leistung*) – Seitenladezeiten (Netzwerk, Server, DOM …)
+- **Orte / Geografie** (*Besucher → Orte*) – Besuche aus **DE/CH/AT** plus ~5 % aus dem übrigen
+  Europa, die Produkte ansehen und in den Warenkorb legen, aber **nicht bestellen können** (der Shop
+  akzeptiert nur DE/CH/AT) – ein schönes Beispiel für „Traffic ohne Conversion"
 - **Datei-Downloads als Ziel** – der „INCI-Leitfaden" (PDF) auf der Blog-Seite ist als **Matomo-Ziel**
   hinterlegt (*Ziele*); jeder Download zählt als Conversion (auch das Traffic Lab löst ihn aus)
 - **Kontaktanfragen als Ziel** – das Kontaktformular leitet nach dem Absenden auf die Seite
@@ -213,7 +220,7 @@ Ein modernes Dashboard auf **http://localhost:8092** erzeugt realistischen Traff
   Communities) und werden als **echte WooCommerce-Kund:innen** angelegt (Rolle *customer*) und der
   Bestellung zugeordnet – so erscheinen sie unter *WooCommerce → Kunden* bzw. *Analytics → Kunden*
   (inkl. einiger **wiederkehrender** Kund:innen mit mehreren Bestellungen). Der Startseed verteilt
-  die Bestellungen über **denselben ~24-Monats-Zeitraum wie die Matomo-Historie** (gleicher
+  die Bestellungen über **denselben ~6-Monats-Zeitraum wie die Matomo-Historie** (gleicher
   Wachstums-Trend/Wochenrhythmus); Live-/Manuell-Käufe ergänzen sie laufend.
   Steuerbar über `TRAFFIC_CREATE_WC_ORDERS` / `TRAFFIC_SEED_ORDERS` / `TRAFFIC_RETURNING_RATE` in `.env`.
   Jede Bestellung wird in **alle WooCommerce-Analytics-Tabellen** synchronisiert (Bestell-Statistik,
@@ -287,12 +294,12 @@ Alles wird zentral über `.env` gesteuert (Kopie von `.env.example`). Wichtigste
 | `SHOP_CURRENCY` / `SHOP_COUNTRY` / `WP_LOCALE` | `EUR` / `DE` / `de_CH` | Shop-Währung, -Land, Sprachpaket |
 | `*_DB_*` / `MYSQL_ROOT_PASSWORD` | siehe Datei | Datenbank-Namen, -Benutzer, -Passwörter |
 | `TRAFFIC_AUTO_SEED` | `true` | Beim Start automatisch Historie befüllen |
-| `TRAFFIC_BACKFILL_DAYS` | `730` | Zeitraum der historischen Befüllung (Tage, ≈ 24 Monate) |
+| `TRAFFIC_BACKFILL_DAYS` | `180` | Zeitraum der historischen Befüllung (Tage, ≈ 6 Monate) |
 | `TRAFFIC_LIVE_DRIP` | `true` | Live-Tropf beim Start aktiv (in der UI abschaltbar) |
 | `TRAFFIC_DRIP_VISITS_PER_HOUR` | `120` | Startwert: Besucher/Stunde des Live-Tropfs |
 | `TRAFFIC_CONVERSION_RATE` | `0.04` | Startwert: Anteil Besuche mit Kauf (0–1) |
 | `TRAFFIC_CREATE_WC_ORDERS` | `true` | Echte WooCommerce-Bestellungen anlegen (Startseed + Live) |
-| `TRAFFIC_SEED_ORDERS` / `TRAFFIC_SEED_ORDERS_DAYS` | `120` / `730` | Startseed: Anzahl Bestellungen / verteilt über N Tage (Standard = Matomo-Historie) |
+| `TRAFFIC_SEED_ORDERS` / `TRAFFIC_SEED_ORDERS_DAYS` | `120` / `180` | Startseed: Anzahl Bestellungen / verteilt über N Tage (Standard = Matomo-Historie) |
 | `M392_ORDER_API_KEY` | `m392-order-secret` | Gemeinsames Secret für den Bestell-Endpunkt (WP ⇄ Traffic) |
 
 > **Versionen anpassen:** Alle Versionen sind gepinnt. Vor jedem Semester eine Version testen und
@@ -314,7 +321,7 @@ docker compose up -d
 ```
 
 > **`reset.sh` – Hard-Reset auf Knopfdruck.** Stoppt den Stack, löscht alle Volumes **und** leert
-> `wordpress/www`, baut/startet neu und **wartet, bis die ~24-Monats-Historie + Bestellungen
+> `wordpress/www`, baut/startet neu und **wartet, bis die ~6-Monats-Historie + Bestellungen
 > befüllt sind, archiviert Matomo** und kehrt erst dann zurück – die Berichte stimmen also **sofort**
 > (kein Nachladen/„Reintröpfeln"). Mit `--no-wait` kehrt es schon nach dem Start zurück (Befüllung
 > läuft dann im Hintergrund), `-y` überspringt die Sicherheitsabfrage, `--help` zeigt die Hilfe.
