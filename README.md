@@ -146,6 +146,17 @@ arbeiten direkt mit den Berichten – ohne Setup-Hürden.
 Damit von der ersten Minute an aussagekräftige Berichte sichtbar sind, befüllt die Umgebung beim
 Start automatisch **rund 4 Wochen Verlaufsdaten** (Besuche, Käufe, Umsatz).
 
+Getrackt werden u. a.:
+
+- **Seitenaufrufe** und Besucherverhalten
+- **E-Commerce** – Produktansichten und Kategorien (*Ecommerce → Produkte*), Warenkorb-Updates
+  inkl. abgebrochener Warenkörbe sowie abgeschlossene **Bestellungen** (Conversions, Umsatz)
+- **Suche auf der Website** (*Verhalten → Suche auf der Website*) – nach welchen Begriffen gesucht
+  wurde und wie viele Treffer es gab
+
+Das gilt sowohl für echte Browser-Aktionen der Lernenden als auch für die synthetischen Daten des
+Datengenerierungstools.
+
 ### 3. Datengenerierungstool
 
 Ein modernes Dashboard auf **http://localhost:8092** erzeugt realistischen Traffic und sendet ihn
