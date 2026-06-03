@@ -349,6 +349,14 @@ function m392_create_orders(WP_REST_Request $req) {
         // kein Action-Scheduler, der das sonst asynchron erledigen wuerde).
         m392_sync_order_analytics($order->get_id());
 
+        // Kund:innen-Daten konsistent zur Bestellhistorie halten: Anmeldedatum darf
+        // nicht NACH der Bestellung liegen (sonst sieht eine Kund:in mit 6-Monats-
+        // Historie wie heute frisch registriert aus). Wir datieren Registrierung auf
+        // die FRÜHESTE und „zuletzt aktiv" auf die SPÄTESTE Bestellung – gilt fuer
+        // Seed (datierte Bestellungen) wie Live-Tropf (Bestellung = jetzt).
+        $ots = $created_dt ? $created_dt->getTimestamp() : time();
+        m392_fix_customer_dates($customer_id, $ots);
+
         $created[] = $order->get_id();
     }
 
@@ -372,6 +380,34 @@ function m392_sync_order_analytics($order_id) {
             try { $cls::$method($order_id); } catch (\Throwable $e) { /* ignorieren */ }
         }
     }
+}
+
+/** Hält Anmelde-/Aktivitätsdatum einer Kund:in konsistent zur Bestellhistorie.
+ *  - wp_users.user_registered wird nur ZURUECK-datiert (nie in die Zukunft).
+ *  - wc_customer_lookup.date_registered = frueheste, date_last_active = spaeteste
+ *    Bestellung (ueber min/max akkumuliert ueber alle Bestellungen der Kund:in).
+ *  Idempotent: mehrfacher Aufruf mit verschiedenen Bestelldaten konvergiert. */
+function m392_fix_customer_dates($customer_id, $order_ts) {
+    $customer_id = (int) $customer_id;
+    if ($customer_id <= 0 || $order_ts <= 0) { return; }
+    global $wpdb;
+    $dt = gmdate('Y-m-d H:i:s', (int) $order_ts);
+
+    // Registrierung nur zurueckdatieren, wenn die Bestellung aelter ist.
+    $u = get_userdata($customer_id);
+    if ($u && $u->user_registered && $dt < $u->user_registered) {
+        $wpdb->update($wpdb->users, ['user_registered' => $dt], ['ID' => $customer_id]);
+        clean_user_cache($customer_id);
+    }
+
+    // Analytics-Lookup: frueheste Bestellung = Registrierung, spaeteste = zuletzt aktiv.
+    $t = $wpdb->prefix . 'wc_customer_lookup';
+    $wpdb->query($wpdb->prepare(
+        "UPDATE {$t} SET
+            date_registered  = LEAST(COALESCE(date_registered, %s), %s),
+            date_last_active = GREATEST(COALESCE(date_last_active, %s), %s)
+         WHERE customer_id = %d",
+        $dt, $dt, $dt, $dt, $customer_id));
 }
 
 /** Realistischer Status-Mix, leicht abhängig von der Zahlart. */
