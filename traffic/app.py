@@ -12,6 +12,23 @@ import orders
 app = Flask(__name__)
 
 
+@app.after_request
+def _no_browser_cache(resp):
+    """Browser-Caching der Lab-UI unterbinden.
+
+    Die gesamte Oberfläche (HTML + CSS + JS) steckt inline in index.html. Ohne
+    diese Header cached der Browser die Seite und zeigt nach einem Image-Rebuild
+    (z. B. via install.sh) weiterhin die ALTE Version – die neuen visuellen
+    Anpassungen „verschwinden" scheinbar. no-store erzwingt bei jedem Aufruf
+    frisches HTML, sodass ein Rebuild sofort sichtbar ist.
+    """
+    resp.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+    resp.headers["Pragma"] = "no-cache"
+    resp.headers["Expires"] = "0"
+    return resp
+
+
+
 def _initial_drip_per_hour():
     """Besucher/Stunde aus .env lesen (mit Rückwärtskompatibilität)."""
     if os.environ.get("TRAFFIC_DRIP_VISITS_PER_HOUR"):
