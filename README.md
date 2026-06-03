@@ -356,7 +356,6 @@ werden. Ein `down -v && up -d` liefert also wieder **exakt denselben Shop**.
 ├─ wordpress/
 │  ├─ init/                      # Einrichtung & versioniertes Material (Bind-Mounts in Container)
 │  │  ├─ wp-init.sh              # Richtet Shop ein bzw. spielt die Demo-Fixture wieder ein
-│  │  ├─ make-placeholder.php    # Erzeugt Platzhalterbilder (Fallback ohne Internet)
 │  │  ├─ fixture/                # Eingefrorener Demo-Shop (DB-Dump + Uploads)
 │  │  │  ├─ shop.sql.gz
 │  │  │  └─ uploads.tar.gz
