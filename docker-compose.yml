@@ -70,7 +70,7 @@ services:
     volumes:
       - ./wordpress/www:/var/www/html
       - ./wordpress/init/wp-init.sh:/wp-init.sh:ro
-      - ./catalog.json:/seed/catalog.json:ro
+      - ./seed/catalog.json:/seed/catalog.json:ro
       - ./wordpress/init/fixture:/fixture:ro
     user: "33:33"
     entrypoint: ["bash", "/wp-init.sh"]
@@ -146,7 +146,7 @@ services:
       TRAFFIC_SEED_ORDERS: ${TRAFFIC_SEED_ORDERS:-120}
       TRAFFIC_SEED_ORDERS_DAYS: ${TRAFFIC_SEED_ORDERS_DAYS:-180}
     volumes:
-      - ./catalog.json:/seed/catalog.json:ro
+      - ./seed/catalog.json:/seed/catalog.json:ro
       - matomo_token:/token:ro
 
 volumes:

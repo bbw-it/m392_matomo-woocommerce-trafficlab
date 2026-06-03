@@ -81,7 +81,7 @@ ob von einem echten Browser (Weg A) oder vom Traffic Lab (Weg B).
 ```
 ./wordpress/www      ⇄  wordpress:/var/www/html        (Bind-Mount: WP-Docroot auf dem Host)
 ./wordpress/init/mu-plugins ⇄ …/wp-content/mu-plugins (ro)  (immer aktive Plugins)
-./catalog.json        ⇄  traffic:/seed/catalog.json (ro)(gemeinsamer Produktkatalog)
+./seed/catalog.json   ⇄  traffic:/seed/catalog.json (ro)(gemeinsamer Produktkatalog)
 matomo_token (Volume) ⇄  matomo-init schreibt, traffic liest   (API-Token-Austausch)
 db_data / matomo_data (Volumes)                          (persistente DB- bzw. Matomo-Dateien)
 ```
@@ -452,7 +452,8 @@ Stand erzeugt:
 .
 ├─ docker-compose.yml              # Orchestrierung aller Container, Volumes, Ports
 ├─ .env(.example)                  # zentrale Konfiguration (Ports, Versionen, Passwörter, Tropf)
-├─ catalog.json                    # Produktkatalog des Traffic Lab (Spiegel des echten Shops)
+│
+├─ seed/catalog.json               # Produktkatalog des Traffic Lab (Spiegel des echten Shops)
 │
 ├─ db/init/01-init-databases.sh    # legt beide DBs + Benutzer an (aus .env)
 │

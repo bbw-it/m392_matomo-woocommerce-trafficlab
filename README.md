@@ -346,7 +346,9 @@ werden. Ein `down -v && up -d` liefert also wieder **exakt denselben Shop**.
 .
 ├─ docker-compose.yml            # Orchestrierung aller Container
 ├─ .env.example                  # Vorlage für die Konfiguration
-├─ catalog.json                  # Gemeinsamer Produktkatalog (Shop + Traffic-Generator)
+│
+├─ seed/
+│  └─ catalog.json               # Gemeinsamer Produktkatalog (Shop + Traffic-Generator)
 │
 ├─ db/
 │  └─ init/01-init-databases.sh  # Legt beide Datenbanken + Benutzer an (Passwörter aus .env)
