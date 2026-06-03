@@ -33,6 +33,9 @@ STATE = {
     "history": [],  # [{"t": epoch, "visits": kum, "purchases": kum}] für das Aktivitäts-Chart
     # Startbefüllung: Status für reset.sh/„fertig?"-Abfrage. off|running|done|error
     "seed": {"history": "off", "orders": "off"},
+    # Feiner Fortschritt je Phase (done/total) für die Live-Anzeige in reset.sh.
+    "progress": {"history": {"done": 0, "total": 0},
+                 "orders": {"done": 0, "total": 0}},
 }
 LOCK = threading.Lock()
 
@@ -59,6 +62,11 @@ def _log(msg):
 def _set_seed(key, value):
     with LOCK:
         STATE["seed"][key] = value
+
+
+def _set_progress(key, done, total):
+    with LOCK:
+        STATE["progress"][key] = {"done": int(done), "total": int(total)}
 
 
 def _accumulate(summary):
@@ -132,6 +140,7 @@ def status():
             "log": STATE["last_log"],
             "history": STATE["history"],
             "seed": STATE["seed"],
+            "progress": STATE["progress"],
         })
 
 
@@ -143,10 +152,28 @@ def ready():
     """
     with LOCK:
         seed = dict(STATE["seed"])
+        prog = {k: dict(v) for k, v in STATE["progress"].items()}
         t = dict(STATE["totals"])
     done = all(v in ("done", "off", "error") for v in seed.values())
-    body = (f"history={seed['history']} orders={seed['orders']} "
-            f"visits={t['visits']} purchases={int(t['purchases'])}\n")
+
+    def phase(key, label):
+        st = seed[key]
+        if st == "off":
+            return None
+        if st == "done":
+            return f"{label} ✓"          # ✓
+        if st == "error":
+            return f"{label} ⚠"          # ⚠
+        p = prog[key]
+        if p["total"] > 0:
+            return f"{label} {p['done']}/{p['total']}"
+        return f"{label}: bereite vor"
+
+    parts = [s for s in (phase("history", "Historie"),
+                         phase("orders", "Bestellungen")) if s]
+    summary = " · ".join(parts) if parts else "bereit"
+    summary += f" · {t['visits']} Besuche"
+    body = summary + "\n"
     return (body, 200 if done else 202, {"Content-Type": "text/plain; charset=utf-8"})
 
 
@@ -229,6 +256,7 @@ def _maybe_auto_seed():
     _set_seed("history", "running")
 
     def _progress(done, total, running):
+        _set_progress("history", done, total)
         _log(f"Auto-Seed … {done}/{total} Tage ({running['visits']} Besuche, "
              f"{running['purchases']} Käufe)")
 
@@ -286,8 +314,10 @@ def _maybe_seed_orders():
         need = max(0, target - existing)
         if need == 0:
             _log(f"Bestellungen: bereits {existing} vorhanden – kein Seed nötig.")
+            _set_progress("orders", 1, 1)
             _set_seed("orders", "done")
             return
+        _set_progress("orders", 0, need)
         # Bestelldaten über das ganze Fenster verteilen (Trend + Wochenrhythmus),
         # chronologisch anlegen und in Häppchen senden (schont WooCommerce).
         dates = sorted(generator.history_order_dates(days, need))
@@ -295,6 +325,7 @@ def _maybe_seed_orders():
         for i in range(0, len(dates), 20):
             made += orders.create_orders(0, dates=dates[i:i + 20],
                                          returning_rate=STATE["returning_rate"] * 100)
+            _set_progress("orders", made, need)
             _log(f"Bestellungen … {made}/{need} angelegt")
         _log(f"Bestellungen: {made} realistische Bestellungen erzeugt "
              f"(verteilt über ~{max(1, round(days / 30))} Monate, passend zur Matomo-Historie).")

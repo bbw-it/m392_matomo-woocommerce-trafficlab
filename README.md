@@ -60,7 +60,7 @@ Mit dieser Umgebung lassen sich u. a. folgende Kompetenzen aus Modul 392 abdecke
 ## Architektur
 
 > 📐 **Ausführliche Architektur-Doku** (Tracking-Wege, Datenfluss, Diagramme): siehe
-> [`ARCHITECTURE.md`](ARCHITECTURE.md).
+> [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
 
 Ein `docker compose` startet sechs Container (drei dauerhafte Web-Dienste, zwei einmalige
 Einrichtungs-Container und eine Datenbank):
@@ -316,16 +316,17 @@ Alles wird zentral über `.env` gesteuert (Kopie von `.env.example`). Wichtigste
 # Sauberer Neustart ohne Datenverlust:
 docker compose up -d
 
-# Vollständiger Reset (alle Daten gelöscht, alles wird neu eingerichtet):
-./reset.sh
+# Frische Installation / vollständiger Neuaufbau (alle Daten gelöscht, alles neu eingerichtet):
+./install.sh
 ```
 
-> **`reset.sh` – Hard-Reset auf Knopfdruck.** Stoppt den Stack, löscht alle Volumes **und** leert
-> `wordpress/www`, baut/startet neu und **wartet, bis die ~6-Monats-Historie + Bestellungen
-> befüllt sind, archiviert Matomo** und kehrt erst dann zurück – die Berichte stimmen also **sofort**
-> (kein Nachladen/„Reintröpfeln"). Mit `--no-wait` kehrt es schon nach dem Start zurück (Befüllung
-> läuft dann im Hintergrund), `-y` überspringt die Sicherheitsabfrage, `--help` zeigt die Hilfe.
-> Manuelle Variante ohne Skript: `docker compose down -v && docker compose up -d`.
+> **`install.sh` – komplette Einrichtung auf Knopfdruck.** Stoppt einen evtl. laufenden Stack, löscht
+> alle Volumes **und** leert `wordpress/www`, baut/startet neu und **wartet, bis die ~6-Monats-Historie
+> + Bestellungen befüllt sind, archiviert Matomo** und kehrt erst dann zurück – die Berichte stimmen
+> also **sofort** (kein Nachladen/„Reintröpfeln"). Mit `--no-wait` kehrt es schon nach dem Start zurück
+> (Befüllung läuft dann im Hintergrund), `-y` überspringt die Sicherheitsabfrage, `--help` zeigt die
+> Hilfe. Hinweis: Eine bestehende Installation wird dabei zurückgesetzt. Manuelle Variante ohne Skript:
+> `docker compose down -v && docker compose up -d`.
 
 > **Hinweis Bind-Mount:** `down -v` entfernt die Docker-Volumes (Datenbank, Matomo), **nicht** aber
 > die WordPress-Dateien auf dem Host (`./wordpress/www/`). Beim nächsten Start spielt `wp-init` die
