@@ -8,7 +8,7 @@
 #    2. leert den WordPress-Bind-Mount (wordpress/www)  → frische Core-Dateien
 #    3. baut + startet den Stack (docker compose up -d --build)
 #    4. wartet, bis Shop + Matomo erreichbar sind
-#    5. wartet, bis die ~6-Monats-Historie + Bestellungen befuellt sind,
+#    5. wartet, bis die Historie (TRAFFIC_BACKFILL_DAYS Tage) + Bestellungen
 #       und archiviert Matomo → Berichte stimmen SOFORT (kein Nachladen)
 #
 #  wp-init spielt die Fixture ein (sauberer Shop, OHNE Bestellungen),
@@ -59,6 +59,14 @@ read_env() { grep -E "^$1=" .env 2>/dev/null | head -1 | cut -d= -f2- | tr -d "\
 WP_PORT="$(read_env WORDPRESS_PORT)"; WP_PORT="${WP_PORT:-8090}"
 MATOMO_PORT="$(read_env MATOMO_PORT)"; MATOMO_PORT="${MATOMO_PORT:-8091}"
 TRAFFIC_PORT="$(read_env TRAFFIC_PORT)"; TRAFFIC_PORT="${TRAFFIC_PORT:-8092}"
+
+# Backfill-Fenster aus .env lesen, damit die Meldungen zum tatsaechlich
+# gesetzten Wert passen (statt fixem „6 Monate"). Robust gegen Inline-
+# Kommentare: nur die fuehrenden Ziffern behalten, sonst Fallback 180.
+BACKFILL_DAYS="$(read_env TRAFFIC_BACKFILL_DAYS)"; BACKFILL_DAYS="${BACKFILL_DAYS%%[!0-9]*}"
+BACKFILL_DAYS="${BACKFILL_DAYS:-180}"
+BACKFILL_MONTHS=$(( (BACKFILL_DAYS + 15) / 30 )); [ "$BACKFILL_MONTHS" -lt 1 ] && BACKFILL_MONTHS=1
+HIST_LABEL="~${BACKFILL_DAYS} Tage (~${BACKFILL_MONTHS} Monate) Historie"
 
 echo "============================================================"
 echo "  M392 Matomo Lab – INSTALLATION"
@@ -117,7 +125,7 @@ printf '   Matomo '; wait_http "http://localhost:${MATOMO_PORT}/"    "Matomo" ||
 
 if [ "$WAIT_SEED" -eq 1 ]; then
   echo
-  echo "[5/5] Startbefuellung laeuft (~6-Monats-Historie + Bestellungen) ..."
+  echo "[5/5] Startbefuellung laeuft (${HIST_LABEL} + Bestellungen) ..."
   echo "      Das dauert einige Minuten. Fortschritt live unten – Spinner + Uhr"
   echo "      zeigen, dass gearbeitet wird. Danach ist Matomo SOFORT vollstaendig."
   spin='|/-\'
@@ -164,10 +172,10 @@ echo "    • Traffic Lab →  http://localhost:${TRAFFIC_PORT}"
 if [ "$WAIT_SEED" -eq 1 ]; then
   echo
   echo "  Matomo ist vorbefuellt UND archiviert – Berichte stimmen sofort."
-  echo "  (In Matomo ggf. Zeitraum auf 'Letzte 6 Monate' stellen.)"
+  echo "  (In Matomo ggf. Zeitraum auf die letzten ~${BACKFILL_MONTHS} Monate stellen.)"
 else
   echo
-  echo "  Hinweis (--no-wait): Die ~6-Monats-Historie + Bestellungen werden"
+  echo "  Hinweis (--no-wait): Die ${HIST_LABEL} + Bestellungen werden"
   echo "  im HINTERGRUND befuellt. Fortschritt:  ${DC[*]} logs -f traffic"
   echo "  Berichte erscheinen erst nach Befuellung + Archivierung vollstaendig."
 fi
