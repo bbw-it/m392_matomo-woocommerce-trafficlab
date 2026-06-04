@@ -49,72 +49,63 @@ add_action('woocommerce_before_shop_loop', function () {
     ?>
     <div id="m392-filters" class="m392-filters" role="region" aria-label="Produktfilter und Sortierung">
       <div class="m392-filters__bar">
-        <div class="m392-filters__filters">
-          <?php
-          // Kategorie-Filter nur auf der Shop-Hauptseite (alle Produkte vorhanden);
-          // auf Kategorie-Archiven ist man bereits in einer Kategorie.
-          if (function_exists('is_shop') && is_shop()) {
-              $m392_cats = get_terms([
-                  'taxonomy'   => 'product_cat',
-                  'hide_empty' => true,
-                  'orderby'    => 'name',
-              ]);
-              if (is_array($m392_cats)) {
-                  $m392_cats = array_filter($m392_cats, function ($t) {
-                      return isset($t->slug) && $t->slug !== 'uncategorized';
-                  });
-              } else {
-                  $m392_cats = [];
-              }
-              if (!empty($m392_cats)) : ?>
-          <div class="m392-group" data-filter="cat">
-            <span class="m392-label">Kategorie</span>
-            <div class="m392-seg">
-              <button type="button" class="m392-chip is-active" data-cat="all" aria-pressed="true">Alle</button>
-              <?php foreach ($m392_cats as $m392_c) : ?>
-              <button type="button" class="m392-chip" data-cat="<?php echo esc_attr($m392_c->slug); ?>" aria-pressed="false"><?php echo esc_html($m392_c->name); ?></button>
-              <?php endforeach; ?>
-            </div>
-          </div>
-          <?php endif;
-          } ?>
+        <?php
+        // Kategorie-Filter nur auf der Shop-Hauptseite (alle Produkte vorhanden);
+        // auf Kategorie-Archiven ist man bereits in einer Kategorie.
+        if (function_exists('is_shop') && is_shop()) {
+            $m392_cats = get_terms([
+                'taxonomy'   => 'product_cat',
+                'hide_empty' => true,
+                'orderby'    => 'name',
+            ]);
+            if (is_array($m392_cats)) {
+                $m392_cats = array_filter($m392_cats, function ($t) {
+                    return isset($t->slug) && $t->slug !== 'uncategorized';
+                });
+            } else {
+                $m392_cats = [];
+            }
+            if (!empty($m392_cats)) : ?>
+        <span class="m392-label">Kategorie</span>
+        <div class="m392-seg" data-filter="cat">
+          <button type="button" class="m392-chip is-active" data-cat="all" aria-pressed="true">Alle</button>
+          <?php foreach ($m392_cats as $m392_c) : ?>
+          <button type="button" class="m392-chip" data-cat="<?php echo esc_attr($m392_c->slug); ?>" aria-pressed="false"><?php echo esc_html($m392_c->name); ?></button>
+          <?php endforeach; ?>
+        </div>
+        <?php endif;
+        } ?>
 
-          <div class="m392-group" data-filter="price">
-            <span class="m392-label">Preis</span>
-            <div class="m392-seg">
-              <button type="button" class="m392-chip is-active" data-price="all" aria-pressed="true">Alle</button>
-              <button type="button" class="m392-chip" data-price="lo"  aria-pressed="false">&le;&nbsp;14&nbsp;&euro;</button>
-              <button type="button" class="m392-chip" data-price="mid" aria-pressed="false">15&ndash;18&nbsp;&euro;</button>
-              <button type="button" class="m392-chip" data-price="hi"  aria-pressed="false">&ge;&nbsp;19&nbsp;&euro;</button>
-            </div>
-          </div>
+        <span class="m392-label">Preis</span>
+        <div class="m392-seg" data-filter="price">
+          <button type="button" class="m392-chip is-active" data-price="all" aria-pressed="true">Alle</button>
+          <button type="button" class="m392-chip" data-price="lo"  aria-pressed="false">&le;&nbsp;14&nbsp;&euro;</button>
+          <button type="button" class="m392-chip" data-price="mid" aria-pressed="false">15&ndash;18&nbsp;&euro;</button>
+          <button type="button" class="m392-chip" data-price="hi"  aria-pressed="false">&ge;&nbsp;19&nbsp;&euro;</button>
+        </div>
 
-          <div class="m392-group" data-filter="rating">
-            <span class="m392-label">Bewertung</span>
-            <div class="m392-seg">
-              <button type="button" class="m392-chip is-active" data-rating="0"   aria-pressed="true">Alle</button>
-              <button type="button" class="m392-chip" data-rating="4"   aria-pressed="false">&#9733;&nbsp;4+</button>
-              <button type="button" class="m392-chip" data-rating="4.5" aria-pressed="false">&#9733;&nbsp;4,5+</button>
-            </div>
+        <span class="m392-label">Bewertung</span>
+        <div class="m392-controls">
+          <div class="m392-seg" data-filter="rating">
+            <button type="button" class="m392-chip is-active" data-rating="0"   aria-pressed="true">Alle</button>
+            <button type="button" class="m392-chip" data-rating="4"   aria-pressed="false">&#9733;&nbsp;4+</button>
+            <button type="button" class="m392-chip" data-rating="4.5" aria-pressed="false">&#9733;&nbsp;4,5+</button>
           </div>
-
           <button type="button" id="m392-sale" class="m392-chip m392-chip--toggle" data-on="0" aria-pressed="false">
             <span class="m392-dot" aria-hidden="true"></span> Nur Angebote
           </button>
         </div>
 
-        <div class="m392-group m392-group--sort">
-          <label class="m392-label" for="m392-sort">Sortieren</label>
-          <select id="m392-sort">
-            <option value="default">Empfohlen</option>
-            <option value="popularity">Beliebtheit</option>
-            <option value="rating">Beste Bewertung</option>
-            <option value="price-asc">Preis: aufsteigend</option>
-            <option value="price-desc">Preis: absteigend</option>
-            <option value="date">Neuheiten</option>
-            <option value="name">Name A&ndash;Z</option>
-          </select>
-        </div>
+        <label class="m392-label" for="m392-sort">Sortieren</label>
+        <select id="m392-sort">
+          <option value="default">Empfohlen</option>
+          <option value="popularity">Beliebtheit</option>
+          <option value="rating">Beste Bewertung</option>
+          <option value="price-asc">Preis: aufsteigend</option>
+          <option value="price-desc">Preis: absteigend</option>
+          <option value="date">Neuheiten</option>
+          <option value="name">Name A&ndash;Z</option>
+        </select>
       </div>
 
       <div class="m392-filters__meta">
@@ -159,15 +150,16 @@ body.woocommerce-shop .woocommerce-page-header { display: none !important; }
   font-family:inherit; color:var(--m392-fg);
   border-bottom:1px solid var(--m392-line);
 }
-.m392-filters__bar{ display:flex; align-items:center; gap:18px 34px; flex-wrap:wrap; }
-.m392-filters__filters{ display:flex; align-items:center; gap:18px 30px; flex-wrap:wrap; }
-.m392-group{ display:flex; align-items:center; gap:12px; }
-.m392-group--sort{ margin-left:auto; }
+/* Zweispaltiges Raster: Label-Spalte (auto-breit, am breitesten Label ausge-
+   richtet) | Controls-Spalte. So starten alle Chip-Reihen an derselben Kante
+   und die Labels stehen sauber untereinander. */
+.m392-filters__bar{ display:grid; grid-template-columns:auto 1fr; align-items:center; gap:14px 24px; }
 .m392-label{
   margin:0; font-size:11px; font-weight:700; letter-spacing:.14em; text-transform:uppercase;
-  color:var(--m392-mut);
+  color:var(--m392-mut); white-space:nowrap;
 }
-.m392-seg{ display:inline-flex; gap:8px; flex-wrap:wrap; }
+.m392-seg{ display:flex; gap:8px; flex-wrap:wrap; }
+.m392-controls{ display:flex; align-items:center; gap:10px 20px; flex-wrap:wrap; }
 .m392-chip{
   appearance:none; cursor:pointer; font:inherit; font-size:14px; line-height:1;
   color:var(--m392-fg); background:#fff; border:1px solid var(--m392-border);
@@ -179,14 +171,15 @@ body.woocommerce-shop .woocommerce-page-header { display: none !important; }
 .m392-chip--toggle{ display:inline-flex; align-items:center; gap:9px; }
 .m392-dot{ width:7px; height:7px; border-radius:50%; background:#cfcabf; transition:background .15s ease; }
 .m392-chip--toggle.is-active .m392-dot{ background:#fff; }
-.m392-group--sort select{
+.m392-filters__bar select{
+  justify-self:start; width:auto; min-width:190px;
   appearance:none; cursor:pointer; font:inherit; font-size:14px; color:var(--m392-fg);
   background:#fff; border:1px solid var(--m392-border); border-radius:0;
   padding:10px 40px 10px 16px; transition:border-color .15s ease;
   background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%23212121' d='M1 1l5 5 5-5'/%3E%3C/svg%3E");
   background-repeat:no-repeat; background-position:right 15px center;
 }
-.m392-group--sort select:hover{ border-color:var(--m392-fg); }
+.m392-filters__bar select:hover{ border-color:var(--m392-fg); }
 .m392-filters__meta{
   display:flex; align-items:center; justify-content:space-between; gap:16px;
   margin-top:16px; font-size:14px; color:var(--m392-mut);
@@ -198,9 +191,11 @@ body.woocommerce-shop .woocommerce-page-header { display: none !important; }
   font-weight:700; letter-spacing:.12em; text-transform:uppercase; color:var(--m392-mut); padding:4px 0;
 }
 .m392-reset:hover{ color:var(--m392-fg); }
-@media (max-width:782px){
-  .m392-group--sort{ margin-left:0; width:100%; }
-  .m392-group--sort select{ flex:1; }
+/* Schmale Viewports: Label ueber die Controls stapeln (eine Spalte). */
+@media (max-width:640px){
+  .m392-filters__bar{ grid-template-columns:1fr; gap:6px; }
+  .m392-label{ margin-top:12px; }
+  .m392-label:first-child{ margin-top:0; }
 }
 CSS;
 }
