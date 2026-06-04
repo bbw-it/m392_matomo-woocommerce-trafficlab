@@ -25,7 +25,7 @@ add_action('plugins_loaded', function () {
     class M392_Gateway_Invoice extends WC_Payment_Gateway {
         public function __construct() {
             $this->id                 = 'm392_invoice';
-            $this->method_title       = 'Kauf auf Rechnung (Test)';
+            $this->method_title       = 'Kauf auf Rechnung';
             $this->method_description = 'Test-Zahlungsmethode: Bestellung wird auf "in Wartestellung" gesetzt, Bezahlung per Rechnung.';
             $this->has_fields         = false;
 
@@ -65,7 +65,7 @@ add_action('plugins_loaded', function () {
 
         public function process_payment($order_id) {
             $order = wc_get_order($order_id);
-            $order->update_status('on-hold', 'Zahlung per Rechnung ausstehend (Test).');
+            $order->update_status('on-hold', 'Zahlung per Rechnung ausstehend.');
             wc_reduce_stock_levels($order_id);
             m392_safe_empty_cart();
             return array(
@@ -76,12 +76,12 @@ add_action('plugins_loaded', function () {
     }
 
     /**
-     * 2) Kreditkarte (Test)
+     * 2) Kreditkarte
      */
     class M392_Gateway_Card extends WC_Payment_Gateway {
         public function __construct() {
             $this->id                 = 'm392_card';
-            $this->method_title       = 'Kreditkarte (Test)';
+            $this->method_title       = 'Kreditkarte';
             $this->method_description = 'Test-Kreditkarte: nur die Karte 4242 4242 4242 4242 wird akzeptiert, alle anderen werden abgelehnt.';
             $this->has_fields         = true;
 
@@ -100,14 +100,14 @@ add_action('plugins_loaded', function () {
                 'enabled' => array(
                     'title'   => 'Aktivieren/Deaktivieren',
                     'type'    => 'checkbox',
-                    'label'   => 'Kreditkarte (Test) aktivieren',
+                    'label'   => 'Kreditkarte aktivieren',
                     'default' => 'yes',
                 ),
                 'title' => array(
                     'title'       => 'Titel',
                     'type'        => 'text',
                     'description' => 'Name der Zahlungsmethode im Checkout.',
-                    'default'     => 'Kreditkarte (Test)',
+                    'default'     => 'Kreditkarte',
                     'desc_tip'    => true,
                 ),
                 'description' => array(
@@ -169,12 +169,12 @@ add_action('plugins_loaded', function () {
     }
 
     /**
-     * 3) TWINT (Test)
+     * 3) TWINT
      */
     class M392_Gateway_Twint extends WC_Payment_Gateway {
         public function __construct() {
             $this->id                 = 'm392_twint';
-            $this->method_title       = 'TWINT (Test)';
+            $this->method_title       = 'TWINT';
             $this->method_description = 'Simulierte TWINT-Zahlung, die zu Demozwecken immer automatisch bestätigt wird.';
             $this->has_fields         = true;
 
@@ -193,14 +193,14 @@ add_action('plugins_loaded', function () {
                 'enabled' => array(
                     'title'   => 'Aktivieren/Deaktivieren',
                     'type'    => 'checkbox',
-                    'label'   => 'TWINT (Test) aktivieren',
+                    'label'   => 'TWINT aktivieren',
                     'default' => 'yes',
                 ),
                 'title' => array(
                     'title'       => 'Titel',
                     'type'        => 'text',
                     'description' => 'Name der Zahlungsmethode im Checkout.',
-                    'default'     => 'TWINT (Test)',
+                    'default'     => 'TWINT',
                     'desc_tip'    => true,
                 ),
                 'description' => array(
@@ -235,7 +235,7 @@ add_action('plugins_loaded', function () {
         public function process_payment($order_id) {
             $order = wc_get_order($order_id);
             $order->payment_complete();
-            $order->add_order_note('TWINT (Test) bestätigt.');
+            $order->add_order_note('TWINT bestätigt.');
             m392_safe_empty_cart();
             return array(
                 'result'   => 'success',

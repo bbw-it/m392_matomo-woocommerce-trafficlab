@@ -182,8 +182,8 @@ function m392_create_orders(WP_REST_Request $req) {
     $mail_hosts = ['example.com','example.org','mail.example','post.example'];
     $payments = [
         ['m392_invoice', 'Kauf auf Rechnung'],
-        ['m392_card',    'Kreditkarte (Test)'],
-        ['m392_twint',   'TWINT (Test)'],
+        ['m392_card',    'Kreditkarte'],
+        ['m392_twint',   'TWINT'],
     ];
     $notes = ['', '', '', '', 'Bitte klingeln bei Nachbarn.', 'Lieferung bitte an die Haustür.',
               'Geschenk – bitte ohne Rechnung beilegen.', 'Bin werktags ab 16 Uhr zu Hause.'];
