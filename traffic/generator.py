@@ -11,6 +11,7 @@ import random
 import time
 import uuid
 from datetime import datetime, timedelta
+from urllib.parse import quote
 
 import requests
 
@@ -56,19 +57,38 @@ def _fetch_live_products():
 # Multiplikatoren sind so normiert, dass der gewichtete Schnitt = 1 bleibt – die
 # im Dashboard eingestellte Conversion-Rate stimmt also im Mittel weiterhin.
 _RAW_CHANNELS = [
-    # name,        Besuchsanteil, roher Conv.-Mult., Referrer (von Matomo erkannt)
-    ("social",     0.34, 2.00, ["https://www.instagram.com/", "https://l.instagram.com/",
-                                 "https://www.facebook.com/", "https://www.pinterest.com/",
-                                 "https://www.tiktok.com/"]),
-    ("search",     0.26, 0.85, ["https://www.google.com/", "https://www.bing.com/"]),
-    ("direct",     0.22, 0.75, [""]),
-    ("newsletter", 0.10, 1.20, ["https://newsletter.example.com/"]),
-    ("referral",   0.08, 0.50, ["https://www.beautyblog.example/", "https://magazin.example/"]),
+    # name, Besuchsanteil, roher Conv.-Mult., kind, gewichtete Einstiege.
+    #   kind="ref"      -> Eintrag ist eine Referrer-URL (urlref; Bericht „Webseiten"
+    #                      bzw. „Suchmaschinen"/„Soziale Netzwerke" je nach Domain)
+    #   kind="campaign" -> Eintrag ist ein Kampagnenname (Bericht „Kampagnen")
+    ("social",     0.33, 2.00, "ref", [
+        ("https://www.instagram.com/", 0.40), ("https://l.instagram.com/", 0.10),
+        ("https://www.facebook.com/",  0.18), ("https://www.pinterest.com/", 0.20),
+        ("https://www.tiktok.com/",    0.12)]),
+    ("search",     0.24, 0.85, "ref", [
+        ("https://www.google.com/",   0.80), ("https://www.bing.com/",   0.09),
+        ("https://duckduckgo.com/",   0.06), ("https://www.ecosia.org/", 0.05)]),
+    ("direct",     0.18, 0.75, "ref", [("", 1.0)]),
+    # Newsletter realistisch als Kampagne (statt Fake-Webseite) -> Bericht „Kampagnen".
+    ("newsletter", 0.11, 1.20, "campaign", [
+        ("Newsletter Juni-Aktion", 0.45), ("Newsletter Neuheiten", 0.32),
+        ("Newsletter Pflege-Tipps", 0.23)]),
+    # Verweis-Webseiten: diverse, realistische Quellen mit EINER klar dominanten
+    # (naturkosmetik-magazin.de) und einem langen Schwanz. (Fiktive Domains.)
+    ("referral",   0.14, 0.55, "ref", [
+        ("https://naturkosmetik-magazin.de/", 0.34),
+        ("https://www.beautyjunkies.de/",     0.17),
+        ("https://inci-check.de/",            0.13),
+        ("https://www.vegan-leben.de/",       0.11),
+        ("https://schminktipps.de/",          0.09),
+        ("https://oeko-ratgeber.de/",         0.07),
+        ("https://spartipps.de/",             0.06),
+        ("https://kosmetik-forum.de/",        0.03)]),
 ]
-_CH_AVG = (sum(w * m for _, w, m, _ in _RAW_CHANNELS)
-           / sum(w for _, w, m, _ in _RAW_CHANNELS))
-CHANNELS = [{"name": n, "weight": w, "mult": m / _CH_AVG, "refs": r}
-            for n, w, m, r in _RAW_CHANNELS]
+_CH_AVG = (sum(w * m for _, w, m, _, _ in _RAW_CHANNELS)
+           / sum(w for _, w, m, _, _ in _RAW_CHANNELS))
+CHANNELS = [{"name": n, "weight": w, "mult": m / _CH_AVG, "kind": k, "entries": e}
+            for n, w, m, k, e in _RAW_CHANNELS]
 _CH_WEIGHTS = [c["weight"] for c in CHANNELS]
 USER_AGENTS = [
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/130 Safari/537.36",
@@ -260,6 +280,12 @@ def _base_params(catalog, visitor_id, ua, when=None, urlref="", geo=None):
 
 
 def _send(params):
+    # Kampagnen-Einstieg: pk_campaign an die Landing-URL haengen (Matomo erkennt
+    # Kampagnen aus der URL und strippt den Parameter aus dem Seitenbericht).
+    camp = params.pop("__campaign", None)
+    if camp:
+        sep = "&" if "?" in params.get("url", "") else "?"
+        params["url"] = params.get("url", "") + sep + "pk_campaign=" + quote(camp)
     resp = SESSION.get(f"{MATOMO_URL}/matomo.php", params=params, timeout=15)
     resp.raise_for_status()
     return resp
@@ -301,9 +327,11 @@ def _search_result_count(catalog, keyword):
 
 
 def _pick_channel():
-    """Akquise-Kanal samt Einstiegs-Referrer und Conversion-Multiplikator waehlen."""
+    """Akquise-Kanal samt gewichtetem Einstieg (Referrer-URL oder Kampagne) waehlen."""
     c = random.choices(CHANNELS, weights=_CH_WEIGHTS, k=1)[0]
-    return {"name": c["name"], "ref": random.choice(c["refs"]), "mult": c["mult"]}
+    entries = c["entries"]
+    pick = random.choices([e[0] for e in entries], weights=[e[1] for e in entries], k=1)[0]
+    return {"name": c["name"], "kind": c["kind"], "ref": pick, "mult": c["mult"]}
 
 
 def simulate_visit(catalog, when=None, force_purchase=False, conversion_rate=0.04):
@@ -324,10 +352,17 @@ def simulate_visit(catalog, when=None, force_purchase=False, conversion_rate=0.0
     pages = 0
     # Einstiegs-Referrer traegt nur die ERSTE Aktion des Besuchs (Matomo nutzt den
     # Referrer der Einstiegsseite zur Kanal-Zuordnung); Folgeaktionen sind intern.
-    _entry = {"ref": channel["ref"]}
+    _entry = {"ref": channel["ref"], "kind": channel["kind"]}
 
     def mkparams():
-        p = _base_params(catalog, visitor_id, ua, when, urlref=_entry["ref"], geo=geo)
+        if _entry["kind"] == "campaign" and _entry["ref"]:
+            # Kampagne: kein Webseiten-Referrer; der Kampagnenname wird in _send
+            # als pk_campaign an die URL der ersten Aktion gehaengt -> Bericht
+            # „Akquisition -> Kampagnen".
+            p = _base_params(catalog, visitor_id, ua, when, urlref="", geo=geo)
+            p["__campaign"] = _entry["ref"]
+        else:
+            p = _base_params(catalog, visitor_id, ua, when, urlref=_entry["ref"], geo=geo)
         _entry["ref"] = ""
         return p
 
