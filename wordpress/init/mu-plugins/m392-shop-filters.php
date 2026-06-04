@@ -27,6 +27,8 @@ function m392_collect_product_data() {
     $products = wc_get_products(['limit' => -1, 'status' => 'publish']);
     $data = [];
     foreach ($products as $p) {
+        $cat_slugs = wp_get_post_terms($p->get_id(), 'product_cat', ['fields' => 'slugs']);
+        if (is_wp_error($cat_slugs)) { $cat_slugs = []; }
         $data[$p->get_id()] = [
             'price'   => (float) $p->get_price(),
             'sale'    => (bool) $p->is_on_sale(),
@@ -35,6 +37,7 @@ function m392_collect_product_data() {
             'sales'   => (int) $p->get_total_sales(),
             'date'    => $p->get_date_created() ? $p->get_date_created()->getTimestamp() : 0,
             'name'    => $p->get_name(),
+            'cats'    => array_values($cat_slugs),
         ];
     }
     return $data;
@@ -47,6 +50,35 @@ add_action('woocommerce_before_shop_loop', function () {
     <div id="m392-filters" class="m392-filters" role="region" aria-label="Produktfilter und Sortierung">
       <div class="m392-filters__bar">
         <div class="m392-filters__filters">
+          <?php
+          // Kategorie-Filter nur auf der Shop-Hauptseite (alle Produkte vorhanden);
+          // auf Kategorie-Archiven ist man bereits in einer Kategorie.
+          if (function_exists('is_shop') && is_shop()) {
+              $m392_cats = get_terms([
+                  'taxonomy'   => 'product_cat',
+                  'hide_empty' => true,
+                  'orderby'    => 'name',
+              ]);
+              if (is_array($m392_cats)) {
+                  $m392_cats = array_filter($m392_cats, function ($t) {
+                      return isset($t->slug) && $t->slug !== 'uncategorized';
+                  });
+              } else {
+                  $m392_cats = [];
+              }
+              if (!empty($m392_cats)) : ?>
+          <div class="m392-group" data-filter="cat">
+            <span class="m392-label">Kategorie</span>
+            <div class="m392-seg">
+              <button type="button" class="m392-chip is-active" data-cat="all" aria-pressed="true">Alle</button>
+              <?php foreach ($m392_cats as $m392_c) : ?>
+              <button type="button" class="m392-chip" data-cat="<?php echo esc_attr($m392_c->slug); ?>" aria-pressed="false"><?php echo esc_html($m392_c->name); ?></button>
+              <?php endforeach; ?>
+            </div>
+          </div>
+          <?php endif;
+          } ?>
+
           <div class="m392-group" data-filter="price">
             <span class="m392-label">Preis</span>
             <div class="m392-seg">
@@ -203,7 +235,7 @@ function m392_shop_filters_js() {
       li.__idx = i;
     });
 
-    var state = { sort:'default', price:'all', rating:0, sale:false };
+    var state = { sort:'default', price:'all', rating:0, sale:false, cat:'all' };
     var countEl = document.getElementById('m392-count');
     var emptyEl = document.getElementById('m392-empty');
     var resetEl = document.getElementById('m392-reset');
@@ -214,6 +246,11 @@ function m392_shop_filters_js() {
       if (state.price === 'mid') return p > 14 && p <= 18;
       if (state.price === 'hi')  return p >= 19;
       return true;
+    }
+
+    function catOk(d){
+      if (state.cat === 'all') return true;
+      return !!(d.cats && d.cats.indexOf(state.cat) !== -1);
     }
 
     function comparator(a, b){
@@ -234,6 +271,7 @@ function m392_shop_filters_js() {
       items.forEach(function(li){
         var d = li.__d;
         var ok = priceOk(d.price)
+          && catOk(d)
           && (state.rating ? d.rating >= state.rating : true)
           && (state.sale ? d.sale : true);
         li.style.display = ok ? '' : 'none';
@@ -244,7 +282,7 @@ function m392_shop_filters_js() {
 
       countEl.textContent = visible + (visible === 1 ? ' Produkt' : ' Produkte');
       emptyEl.hidden = visible !== 0;
-      var active = state.price !== 'all' || state.rating !== 0 || state.sale || state.sort !== 'default';
+      var active = state.cat !== 'all' || state.price !== 'all' || state.rating !== 0 || state.sale || state.sort !== 'default';
       resetEl.hidden = !active;
     }
 
@@ -255,6 +293,12 @@ function m392_shop_filters_js() {
       btn.classList.add('is-active'); btn.setAttribute('aria-pressed','true');
     }
 
+    bar.querySelectorAll('[data-filter="cat"] .m392-chip').forEach(function(btn){
+      btn.addEventListener('click', function(){
+        state.cat = btn.getAttribute('data-cat');
+        setActive(btn.closest('.m392-seg'), btn); apply();
+      });
+    });
     bar.querySelectorAll('[data-filter="price"] .m392-chip').forEach(function(btn){
       btn.addEventListener('click', function(){
         state.price = btn.getAttribute('data-price');
@@ -281,7 +325,7 @@ function m392_shop_filters_js() {
     });
 
     resetEl.addEventListener('click', function(){
-      state = { sort:'default', price:'all', rating:0, sale:false };
+      state = { sort:'default', price:'all', rating:0, sale:false, cat:'all' };
       bar.querySelectorAll('.m392-seg').forEach(function(seg){
         var def = seg.querySelector('.m392-chip'); // erste Option = "Alle"
         seg.querySelectorAll('.m392-chip').forEach(function(b){
