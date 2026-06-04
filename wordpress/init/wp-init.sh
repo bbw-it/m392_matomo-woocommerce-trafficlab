@@ -260,6 +260,14 @@ PHPEOF
   wp option update woocommerce_allowed_countries specific --allow-root || true
   wp option update woocommerce_specific_allowed_countries '["DE","CH","AT"]' --format=json --allow-root || true
 
+  # 8g) HPOS-Kompatibilitaetsmodus: Bestellungen zusaetzlich in posts/postmeta
+  #     synchronisieren. WICHTIG, damit die ALTE WooCommerce-Berichte-Seite
+  #     (WooCommerce -> Berichte, liest aus postmeta) funktioniert. Wird VOR dem
+  #     Bestell-Seed des Traffic Labs gesetzt, sodass jede Bestellung sofort
+  #     mitsynchronisiert wird (kein nachtraegliches Backfill noetig).
+  echo "[wp-init] Aktiviere HPOS-Kompatibilitaetsmodus (Sync Orders -> posts) ..."
+  wp option update woocommerce_custom_orders_table_data_sync_enabled yes --allow-root || true
+
   # 9) Caches leeren (inkl. best-effort Elementor-Cache).
   wp cache flush --allow-root || true
   wp eval 'if(class_exists("\\Elementor\\Plugin")){ \Elementor\Plugin::$instance->files_manager->clear_cache(); echo "elementor-cache-cleared"; }' --allow-root || true
