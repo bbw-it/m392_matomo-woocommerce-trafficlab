@@ -125,25 +125,27 @@ add_action('plugins_loaded', function () {
             }
             ?>
             <div class="m392-card-fields" style="padding:8px 0;">
-                <p style="margin:0 0 8px;padding:8px;background:#fff8e1;border:1px solid #ffe082;border-radius:4px;font-size:13px;">
+                <p style="margin:0 0 12px;padding:8px 10px;background:#fff8e1;border:1px solid #ffe082;border-radius:4px;font-size:13px;line-height:1.4;">
                     <strong>Testkarte:</strong> 4242 4242 4242 4242, beliebiges Ablaufdatum in der Zukunft, beliebige CVC.
                 </p>
-                <p class="form-row form-row-wide">
-                    <label for="m392card_number">Kartennummer <span class="required">*</span></label>
+                <div style="margin-bottom:12px;">
+                    <label for="m392card_number" style="display:block;margin:0 0 4px;font-size:14px;">Kartennummer <span class="required">*</span></label>
                     <input id="m392card_number" name="m392card_number" type="text" autocomplete="off"
-                           placeholder="4242 4242 4242 4242" inputmode="numeric" />
-                </p>
-                <p class="form-row form-row-first">
-                    <label for="m392card_expiry">Ablaufdatum (MM/YY) <span class="required">*</span></label>
-                    <input id="m392card_expiry" name="m392card_expiry" type="text" autocomplete="off"
-                           placeholder="MM/YY" />
-                </p>
-                <p class="form-row form-row-last">
-                    <label for="m392card_cvc">CVC <span class="required">*</span></label>
-                    <input id="m392card_cvc" name="m392card_cvc" type="text" autocomplete="off"
-                           placeholder="123" inputmode="numeric" />
-                </p>
-                <div class="clear"></div>
+                           placeholder="4242 4242 4242 4242" inputmode="numeric"
+                           style="width:100%;box-sizing:border-box;margin:0;" />
+                </div>
+                <div style="display:flex;gap:12px;">
+                    <div style="flex:1;min-width:0;">
+                        <label for="m392card_expiry" style="display:block;margin:0 0 4px;font-size:14px;">Ablaufdatum (MM/YY) <span class="required">*</span></label>
+                        <input id="m392card_expiry" name="m392card_expiry" type="text" autocomplete="off"
+                               placeholder="MM/YY" style="width:100%;box-sizing:border-box;margin:0;" />
+                    </div>
+                    <div style="flex:1;min-width:0;">
+                        <label for="m392card_cvc" style="display:block;margin:0 0 4px;font-size:14px;">CVC <span class="required">*</span></label>
+                        <input id="m392card_cvc" name="m392card_cvc" type="text" autocomplete="off"
+                               placeholder="123" inputmode="numeric" style="width:100%;box-sizing:border-box;margin:0;" />
+                    </div>
+                </div>
             </div>
             <?php
         }
@@ -222,12 +224,6 @@ add_action('plugins_loaded', function () {
                     <span style="font-weight:700;letter-spacing:1px;font-size:18px;">TWINT</span>
                     <span style="font-size:12px;opacity:.85;">Test-Modus</span>
                 </div>
-                <p class="form-row form-row-wide">
-                    <label for="m392twint_phone">Mobilnummer (optional)</label>
-                    <input id="m392twint_phone" name="m392twint_phone" type="text" autocomplete="off"
-                           placeholder="+41 79 000 00 00" />
-                </p>
-                <div class="clear"></div>
             </div>
             <?php
         }
