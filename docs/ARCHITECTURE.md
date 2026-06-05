@@ -303,14 +303,33 @@ nicht über Matomo, sondern über einen geschützten REST-Endpunkt im WordPress-
   (`m392_sync_order_analytics`: Bestell-Statistik, Produkte, Gutscheine, Steuern, Kund:innen) und
   bezahlte Bestellungen erhalten `date_paid`/`date_completed`. Ohne das blieben *Statistiken/Berichte*
   und die **Gesamtausgaben pro Kund:in** leer (es läuft kein Action-Scheduler).
+- **Alte „Berichte" (Legacy) funktionieren auch:** WooCommerce 9 speichert Bestellungen per HPOS in
+  eigenen Tabellen (`wp_wc_orders`), die alte Seite *WooCommerce → Berichte* liest aber `postmeta`.
+  Damit beides stimmt, aktiviert `wp-init.sh` den **HPOS-Kompatibilitätsmodus**
+  (`woocommerce_custom_orders_table_data_sync_enabled=yes`) **vor** dem Bestell-Seed – jede Order wird
+  dann synchron auch nach `wp_posts`/`postmeta` gespiegelt. So zeigen **HPOS-Analytics _und_ Legacy-
+  Berichte** dieselben Zahlen.
+- **Kund:innen-Daten konsistent:** Anmelde- und Aktivdatum jeder Kund:in werden auf die
+  Bestellhistorie zurückdatiert (`m392_fix_customer_dates`: `user_registered` + wc-Kunden-Lookup),
+  damit „Neu vs. wiederkehrend" und die Registrierungs-Zeitreihe über die ~6 Monate plausibel sind.
 - **Gutschein:** ~18 % der Bestellungen lösen den Rabattcode **`NATUR10`** (10 %) ein – der Coupon
   wird reproduzierbar aus `catalog.json` angelegt (`wp-init.sh` Schritt 8e).
 
-- **Wann:** ein Startseed (`TRAFFIC_SEED_ORDERS`, Standard 120) – über **dasselbe
-  ~6-Monats-Fenster wie die Matomo-Historie** verteilt, mit demselben Wachstums-Trend und
-  Wochenrhythmus (Python liefert pro Bestellung einen Zeitstempel; PHP datiert die Order exakt
-  darauf). So entspricht die Bestell-Historie zeitlich dem Matomo-Verlauf. Dazu laufend bei
-  jedem Live-Drip-Kauf + beim manuellen „Käufe erzwingen".
+- **Wann:** ein Startseed – über **dasselbe ~6-Monats-Fenster wie die Matomo-Historie** verteilt,
+  mit demselben Wachstums-Trend und Wochenrhythmus (Python liefert pro Bestellung einen Zeitstempel;
+  PHP datiert die Order exakt darauf). So entspricht die Bestell-Historie zeitlich dem Matomo-Verlauf.
+  Dazu laufend bei jedem Live-Drip-Kauf + beim manuellen „Käufe erzwingen".
+- **Wie viele:** zwei Modi (steuerbar in `.env`):
+  - **Umsatz-Richtwert** (`TRAFFIC_AVG_MONTHLY_REVENUE` > 0, hat Vorrang): der Seed legt so viele
+    Bestellungen an, dass der **Monatsumsatz** der generierten Bestellungen etwa dem Richtwert
+    entspricht. Dazu **kalibriert** er zunächst eine kleine Charge, **misst** den realen
+    Ø-Bestellwert (der Endpunkt meldet pro Batch den Umsatz zurück) und leitet die nötige Anzahl
+    daraus ab – unabhängig von Preisen/Warenkorb-Logik. Idempotent über den **Ping-Umsatz**: bei
+    `up -d` (ohne `-v`) wird nur bis zum Zielumsatz aufgefüllt.
+  - **Feste Anzahl** (`TRAFFIC_SEED_ORDERS`, Standard 120): klassischer Modus, wenn kein Richtwert
+    gesetzt ist. Idempotent über die Bestellanzahl.
+  „Umsatz" zählt dabei bezahlte/laufende Bestellungen (Status `processing`/`completed`/`on-hold`;
+  ohne storniert/erstattet/offen).
 - **Realismus liegt in PHP:** der Endpunkt hat vollen WooCommerce-Zugriff und baut die Order
   serverseitig (echte Produkte/Preise, Versand, Totalsummen, Status). E-Mails werden während
   der Erzeugung unterdrückt (kein SMTP in der Lehrumgebung).
@@ -335,9 +354,10 @@ Die wichtigsten Stellschrauben, mit denen das Traffic Lab die Matomo-Daten formt
 | **Manuell senden** | sofort X Besuche / Y Käufe | `app.py · /api/generate-*` |
 | **Backfill** (Standard 180 Tage) | **datierte Historie** (`cdt`) ⇒ gefüllte Zeitreihen über 6 Monate | `generator.py · backfill` |
 | **Produkt-Popularität** (stark gespreizt) | klare **Bestseller** + langer Schwanz | `catalog.json · popularity` |
-| **Akquise-Kanäle** (`urlref`) | **Social Media** als stärkster Verkaufskanal (Instagram/Facebook/…) | `generator.py · CHANNELS` |
+| **Akquise-Kanäle** (`urlref`) | **Social** als stärkster Verkaufskanal; diverse Verweis-Domains (eine dominant); Newsletter als **Kampagne** (`pk_campaign`) | `generator.py · CHANNELS` |
 | **Conversion-Rate** (Regler) | Anteil Käufe; Schnitt bleibt erhalten (Kanal-Mult. normiert) | `app.py · STATE` / `generator.py` |
 | **Echte Bestellungen** | sichtbar in *WooCommerce → Bestellungen* + *Statistiken* (Startseed + Live) | `orders.py` + `init/mu-plugins/m392-order-api.php` |
+| **Umsatz-Richtwert** (`TRAFFIC_AVG_MONTHLY_REVENUE`) | Bestellmenge so, dass **Ø-Monatsumsatz** ≈ Richtwert (kalibrierend gemessen) | `app.py · _seed_orders_by_revenue` |
 | **Wiederkehrende Kunden** (Regler) | Anteil Bestellungen bestehender Kund:innen (Gesamtausgaben pro Kund:in) | `app.py · returning_rate` → `m392-order-api.php` |
 | **Gutschein `NATUR10`** | ~18 % der Bestellungen mit Rabatt (*Marketing → Gutscheine*, Statistik) | `m392-order-api.php` + `catalog.json · coupon` |
 | **PDF-Downloads** | füllen das Ziel „PDF-Download: INCI" (*Verhalten → Downloads*) | `generator.py` (~3,5 %) + `catalog.json` |
@@ -444,6 +464,30 @@ Stand erzeugt:
 - Hinweis Bind-Mount: `down -v` löscht die Docker-Volumes (DB, Matomo), **nicht** den
   Host-Ordner `./wordpress/www`. `wp-init` spielt die Fixture sauber darüber.
 
+### `install.sh` — kompletter Neuaufbau auf Knopfdruck
+
+`./install.sh` kapselt den vollständigen Reset: laufenden Stack stoppen, **alle Volumes löschen**,
+`wordpress/www` leeren, neu **bauen + starten** (`up -d --build`), und dann **warten**, bis Historie
++ Bestellungen befüllt und Matomo archiviert ist (Fortschritts-Anzeige mit Spinner/Uhr). `-y`
+überspringt die Rückfrage, `--no-wait` kehrt nach dem Start zurück, `--help` zeigt die Hilfe.
+
+### Wo „lebt" welche Anpassung? (Verankerungs-Modell)
+
+Damit nach `install.sh` **alle** Anpassungen erhalten bleiben, ist jede Änderung in genau **einer**
+von drei dauerhaften Schichten verankert. Was nicht hier liegt, ist transiente Demo-Daten und wird
+bei jedem Lauf neu erzeugt.
+
+| Schicht | Was darin liegt | Greift über |
+|---|---|---|
+| **(a) Versionierter Code** | mu-Plugins (Zahlarten ohne „(Test)", Checkout-Felder, Kategorienfilter, Order-API, Kund:innen-Datum), `wp-init.sh`-Schritte (HPOS-Sync, Gutschein, erlaubte Länder), Traffic Lab (`generator.py`/`app.py`/`templates`), `install.sh` | Bind-Mount (mu-plugins, RO) bzw. Image-Rebuild (`--build`) |
+| **(b) Fixture `shop.sql.gz`** | eingefrorene DB-Konfiguration: Header-Schriftgrößen (`theme_mods`), Hauptmenü **ohne** „Startseite", Kontakt-Titel als **h1**, Sprache/EUR/Berlin, Bewertungen, Bestseller-Prior | `wp-init` Fixture-Restore |
+| **(c) Laufzeit (wp-init / Lab-Seed)** | Bestellungen, Kund:innen, Matomo-Historie, Matomo-Ziele/Site | bei jedem Start neu generiert |
+
+> Die **Fixture ist bestellungs- und kund:innenfrei** (nur Admin-User) – Testdaten aus dem laufenden
+> Betrieb landen nicht versehentlich darin. Konkrete Zufallsdaten (welche Bestellung/welcher Besuch)
+> unterscheiden sich nach jedem `install.sh` legitim; **Struktur, Features und Konfiguration sind
+> identisch**.
+
 ---
 
 ## 9. Wichtige Dateien
@@ -465,8 +509,8 @@ Stand erzeugt:
 │  │     ├─ matomo-tracking.php    # ← Verbindung WP→Matomo (JS-Tracking, E-Commerce, Suche)
 │  │     ├─ m392-test-payments.php # Test-Zahlarten (Rechnung, Kreditkarte, TWINT)
 │  │     ├─ m392-german-shop.php   # deutsche Labels/Übersetzungen
-│  │     ├─ m392-shop-filters.php  # Produktfilter & Sortierung im Shop
-│  │     └─ m392-order-api.php     # ← REST-Endpunkt: Traffic Lab legt echte Bestellungen an
+│  │     ├─ m392-shop-filters.php  # Produktfilter (Kategorie/Preis/Bewertung/Angebote) & Sortierung
+│  │     └─ m392-order-api.php     # ← REST-Endpunkt: echte Bestellungen + HPOS-Sync + Kund:innen-Datum
 │  └─ www/                         # WordPress-Docroot (Bind-Mount, generiert; nicht versioniert)
 │
 ├─ matomo/matomo-init.sh           # Matomo headless installieren, Site+Ziele, Token erzeugen

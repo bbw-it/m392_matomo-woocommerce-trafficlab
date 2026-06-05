@@ -61,6 +61,7 @@ Mit dieser Umgebung lassen sich u. a. folgende Kompetenzen aus Modul 392 abdecke
 
 > 📐 **Ausführliche Architektur-Doku** (Tracking-Wege, Datenfluss, Diagramme): siehe
 > [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
+> 📝 **Änderungsverlauf:** siehe [`CHANGELOG.md`](CHANGELOG.md).
 
 Ein `docker compose` startet sechs Container (drei dauerhafte Web-Dienste, zwei einmalige
 Einrichtungs-Container und eine Datenbank):
@@ -149,11 +150,12 @@ fertig mit:
   (viele zufriedene, einige kritische, wenige sehr unzufriedene Kund:innen) – ideal, um in Matomo
   bzw. im Shop über Kundenzufriedenheit und Conversion zu sprechen.
 - **Deutschsprachige Blog-Beiträge** (Kategorie/Ratgeber) mit thematisch passenden Beitragsbildern.
-- Saubere Seitenstruktur und Menü (Startseite, Blog, **Shop**, Kontakt).
+- Saubere Seitenstruktur und Hauptmenü (Blog, **Shop**, Kontakt).
 
-Auf den Shop-/Kategorieseiten gibt es eine **moderne Filter- & Sortierleiste** (Preis, Bewertung,
-nur Angebote sowie Sortierung nach Empfehlung/Beliebtheit/Bewertung/Preis/Neuheiten/Name). Sie
-wirkt **sofort im Browser** (ohne Neuladen) und liest die echten Produktdaten serverseitig aus.
+Auf den Shop-/Kategorieseiten gibt es eine **moderne Filter- & Sortierleiste** (Kategorie, Preis,
+Bewertung, nur Angebote sowie Sortierung nach Empfehlung/Beliebtheit/Bewertung/Preis/Neuheiten/Name).
+Der **Kategorienfilter** liest die echten Produktkategorien dynamisch aus. Die Leiste wirkt **sofort
+im Browser** (ohne Neuladen) und liest die echten Produktdaten serverseitig aus.
 
 In jede Shop-Seite ist der **Matomo-Tracking-Code** eingebaut (über ein Must-Use-Plugin), sodass
 jeder Klick und jede Bestellung in Matomo erscheint.
@@ -203,8 +205,11 @@ Datengenerierungstools.
 Ein modernes Dashboard auf **http://localhost:8092** erzeugt realistischen Traffic und sendet ihn
 über die Matomo-Tracking-API. So wird sichtbar, **wie** Tracking-Daten entstehen.
 
-- **Live-KPIs & Aktivitäts-Chart:** Besuche, Käufe, Umsatz, Conversion in Echtzeit.
-- **Live-Tropf** (standardmäßig aktiv, per Schalter pausierbar) mit Reglern:
+- **Live-KPIs & Aktivitäts-Chart:** Besuche, Käufe, Umsatz, Conversion in Echtzeit. Der
+  Aktivitäts-Chart beschriftet die Zeitachse **relativ** („jetzt", „−1:00" …); ein **Hover-Tooltip**
+  zeigt die Anzahl Besucher:innen pro Balken.
+- **Live-Tropf** (standardmäßig aktiv, per Schalter pausierbar; bei Pause sind die Regler ausgegraut)
+  mit Reglern:
   - **Besucher / Stunde** – wie viele Besuche im Schnitt eintropfen. Der Tropf läuft **organisch**:
     Besuche kommen in kleinen Schüben (mal mehrere Gäste gleichzeitig) mit zufälligen Pausen dazwischen
     (Poisson-Ankünfte) – kein starres Intervall, aber im Mittel die eingestellte Rate.
@@ -223,6 +228,12 @@ Ein modernes Dashboard auf **http://localhost:8092** erzeugt realistischen Traff
   die Bestellungen über **denselben ~6-Monats-Zeitraum wie die Matomo-Historie** (gleicher
   Wachstums-Trend/Wochenrhythmus); Live-/Manuell-Käufe ergänzen sie laufend.
   Steuerbar über `TRAFFIC_CREATE_WC_ORDERS` / `TRAFFIC_SEED_ORDERS` / `TRAFFIC_RETURNING_RATE` in `.env`.
+  Alternativ lässt sich die Bestellmenge über einen **Umsatz-Richtwert** steuern: Setzt man
+  `TRAFFIC_AVG_MONTHLY_REVENUE` (EUR/Monat), legt der Startseed so viele Bestellungen an, dass der
+  **Monatsumsatz der generierten Bestellungen etwa diesem Betrag entspricht** (statt einer festen
+  Anzahl). Dazu misst er beim Start kurz den durchschnittlichen Bestellwert (Kalibrierung) und leitet
+  die nötige Bestellzahl daraus ab – unabhängig von Preisen oder Warenkorb-Größe. Der Wert hat Vorrang
+  vor `TRAFFIC_SEED_ORDERS`; `0`/leer schaltet zurück auf den festen Anzahl-Modus.
   Jede Bestellung wird in **alle WooCommerce-Analytics-Tabellen** synchronisiert (Bestell-Statistik,
   Produkte, Gutscheine, Kund:innen) und mit `date_paid` versehen – dadurch stimmen *WooCommerce →
   Statistiken/Berichte* und die **Gesamtausgaben pro Kund:in** sofort. **Ab und zu** (~18 %) lösen
@@ -248,6 +259,10 @@ Die Grunddaten sind bewusst **realistisch und auswertbar** angelegt:
   Conversion. In *Matomo → Akquise* bzw. den E-Commerce-Berichten je Kanal wird damit ablesbar,
   dass Social für diesen Shop am meisten Umsatz bringt. Die Kanal-Multiplikatoren sind normiert, die
   im Dashboard eingestellte Conversion-Rate bleibt im Mittel erhalten.
+- **Diverse, realistische Verweisquellen:** Die **Verweis-Websites** (*Akquise → Websites*) sind
+  mehrere fiktive, thematisch passende Domains (Magazine, Blogs, Marktplätze), wobei **eine Quelle
+  klar dominiert** – realistisch statt gleichverteilt. Der **Newsletter** wird als echte
+  **Kampagne** getrackt (`pk_campaign`) und erscheint daher unter *Akquise → Kampagnen*.
 
 ## Bezahlung im Test-Shop
 
@@ -257,8 +272,8 @@ mit denen echte Browser-Käufe durchgespielt werden können:
 | Methode | Verhalten |
 |---|---|
 | **Kauf auf Rechnung** | Bestellung geht als „wartet auf Zahlung" (on-hold) durch. |
-| **Kreditkarte (Test)** | Akzeptiert **nur** die Testkarte `4242 4242 4242 4242` (beliebiges zukünftiges Ablaufdatum, beliebige CVC). Andere Nummern werden **abgelehnt** – ideal, um Conversion vs. Fehlversuch zu vergleichen. |
-| **TWINT (Test)** | Simuliert eine TWINT-Zahlung und wird automatisch bestätigt. |
+| **Kreditkarte** | Akzeptiert **nur** die Testkarte `4242 4242 4242 4242` (beliebiges zukünftiges Ablaufdatum, beliebige CVC). Andere Nummern werden **abgelehnt** – ideal, um Conversion vs. Fehlversuch zu vergleichen. |
+| **TWINT** | Simuliert eine TWINT-Zahlung und wird automatisch bestätigt. |
 
 Jeder erfolgreiche Browser-Kauf wird auf der Bestellbestätigungsseite als **E-Commerce-Conversion**
 an Matomo gemeldet. Die Lernenden finden ihre eigenen Bestellungen unter *Matomo → E-Commerce*.
@@ -297,9 +312,11 @@ Alles wird zentral über `.env` gesteuert (Kopie von `.env.example`). Wichtigste
 | `TRAFFIC_BACKFILL_DAYS` | `180` | Zeitraum der historischen Befüllung (Tage, ≈ 6 Monate) |
 | `TRAFFIC_LIVE_DRIP` | `true` | Live-Tropf beim Start aktiv (in der UI abschaltbar) |
 | `TRAFFIC_DRIP_VISITS_PER_HOUR` | `120` | Startwert: Besucher/Stunde des Live-Tropfs |
-| `TRAFFIC_CONVERSION_RATE` | `0.04` | Startwert: Anteil Besuche mit Kauf (0–1) |
+| `TRAFFIC_CONVERSION_RATE` | `0.014` | Startwert: Anteil Besuche mit Kauf (0–1) |
+| `TRAFFIC_RETURNING_RATE` | `0.08` | Startwert: Anteil Bestellungen bestehender Kund:innen (wiederkehrende Käufer:innen) |
 | `TRAFFIC_CREATE_WC_ORDERS` | `true` | Echte WooCommerce-Bestellungen anlegen (Startseed + Live) |
 | `TRAFFIC_SEED_ORDERS` / `TRAFFIC_SEED_ORDERS_DAYS` | `120` / `180` | Startseed: Anzahl Bestellungen / verteilt über N Tage (Standard = Matomo-Historie) |
+| `TRAFFIC_AVG_MONTHLY_REVENUE` | `1500` (leer/0 = aus) | **Richtwert** für den Ø-Bestell-Umsatz pro Monat (EUR). Wenn > 0, bestimmt dieser Wert die Bestellmenge so, dass der Monatsumsatz etwa diesem Betrag entspricht – **hat Vorrang** vor `TRAFFIC_SEED_ORDERS` |
 | `M392_ORDER_API_KEY` | `m392-order-secret` | Gemeinsames Secret für den Bestell-Endpunkt (WP ⇄ Traffic) |
 
 > **Versionen anpassen:** Alle Versionen sind gepinnt. Vor jedem Semester eine Version testen und
@@ -346,6 +363,8 @@ werden. Ein `down -v && up -d` liefert also wieder **exakt denselben Shop**.
 .
 ├─ docker-compose.yml            # Orchestrierung aller Container
 ├─ .env.example                  # Vorlage für die Konfiguration
+├─ install.sh                    # Kompletter Neuaufbau auf Knopfdruck (Reset + Befüllung)
+├─ CHANGELOG.md                  # Änderungsverlauf
 │
 ├─ seed/
 │  └─ catalog.json               # Gemeinsamer Produktkatalog (Shop + Traffic-Generator)
