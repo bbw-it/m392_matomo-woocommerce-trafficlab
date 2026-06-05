@@ -40,6 +40,9 @@ add_action('rest_api_init', function () {
                 'ready'    => $ready && count($products) > 0,
                 'products' => count($products),
                 'orders'   => count($orders),
+                // Summe der „Umsatz"-Bestellungen (für das Richtwert-Seeding nach
+                // Monatsumsatz: idempotentes Auffüllen bis zum Zielumsatz).
+                'revenue'  => $ready ? m392_orders_revenue_sum() : 0.0,
                 // „vollständig eingerichtet": Marker wird am ENDE von wp-init gesetzt
                 // (nach Kategorien/Gutschein/Verkaufsländern) – verhindert, dass der
                 // Bestell-Seed startet, bevor z. B. der Gutschein existiert.
@@ -66,6 +69,30 @@ add_action('rest_api_init', function () {
         'callback'            => 'm392_list_products',
     ]);
 });
+
+/** Bestellstatus, die als „Umsatz" zählen (bezahlt bzw. in Abwicklung; ohne
+ *  storniert/erstattet/offen). Wird sowohl für die Ping-Umsatzsumme als auch für
+ *  den pro-Batch zurückgemeldeten Umsatz beim Richtwert-Seeding genutzt – damit
+ *  beide Seiten denselben Umsatzbegriff verwenden. */
+function m392_revenue_statuses() {
+    return ['processing', 'completed', 'on-hold'];
+}
+
+/** Summe der Bestelltotale über alle „Umsatz"-Bestellungen (siehe oben). */
+function m392_orders_revenue_sum() {
+    if (!function_exists('wc_get_orders')) { return 0.0; }
+    $ids = wc_get_orders([
+        'limit'  => -1,
+        'status' => m392_revenue_statuses(),
+        'return' => 'ids',
+    ]);
+    $sum = 0.0;
+    foreach ($ids as $oid) {
+        $o = wc_get_order($oid);
+        if ($o) { $sum += (float) $o->get_total(); }
+    }
+    return round($sum, 2);
+}
 
 /** Live-Produkte des Shops im selben Schema wie der Matomo-Tracker. */
 function m392_list_products() {
@@ -222,6 +249,8 @@ function m392_create_orders(WP_REST_Request $req) {
         && wc_get_coupon_id_by_code($coupon_code) > 0;
 
     $created = [];
+    $batch_revenue = 0.0;                 // Summe der „Umsatz"-Bestellungen dieses Batches
+    $revenue_statuses = m392_revenue_statuses();
     for ($i = 0; $i < $count; $i++) {
         // Herkunft ziehen (≈70% deutsch, ≈30% divers), Vor-/Nachname daraus.
         $culture = $culture_bag[array_rand($culture_bag)];
@@ -357,10 +386,17 @@ function m392_create_orders(WP_REST_Request $req) {
         $ots = $created_dt ? $created_dt->getTimestamp() : time();
         m392_fix_customer_dates($customer_id, $ots);
 
+        if (in_array($status, $revenue_statuses, true)) {
+            $batch_revenue += (float) $order->get_total();
+        }
         $created[] = $order->get_id();
     }
 
-    return new WP_REST_Response(['count' => count($created), 'created' => $created], 201);
+    return new WP_REST_Response([
+        'count'   => count($created),
+        'created' => $created,
+        'revenue' => round($batch_revenue, 2),
+    ], 201);
 }
 
 /** Synchronisiert ALLE wc-admin-Analytics-Tabellen fuer eine Bestellung, damit

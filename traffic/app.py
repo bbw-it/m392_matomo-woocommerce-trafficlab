@@ -29,6 +29,20 @@ def _no_browser_cache(resp):
 
 
 
+def _env_float(name, default=0.0):
+    """Float aus .env lesen, robust gegen versehentliche Inline-Kommentare."""
+    raw = os.environ.get(name)
+    if raw is None:
+        return default
+    raw = raw.split("#", 1)[0].strip()
+    if not raw:
+        return default
+    try:
+        return float(raw)
+    except ValueError:
+        return default
+
+
 def _initial_drip_per_hour():
     """Besucher/Stunde aus .env lesen (mit Rückwärtskompatibilität)."""
     if os.environ.get("TRAFFIC_DRIP_VISITS_PER_HOUR"):
@@ -110,10 +124,10 @@ def _drip_worker():
             _accumulate(s)
             # Käufe zusätzlich als ECHTE WooCommerce-Bestellungen anlegen (Live).
             if s.get("purchases"):
-                made = orders.create_orders(s["purchases"], days_back=0,
-                                            returning_rate=STATE["returning_rate"] * 100)
-                if made:
-                    _log(f"{made} Bestellung(en) im Shop angelegt (Live)")
+                res = orders.create_orders(s["purchases"], days_back=0,
+                                           returning_rate=STATE["returning_rate"] * 100)
+                if res["count"]:
+                    _log(f"{res['count']} Bestellung(en) im Shop angelegt (Live)")
         except Exception as exc:
             _log(f"Drip-Fehler: {exc}")
         # Exponentiell verteilte Pause (Poisson-Ankuenfte): mal Schlag auf Schlag,
@@ -208,8 +222,9 @@ def gen_orders():
     count = int(request.form.get("count", 10))
     s = generator.generate_orders(count)
     _accumulate({"purchases": s["purchases"], "revenue": s["revenue"]})
-    made = orders.create_orders(count, days_back=0,                 # echte WooCommerce-Bestellungen
-                                returning_rate=STATE["returning_rate"] * 100)
+    res = orders.create_orders(count, days_back=0,                  # echte WooCommerce-Bestellungen
+                               returning_rate=STATE["returning_rate"] * 100)
+    made = res["count"]
     extra = f" · {made} Shop-Bestellungen" if made else ""
     _log(f"{count} Käufe erzwungen – EUR {s['revenue']:.2f}{extra}")
     return jsonify(s)
@@ -304,20 +319,116 @@ def _maybe_auto_seed():
     threading.Thread(target=seed, daemon=True).start()
 
 
+def _create_dated_batches(dates, made_offset, total, ret_pct):
+    """Legt Bestellungen zu den (sortierten) `dates` in Häppchen von 20 an
+    (schont WooCommerce). Gibt `(angelegte_Anzahl, summierter_Umsatz)` zurück und
+    aktualisiert die Fortschrittsanzeige fortlaufend."""
+    made, revenue = 0, 0.0
+    for i in range(0, len(dates), 20):
+        res = orders.create_orders(0, dates=dates[i:i + 20], returning_rate=ret_pct)
+        made += res["count"]
+        revenue += res["revenue"]
+        _set_progress("orders", made_offset + made, total)
+    return made, revenue
+
+
+def _seed_orders_by_count(status, days, target, ret_pct):
+    """Klassischer Modus: feste Zielanzahl Bestellungen (TRAFFIC_SEED_ORDERS)."""
+    existing = int(status.get("orders", 0))
+    need = max(0, target - existing)
+    if need == 0:
+        _log(f"Bestellungen: bereits {existing} vorhanden – kein Seed nötig.")
+        _set_progress("orders", 1, 1)
+        _set_seed("orders", "done")
+        return
+    _set_progress("orders", 0, need)
+    dates = sorted(generator.history_order_dates(days, need))
+    made, _ = _create_dated_batches(dates, 0, need, ret_pct)
+    _log(f"Bestellungen … {made}/{need} angelegt")
+    _log(f"Bestellungen: {made} realistische Bestellungen erzeugt "
+         f"(verteilt über ~{max(1, round(days / 30))} Monate, passend zur Matomo-Historie).")
+    _set_seed("orders", "done")
+
+
+def _seed_orders_by_revenue(status, days, monthly, ret_pct):
+    """Richtwert-Modus: so viele Bestellungen anlegen, dass der Monatsumsatz der
+    generierten Bestellungen etwa `monthly` (EUR) entspricht.
+
+    Vorgehen (kalibrierend, daher unabhängig von Preisen/Warenkorb-Logik):
+      1. Zielumsatz = monthly × Monate; bereits vorhandenen Umsatz abziehen.
+      2. Kleine Kalibrier-Charge anlegen und den Ø-Bestellwert daraus messen.
+      3. Restanzahl = Restumsatz / Ø-Bestellwert; verteilt über das Fenster anlegen.
+    Idempotent: füllt nur bis zum Zielumsatz auf (nutzt den Ping-Umsatz)."""
+    months = max(0.1, days / 30.0)
+    total_target = monthly * months
+    existing_rev = float(status.get("revenue", 0.0))
+    remaining = total_target - existing_rev
+    months_lbl = max(1, round(days / 30))
+    if remaining <= 0.05 * total_target:
+        _log(f"Bestellungen: Umsatz-Richtwert bereits erreicht "
+             f"(~EUR {existing_rev:.0f} / Ziel EUR {total_target:.0f}).")
+        _set_progress("orders", 1, 1)
+        _set_seed("orders", "done")
+        return
+
+    # 1) Kalibrierung: kleine, über das Fenster verteilte Charge → Ø-Bestellwert.
+    #    Chargengröße grob am Restumsatz ausrichten (ROUGH_AOV nur zur Dimensionierung),
+    #    damit kleine Richtwerte nicht durch eine zu große Kalibrier-Charge überschossen
+    #    werden. Der tatsächliche Ø-Wert wird danach gemessen, nicht geschätzt.
+    ROUGH_AOV = 30.0
+    cal_n = max(5, min(20, int(round(remaining / ROUGH_AOV))))
+    _set_progress("orders", 0, 0)
+    _log(f"Bestellungen: kalibriere Ø-Bestellwert (Umsatz-Richtwert "
+         f"EUR {monthly:.0f}/Monat, Ziel ~EUR {total_target:.0f} über {months_lbl} Monate) ...")
+    cal_dates = sorted(generator.history_order_dates(days, cal_n))
+    cal_made, cal_rev = _create_dated_batches(cal_dates, 0, len(cal_dates), ret_pct)
+    aov = (cal_rev / cal_made) if cal_made else 0.0
+    if aov <= 0:
+        _log("Bestell-Seed-Fehler: Ø-Bestellwert nicht ermittelbar.")
+        _set_seed("orders", "error")
+        return
+    _log(f"Bestellungen: Ø-Bestellwert ~EUR {aov:.2f} (aus {cal_made} Bestellungen).")
+
+    # 2) Restbedarf in Bestellungen schätzen und anlegen (Sicherheitsdeckel 6000).
+    made, revenue = cal_made, cal_rev
+    need = int(round(max(0.0, remaining - cal_rev) / aov))
+    need = max(0, min(need, 6000))
+    if need > 0:
+        total_n = made + need
+        dates = sorted(generator.history_order_dates(days, need))
+        m2, r2 = _create_dated_batches(dates, made, total_n, ret_pct)
+        made += m2
+        revenue += r2
+        _log(f"Bestellungen … {made}/{total_n} angelegt")
+
+    total_rev = existing_rev + revenue
+    _log(f"Bestellungen: {made} Bestellungen erzeugt – ~EUR {total_rev:.0f} Gesamtumsatz "
+         f"über {months_lbl} Monate (Ø ~EUR {total_rev / months:.0f}/Monat, "
+         f"Richtwert EUR {monthly:.0f}).")
+    _set_seed("orders", "done")
+
+
 def _maybe_seed_orders():
     """Startseed: echte WooCommerce-Bestellungen anlegen, die den ZEITRAUM der
     Matomo-Historie widerspiegeln – verteilt über die letzten ~24 Monate mit
-    demselben Wachstums-Trend/Wochenrhythmus wie der Backfill. Idempotent: füllt
-    nur auf den Zielwert auf (kein Anwachsen bei jedem Neustart)."""
+    demselben Wachstums-Trend/Wochenrhythmus wie der Backfill. Idempotent.
+
+    Zwei Modi:
+      • TRAFFIC_AVG_MONTHLY_REVENUE > 0 → Richtwert: Bestellmenge so wählen, dass
+        der Monatsumsatz etwa dem Wert entspricht (hat Vorrang).
+      • sonst → feste Anzahl Bestellungen (TRAFFIC_SEED_ORDERS, klassisch)."""
     if not orders.ENABLED:
         return
-    target = int(os.environ.get("TRAFFIC_SEED_ORDERS", "120"))
     # Bestellfenster = Matomo-Backfill-Fenster, damit beide denselben Zeitraum
     # abdecken (separat überschreibbar via TRAFFIC_SEED_ORDERS_DAYS).
-    days = int(os.environ.get("TRAFFIC_SEED_ORDERS_DAYS",
-                              os.environ.get("TRAFFIC_BACKFILL_DAYS", "180")))
-    if target <= 0:
+    days = int(_env_float("TRAFFIC_SEED_ORDERS_DAYS",
+                          _env_float("TRAFFIC_BACKFILL_DAYS", 180)))
+    monthly = _env_float("TRAFFIC_AVG_MONTHLY_REVENUE", 0.0)
+    target_count = int(_env_float("TRAFFIC_SEED_ORDERS", 120))
+    revenue_mode = monthly > 0
+    if not revenue_mode and target_count <= 0:
         return
+    ret_pct = STATE["returning_rate"] * 100
     _set_seed("orders", "running")
 
     def seed():
@@ -327,26 +438,10 @@ def _maybe_seed_orders():
             _log("Bestell-Seed-Fehler: WooCommerce nicht rechtzeitig bereit.")
             _set_seed("orders", "error")
             return
-        existing = int(status.get("orders", 0))
-        need = max(0, target - existing)
-        if need == 0:
-            _log(f"Bestellungen: bereits {existing} vorhanden – kein Seed nötig.")
-            _set_progress("orders", 1, 1)
-            _set_seed("orders", "done")
-            return
-        _set_progress("orders", 0, need)
-        # Bestelldaten über das ganze Fenster verteilen (Trend + Wochenrhythmus),
-        # chronologisch anlegen und in Häppchen senden (schont WooCommerce).
-        dates = sorted(generator.history_order_dates(days, need))
-        made = 0
-        for i in range(0, len(dates), 20):
-            made += orders.create_orders(0, dates=dates[i:i + 20],
-                                         returning_rate=STATE["returning_rate"] * 100)
-            _set_progress("orders", made, need)
-            _log(f"Bestellungen … {made}/{need} angelegt")
-        _log(f"Bestellungen: {made} realistische Bestellungen erzeugt "
-             f"(verteilt über ~{max(1, round(days / 30))} Monate, passend zur Matomo-Historie).")
-        _set_seed("orders", "done")
+        if revenue_mode:
+            _seed_orders_by_revenue(status, days, monthly, ret_pct)
+        else:
+            _seed_orders_by_count(status, days, target_count, ret_pct)
 
     threading.Thread(target=seed, daemon=True).start()
 

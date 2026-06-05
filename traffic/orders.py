@@ -40,16 +40,19 @@ def wait_for_wordpress(timeout=600, interval=5):
 
 
 def create_orders(count, days_back=0, dates=None, returning_rate=None):
-    """Legt echte Bestellungen an; gibt Anzahl angelegter zurück (0 bei Fehler).
+    """Legt echte Bestellungen an; gibt `{"count", "revenue"}` zurück (0/0.0 bei Fehler).
 
     Mit `dates` (Liste von Epoch-Sekunden) wird je Zeitstempel eine Bestellung
     angelegt und auf dieses Datum datiert – so spiegelt die Bestell-Historie den
     Matomo-Zeitraum (~24 Monate) wider. Ohne `dates` werden `count` Bestellungen
     zufällig innerhalb der letzten `days_back` Tage angelegt. `returning_rate`
     (0..100 %) steuert den Anteil wiederkehrender Bestandskund:innen.
+
+    `revenue` ist die Summe der „Umsatz"-Bestellungen dieses Batches (bezahlt bzw.
+    in Abwicklung) – Grundlage für das Seeding nach Monatsumsatz-Richtwert.
     """
     if not ENABLED:
-        return 0
+        return {"count": 0, "revenue": 0.0}
     payload = {"days_back": int(days_back)}
     if dates:
         payload["dates"] = [int(t) for t in dates]
@@ -57,7 +60,7 @@ def create_orders(count, days_back=0, dates=None, returning_rate=None):
     else:
         payload["count"] = int(count)
     if payload["count"] <= 0:
-        return 0
+        return {"count": 0, "revenue": 0.0}
     if returning_rate is not None:
         payload["returning_rate"] = int(round(returning_rate))
     try:
@@ -68,6 +71,7 @@ def create_orders(count, days_back=0, dates=None, returning_rate=None):
             timeout=180,
         )
         r.raise_for_status()
-        return int(r.json().get("count", 0))
+        j = r.json()
+        return {"count": int(j.get("count", 0)), "revenue": float(j.get("revenue", 0.0))}
     except (requests.RequestException, ValueError):
-        return 0
+        return {"count": 0, "revenue": 0.0}

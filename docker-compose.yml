@@ -145,6 +145,11 @@ services:
       # (Standard: passend zur ~24-Monats-Matomo-Historie).
       TRAFFIC_SEED_ORDERS: ${TRAFFIC_SEED_ORDERS:-120}
       TRAFFIC_SEED_ORDERS_DAYS: ${TRAFFIC_SEED_ORDERS_DAYS:-180}
+      # Richtwert: durchschnittlicher Bestell-Umsatz pro Monat (EUR). Wenn > 0,
+      # bestimmt dieser Wert die Bestellmenge (statt TRAFFIC_SEED_ORDERS) so, dass
+      # der Monatsumsatz der generierten Bestellungen etwa diesem Betrag entspricht.
+      # Leer/0 → klassischer Anzahl-Modus.
+      TRAFFIC_AVG_MONTHLY_REVENUE: ${TRAFFIC_AVG_MONTHLY_REVENUE:-}
     volumes:
       - ./seed/catalog.json:/seed/catalog.json:ro
       - matomo_token:/token:ro
