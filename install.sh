@@ -126,29 +126,109 @@ printf '   Matomo '; wait_http "http://localhost:${MATOMO_PORT}/"    "Matomo" ||
 if [ "$WAIT_SEED" -eq 1 ]; then
   echo
   echo "[5/5] Startbefuellung laeuft (${HIST_LABEL} + Bestellungen) ..."
-  echo "      Das dauert einige Minuten. Fortschritt live unten – Spinner + Uhr"
-  echo "      zeigen, dass gearbeitet wird. Danach ist Matomo SOFORT vollstaendig."
-  spin='|/-\'
+  echo "      Das dauert einige Minuten – die Fortschrittsbalken unten zeigen live,"
+  echo "      wie weit Historie und Bestellungen sind. Danach ist Matomo SOFORT fertig."
+  echo
+
+  # --- Kosmetik: Docker-aehnliche Fortschrittsbalken ----------------------
+  # Liest weiterhin /api/ready (UNVERAENDERTE Logik!) und rendert die dort
+  # gemeldeten done/total-Werte pro Phase als Balken. Ohne TTY (Pipe/CI) ->
+  # einfache Zeilen statt Steuercodes, damit Logs sauber bleiben.
+  BAR_W=28
+  CHECK=$'\xe2\x9c\x93'                       # ✓
+  WARN=$'\xe2\x9a\xa0'                         # ⚠
+  SPIN=(⠋ ⠙ ⠹ ⠸ ⠼ ⠴ ⠦ ⠧ ⠇ ⠏)
+  if [ -t 1 ]; then
+    C_RESET=$'\033[0m'; C_DIM=$'\033[2m'; C_CYAN=$'\033[36m'
+    C_GREEN=$'\033[32m'; C_YELLOW=$'\033[33m'; C_BOLD=$'\033[1m'; TTY=1
+  else
+    C_RESET=''; C_DIM=''; C_CYAN=''; C_GREEN=''; C_YELLOW=''; C_BOLD=''; TTY=0
+  fi
+
+  _bar() {  # $1=done $2=total -> "<cyan ████░░░> <bold>NN%</bold>"
+    local dn="${1:-0}" tot="${2:-0}" w="$BAR_W" pct=0 filled=0 k out=''
+    [[ "$dn"  =~ ^[0-9]+$ ]] || dn=0
+    [[ "$tot" =~ ^[0-9]+$ ]] || tot=0
+    if [ "$tot" -gt 0 ]; then
+      pct=$(( dn * 100 / tot )); [ "$pct" -gt 100 ] && pct=100
+      filled=$(( dn * w / tot )); [ "$filled" -gt "$w" ] && filled=$w
+    fi
+    for ((k=0; k<filled; k++)); do out+='█'; done
+    for ((k=0; k<w-filled; k++)); do out+='░'; done
+    printf '%s%s%s %s%3d%%%s' "$C_CYAN" "$out" "$C_RESET" "$C_BOLD" "$pct" "$C_RESET"
+  }
+
+  _ibar() {  # unbestimmter Balken (Phase "bereitet vor"): $1=frame
+    local pos=$(( ${1:-0} % BAR_W )) k out=''
+    for ((k=0; k<BAR_W; k++)); do
+      if [ "$k" -ge "$pos" ] && [ "$k" -lt $((pos + 3)) ]; then out+='▓'; else out+='░'; fi
+    done
+    printf '%s%s%s' "$C_DIM" "$out" "$C_RESET"
+  }
+
+  # parse_phase BODY LABEL -> PH_STATE(num|done|prep|none) PH_DONE PH_TOTAL
+  parse_phase() {
+    local body="$1" label="$2" frac
+    PH_STATE=none; PH_DONE=0; PH_TOTAL=0
+    if printf '%s' "$body" | grep -qE "${label} [0-9]+/[0-9]+"; then
+      frac="$(printf '%s' "$body" | grep -oE "${label} [0-9]+/[0-9]+" | head -1 | grep -oE '[0-9]+/[0-9]+' || true)"
+      PH_DONE="${frac%/*}"; PH_TOTAL="${frac#*/}"; PH_STATE=num
+    elif printf '%s' "$body" | grep -qF "${label} ${CHECK}"; then
+      PH_STATE=done; PH_DONE=1; PH_TOTAL=1
+    elif printf '%s' "$body" | grep -qF "${label} ${WARN}"; then
+      PH_STATE=warn
+    elif printf '%s' "$body" | grep -q "$label"; then
+      PH_STATE=prep
+    fi
+  }
+
+  _phase_line() {  # $1=Label $2=state $3=done $4=total $5=frame
+    local name="$1" st="$2" d="$3" t="$4" fr="$5" full='' k
+    case "$st" in
+      num)  printf '   %-12s %s   %s%s/%s%s' "$name" "$(_bar "$d" "$t")" "$C_DIM" "$d" "$t" "$C_RESET" ;;
+      done) for ((k=0; k<BAR_W; k++)); do full+='█'; done
+            printf '   %-12s %s%s%s %s100%%%s   %s%s fertig%s' \
+              "$name" "$C_GREEN" "$full" "$C_RESET" "$C_BOLD" "$C_RESET" "$C_GREEN" "$CHECK" "$C_RESET" ;;
+      prep) printf '   %-12s %s   %sbereitet vor …%s' "$name" "$(_ibar "$fr")" "$C_DIM" "$C_RESET" ;;
+      warn) printf '   %-12s %s%s uebersprungen / Fehler%s' "$name" "$C_YELLOW" "$WARN" "$C_RESET" ;;
+      *)    printf '   %-12s %s   %s—%s'              "$name" "$(_ibar "$fr")" "$C_DIM" "$C_RESET" ;;
+    esac
+  }
+
   start=$(date +%s)
   i=0
+  drew=0
+  ROWS=4                                      # Kopfzeile + 2 Phasen + Besuche-Zeile
   while :; do
     code="$(curl -s -o /tmp/m392_ready.$$ -w '%{http_code}' "http://localhost:${TRAFFIC_PORT}/api/ready" 2>/dev/null || echo 000)"
-    line="$(head -1 /tmp/m392_ready.$$ 2>/dev/null | tr -d '\r\n')"
-    [ -z "$line" ] && line="verbinde mit Traffic-Container ..."
+    body="$(head -1 /tmp/m392_ready.$$ 2>/dev/null | tr -d '\r\n')"
+    [ -z "$body" ] && body="wartet auf Traffic-Container …"
     now=$(date +%s); el=$((now - start)); mm=$((el / 60)); ss=$((el % 60))
-    # Zeile zuerst mit Leerzeichen ueberschreiben (\r ... \r), dann neu zeichnen –
-    # so bleiben keine Reste stehen und Multibyte-Zeichen (·/✓) werden nicht zerschnitten.
+    parse_phase "$body" "Historie";     H_ST="$PH_STATE"; H_D="$PH_DONE"; H_T="$PH_TOTAL"
+    parse_phase "$body" "Bestellungen"; O_ST="$PH_STATE"; O_D="$PH_DONE"; O_T="$PH_TOTAL"
+    vis="$(printf '%s' "$body" | grep -oE '[0-9]+ Besuche' | head -1 | grep -oE '[0-9]+' || true)"; vis="${vis:-0}"
+    sc="${SPIN[$(( i % 10 ))]}"
+
+    if [ "$TTY" -eq 1 ]; then
+      [ "$drew" -eq 1 ] && printf '\033[%dA' "$ROWS"      # Cursor zurueck an den Block-Anfang
+      printf '\r\033[K %s%s%s  %sStartbefuellung laeuft%s   %s%02d:%02d%s\n' \
+        "$C_CYAN" "$sc" "$C_RESET" "$C_BOLD" "$C_RESET" "$C_DIM" "$mm" "$ss" "$C_RESET"
+      printf '\r\033[K%s\n' "$(_phase_line 'Historie'     "$H_ST" "$H_D" "$H_T" "$i")"
+      printf '\r\033[K%s\n' "$(_phase_line 'Bestellungen' "$O_ST" "$O_D" "$O_T" "$i")"
+      printf '\r\033[K   %s%s Besuche erzeugt%s\n' "$C_DIM" "$vis" "$C_RESET"
+      drew=1
+    else
+      [ $(( i % 5 )) -eq 0 ] && printf '   … %s  (%02d:%02d)\n' "$body" "$mm" "$ss"
+    fi
+
     if [ "$code" = "200" ]; then
-      printf '\r%-79s\r   \xe2\x9c\x93  %s   %02d:%02d\n' "" "$line" "$mm" "$ss"
+      printf '   %s%s Startbefuellung abgeschlossen%s   (%02d:%02d)\n' "$C_GREEN" "$CHECK" "$C_RESET" "$mm" "$ss"
       break
     fi
-    sc="${spin:$((i % 4)):1}"
-    printf '\r%-79s\r   %s  %s   %02d:%02d ' "" "$sc" "$line" "$mm" "$ss"
     i=$((i + 1))
     if [ "$i" -gt 600 ]; then   # ~20 min Sicherheits-Timeout (2s-Takt)
-      printf '\n'
-      echo "      (Timeout – Befuellung laeuft im Hintergrund weiter:"
-      echo "       ${DC[*]} logs -f traffic)"
+      printf '\n      (Timeout – Befuellung laeuft im Hintergrund weiter:\n'
+      printf '       %s logs -f traffic)\n' "${DC[*]}"
       break
     fi
     sleep 2
