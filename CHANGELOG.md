@@ -6,6 +6,13 @@ Format lose angelehnt an [Keep a Changelog](https://keepachangelog.com/de/).
 ## [Unreleased] – Stand 2026-06-05
 
 ### Hinzugefügt
+- **Matomo ↔ WooCommerce gekoppelt (im Richtwert-Modus):** Jede geseedete Bestellung wird zusätzlich
+  als Matomo-E-Commerce-Conversion gespiegelt (gleiches Datum/Umsatz/Artikel). Dadurch zeigen Matomo
+  *E-Commerce* und WooCommerce *Statistiken* **dieselben Umsätze/Bestellungen**. Der Backfill erzeugt
+  in diesem Modus keine eigenen Käufe mehr, sondern nur noch nicht-kaufende Besuche – skaliert so, dass
+  die Conversion-Rate realistisch bleibt. Besuche und Bestellungen decken denselben Zeitraum ab
+  (`TRAFFIC_BACKFILL_DAYS` = `TRAFFIC_SEED_ORDERS_DAYS`, Standard jetzt 100). Hinweis: mehr Besuche ⇒
+  längere Installation (Stellschrauben: Fenster, `TRAFFIC_CONVERSION_RATE`, Richtwert).
 - **Umsatz-Richtwert für den Bestell-Seed (`TRAFFIC_AVG_MONTHLY_REVENUE`):** Statt einer festen
   Bestellanzahl kann nun ein durchschnittlicher Monatsumsatz (EUR) vorgegeben werden. Der Startseed
   legt so viele Bestellungen an, dass der Monatsumsatz der generierten Bestellungen etwa dem Richtwert

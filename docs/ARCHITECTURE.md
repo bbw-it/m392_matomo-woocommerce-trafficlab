@@ -330,6 +330,17 @@ nicht über Matomo, sondern über einen geschützten REST-Endpunkt im WordPress-
     gesetzt ist. Idempotent über die Bestellanzahl.
   „Umsatz" zählt dabei bezahlte/laufende Bestellungen (Status `processing`/`completed`/`on-hold`;
   ohne storniert/erstattet/offen).
+- **Matomo-Kopplung (nur im Richtwert-Modus):** Jede geseedete Umsatz-Bestellung wird **zusätzlich
+  als Matomo-E-Commerce-Conversion gespiegelt** – mit **demselben Datum, Umsatz und denselben
+  Artikeln** (`track_ecommerce_order`; der Order-Endpunkt liefert dazu pro Bestellung `ts/revenue/items`
+  zurück). Dadurch zeigen **Matomo *E-Commerce* und WooCommerce *Statistiken* dieselben Zahlen**
+  (Umsatz, Bestellungen, Ø-Bestellwert). Damit die **Conversion-Rate realistisch** bleibt, erzeugt der
+  Backfill in diesem Modus **keine eigenen Käufe** mehr (die Conversions kommen aus den Bestellungen),
+  sondern nur noch die **nicht-kaufenden Besuche** – und zwar so viele, dass
+  `Besuche/Tag ≈ Bestellungen/Tag × (1/CR − 1)`. Besuche und Bestellungen decken **denselben Zeitraum**
+  ab (`TRAFFIC_BACKFILL_DAYS` = `TRAFFIC_SEED_ORDERS_DAYS`).
+  > Kosten: mehr Besuche ⇒ längere Installation. Stellschrauben: kleineres Fenster (Tage), höhere
+  > `TRAFFIC_CONVERSION_RATE` oder kleinerer Richtwert reduzieren die Besuchszahl.
 - **Realismus liegt in PHP:** der Endpunkt hat vollen WooCommerce-Zugriff und baut die Order
   serverseitig (echte Produkte/Preise, Versand, Totalsummen, Status). E-Mails werden während
   der Erzeugung unterdrückt (kein SMTP in der Lehrumgebung).
@@ -341,10 +352,10 @@ nicht über Matomo, sondern über einen geschützten REST-Endpunkt im WordPress-
   in `wp-init.sh`). Der Startseed ist idempotent (füllt nur auf den Zielwert auf), bei
   `down -v && up -d` entstehen Bestellungen + Kund:innen frisch über ~6 Monate.
 
-> Hinweis: Die Bestellungen sind ein **paralleler, in sich stimmiger** Strom (gleiche
-> Produkte/Bestseller, gleiche Test-Zahlarten) – sie sind **nicht** 1:1 dieselben Transaktionen
-> wie die 6-Monats-Matomo-Historie (das würde die Bestellliste fluten). Für die Lehre zählt,
-> dass Shop **und** Matomo dieselbe Geschichte erzählen.
+> Hinweis: Im **Richtwert-Modus** sind die Bestellungen durch die Matomo-Kopplung **1:1 dieselben
+> Transaktionen** in Shop und Matomo (gleicher Umsatz/gleiche Bestellungen). Im **Anzahl-Modus**
+> (`TRAFFIC_SEED_ORDERS`, ohne Richtwert) bleibt es beim alten Verhalten: ein **paralleler, in sich
+> stimmiger** Strom (gleiche Produkte/Bestseller), aber **nicht** 1:1 mit der Matomo-Historie.
 
 Die wichtigsten Stellschrauben, mit denen das Traffic Lab die Matomo-Daten formt:
 
@@ -357,7 +368,7 @@ Die wichtigsten Stellschrauben, mit denen das Traffic Lab die Matomo-Daten formt
 | **Akquise-Kanäle** (`urlref`) | **Social** als stärkster Verkaufskanal; diverse Verweis-Domains (eine dominant); Newsletter als **Kampagne** (`pk_campaign`) | `generator.py · CHANNELS` |
 | **Conversion-Rate** (Regler) | Anteil Käufe; Schnitt bleibt erhalten (Kanal-Mult. normiert) | `app.py · STATE` / `generator.py` |
 | **Echte Bestellungen** | sichtbar in *WooCommerce → Bestellungen* + *Statistiken* (Startseed + Live) | `orders.py` + `init/mu-plugins/m392-order-api.php` |
-| **Umsatz-Richtwert** (`TRAFFIC_AVG_MONTHLY_REVENUE`) | Bestellmenge so, dass **Ø-Monatsumsatz** ≈ Richtwert (kalibrierend gemessen) | `app.py · _seed_orders_by_revenue` |
+| **Umsatz-Richtwert** (`TRAFFIC_AVG_MONTHLY_REVENUE`) | Bestellmenge so, dass **Ø-Monatsumsatz** ≈ Richtwert; Bestellungen **1:1 in Matomo gespiegelt** | `app.py · _seed_orders_by_revenue` + `generator.track_ecommerce_order` |
 | **Wiederkehrende Kunden** (Regler) | Anteil Bestellungen bestehender Kund:innen (Gesamtausgaben pro Kund:in) | `app.py · returning_rate` → `m392-order-api.php` |
 | **Gutschein `NATUR10`** | ~18 % der Bestellungen mit Rabatt (*Marketing → Gutscheine*, Statistik) | `m392-order-api.php` + `catalog.json · coupon` |
 | **PDF-Downloads** | füllen das Ziel „PDF-Download: INCI" (*Verhalten → Downloads*) | `generator.py` (~3,5 %) + `catalog.json` |
