@@ -21,14 +21,21 @@ Conversion und Umsatz** vergleicht. Variante B konvertiert bewusst etwas besser 
 - `M392_AB_SPLIT_B` – Prozent der Besuche → Variante B
 - `M392_AB_CONV_FACTOR_B` – um diesen Faktor konvertiert B besser
 
-## Auswertung in Matomo
-*Besucher → Custom Dimensions → AB-Variante* (oder als Segment „AB-Variante == Shop-Variante" über
-jeden Bericht). Dieser **eingebaute** Bericht vergleicht Original vs. Shop-Variante inkl. E-Commerce-
-Conversion und Umsatz – ganz ohne Plugin.
+## Report-Seite (natives Plugin)
+Der Ordner `plugin/` ist ein vollwertiges Matomo-5-Plugin. Es wird per Bind-Mount in den
+Matomo-Container gelegt (`docker-compose.yml`) und in `install.sh` **automatisch aktiviert**:
 
-> **Hinweis zu `plugin/`:** Die native Report-Seite (`plugin/`) ist im Repo enthalten, wird aber in
-> der Standard-Installation **nicht aktiviert**. Grund: In der Headless-Umgebung ersetzt eine
-> config.ini-`[Plugins]`-Sektion die Default-Plugins (inkl. Login) und legt Matomo lahm. Die Analyse
-> läuft daher über den eingebauten Custom-Dimension-Bericht (gleiche Daten). Wer die native Seite
-> dennoch will, mountet `plugin/` nach `/var/www/html/plugins/M392ABTesting` und aktiviert sie mit
-> `console plugin:activate M392ABTesting` (auf eigenes Risiko).
+```
+console plugin:activate M392ABTesting
+```
+
+Das ist sicher: `console plugin:activate` schreibt die **vollständige** Plugin-Liste (inkl. Login/
+Auth) in die `config.ini.php`. Ein *manueller* `[Plugins]`-Eintrag würde dagegen die Default-Plugins
+ersetzen und Matomo lahmlegen – diesen Weg meiden wir bewusst.
+
+Aufruf der Report-Seite: Berichts-Menü → **„M392 A/B"** (vergleicht Original vs. Shop-Variante inkl.
+E-Commerce-Conversion und Umsatz, Gewinner markiert).
+
+## Auswertung in Matomo (alternativ, ganz ohne Plugin)
+*Besucher → Custom Dimensions → AB-Variante* (oder als Segment „AB-Variante == Shop-Variante" über
+jeden Bericht). Dieser **eingebaute** Bericht zeigt dieselben Daten.

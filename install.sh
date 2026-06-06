@@ -123,6 +123,24 @@ wait_http() {  # $1=URL  $2=Label
 printf '   Shop   '; wait_http "http://localhost:${WP_PORT}/"        "Shop"   || true
 printf '   Matomo '; wait_http "http://localhost:${MATOMO_PORT}/"    "Matomo" || true
 
+# --- M392-Report-Plugins aktivieren (A/B-Testing, Funnels) ------------------
+# Sicher: `console plugin:activate` schreibt die VOLLSTAENDIGE Plugin-Liste
+# (inkl. Login/Auth) – im Gegensatz zu einem manuellen [Plugins]-Eintrag, der
+# die Default-Plugins ersetzen und Matomo lahmlegen wuerde. Idempotent.
+echo
+echo "   M392-Report-Plugins aktivieren (A/B-Testing, Funnels) ..."
+i=0
+until "${DC[@]}" exec -T matomo sh -c 'grep -q "^\[PluginsInstalled\]" /var/www/html/config/config.ini.php' 2>/dev/null; do
+  i=$((i + 1)); [ "$i" -gt 60 ] && break; sleep 3   # ~3 min auf Matomo-Installation warten
+done
+for P in M392ABTesting M392Funnels; do
+  if "${DC[@]}" exec -T -u www-data matomo ./console plugin:activate "$P" >/dev/null 2>&1; then
+    echo "      ✓ ${P} aktiviert"
+  else
+    echo "      (— ${P} konnte nicht aktiviert werden – Report-Seite ggf. nicht verfuegbar)"
+  fi
+done
+
 if [ "$WAIT_SEED" -eq 1 ]; then
   echo
   echo "[5/5] Startbefuellung laeuft (${HIST_LABEL} + Bestellungen) ..."
