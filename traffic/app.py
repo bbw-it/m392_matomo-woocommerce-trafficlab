@@ -302,7 +302,7 @@ def _maybe_auto_seed():
         # abdecken. Ø-Bestellwert nur grob geschätzt (skaliert nur die Besucherzahl,
         # nicht den Umsatz – der kommt exakt aus den Bestellungen).
         days = int(_env_float("TRAFFIC_SEED_ORDERS_DAYS", _env_float("TRAFFIC_BACKFILL_DAYS", 180)))
-        aov_est = 33.0
+        aov_est = 28.0   # Ø-Produktumsatz/Bestellung (ohne Versand); nur Besucher-Skalierung
         orders_per_day = (monthly / 30.0) / aov_est
         base_per_day = max(1, int(round(orders_per_day * (1.0 / cr - 1.0))))
         backfill_conv = 0.0
