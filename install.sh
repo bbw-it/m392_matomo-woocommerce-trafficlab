@@ -123,19 +123,6 @@ wait_http() {  # $1=URL  $2=Label
 printf '   Shop   '; wait_http "http://localhost:${WP_PORT}/"        "Shop"   || true
 printf '   Matomo '; wait_http "http://localhost:${MATOMO_PORT}/"    "Matomo" || true
 
-# Native M392-Matomo-Plugins (A/B-Test, Funnels) aktivieren – sauber via console,
-# das die Liste korrekt mit den Default-Plugins merged (eine config.ini-[Plugins]-
-# Sektion von Hand wuerde die Defaults inkl. Login ERSETZEN und Matomo lahmlegen).
-# Erst wenn matomo-init fertig ist (sonst Schreib-Race auf config.ini).
-printf '   Matomo-Plugins '
-i=0
-until "${DC[@]}" ps -a --format '{{.Name}} {{.State}}' 2>/dev/null | grep -q 'matomo-init.*exited' || [ "$i" -gt 90 ]; do
-  printf '.'; sleep 2; i=$((i + 1))
-done
-"${DC[@]}" exec -T matomo php /var/www/html/console plugin:activate M392Funnels M392ABTesting >/dev/null 2>&1 \
-  && echo ' — A/B-Test- + Funnel-Report-Seiten aktiviert.' \
-  || echo ' — (Aktivierung uebersprungen; Berichte ggf. erst nach erneutem Lauf.)'
-
 if [ "$WAIT_SEED" -eq 1 ]; then
   echo
   echo "[5/5] Startbefuellung laeuft (${HIST_LABEL} + Bestellungen) ..."

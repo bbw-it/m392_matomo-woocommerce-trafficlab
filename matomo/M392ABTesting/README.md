@@ -22,4 +22,13 @@ Conversion und Umsatz** vergleicht. Variante B konvertiert bewusst etwas besser 
 - `M392_AB_CONV_FACTOR_B` – um diesen Faktor konvertiert B besser
 
 ## Auswertung in Matomo
-*Besucher → Custom Dimensions → AB-Variante* (oder als Segment „AB-Variante == B" über jeden Bericht).
+*Besucher → Custom Dimensions → AB-Variante* (oder als Segment „AB-Variante == Shop-Variante" über
+jeden Bericht). Dieser **eingebaute** Bericht vergleicht Original vs. Shop-Variante inkl. E-Commerce-
+Conversion und Umsatz – ganz ohne Plugin.
+
+> **Hinweis zu `plugin/`:** Die native Report-Seite (`plugin/`) ist im Repo enthalten, wird aber in
+> der Standard-Installation **nicht aktiviert**. Grund: In der Headless-Umgebung ersetzt eine
+> config.ini-`[Plugins]`-Sektion die Default-Plugins (inkl. Login) und legt Matomo lahm. Die Analyse
+> läuft daher über den eingebauten Custom-Dimension-Bericht (gleiche Daten). Wer die native Seite
+> dennoch will, mountet `plugin/` nach `/var/www/html/plugins/M392ABTesting` und aktiviert sie mit
+> `console plugin:activate M392ABTesting` (auf eigenes Risiko).

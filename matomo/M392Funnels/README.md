@@ -25,6 +25,13 @@ realistisch (jeder Schritt verliert Besucher:innen), sodass die Zahlen mit Besuc
 | **Traffic** | `traffic/generator.py` | erzeugt den Schritt-für-Schritt-Pfad (Produkt→Warenkorb→Kasse→Kauf) |
 | **Report-Seite** | `plugin/` *(Phase 2)* | natives Matomo-Plugin mit Trichter-Diagramm |
 
-## Auswertung in Matomo (heute schon)
+## Auswertung in Matomo
 *Ziele* → die vier „Funnel-…"-Ziele zeigen je Schritt Conversions und Conversion-Rate; der Vergleich
-ergibt den Trichter. *(Phase 2 fasst das in einer Trichter-Grafik zusammen.)*
+der aufeinanderfolgenden Schritte ergibt den Trichter (Drop-off). Pro A/B-Variante: Segment
+„AB-Variante" hinzufügen.
+
+> **Hinweis zu `plugin/`:** Die native Report-Seite mit Trichter-Diagramm (`plugin/`) ist im Repo
+> enthalten, wird aber in der Standard-Installation **nicht aktiviert** (in der Headless-Umgebung
+> legt eine config.ini-`[Plugins]`-Sektion Matomos Login/Auth lahm). Die Auswertung läuft über die
+> eingebauten Ziel-Berichte. Manuelle Aktivierung auf eigenes Risiko:
+> `plugin/` nach `/var/www/html/plugins/M392Funnels` mounten + `console plugin:activate M392Funnels`.

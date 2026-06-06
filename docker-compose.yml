@@ -95,9 +95,6 @@ services:
       MATOMO_DATABASE_PASSWORD: ${MATOMO_DB_PASSWORD}
     volumes:
       - matomo_data:/var/www/html
-      # Nachgebaute M392-Plugins (A/B-Testing, Funnels) – Report-Seiten in Matomo.
-      - ./matomo/M392Funnels/plugin:/var/www/html/plugins/M392Funnels:ro
-      - ./matomo/M392ABTesting/plugin:/var/www/html/plugins/M392ABTesting:ro
 
   matomo-init:
     image: curlimages/curl:8.11.1
