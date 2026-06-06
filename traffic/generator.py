@@ -48,10 +48,28 @@ VARIANT_B = "Shop-Variante"       # /shop-variante/
 
 
 def _pick_variant():
-    """Variante wählen (oder None, wenn A/B deaktiviert)."""
+    """Besuchs-Variante wählen (Split AB_SPLIT_B; oder None, wenn A/B deaktiviert)."""
     if not AB_ENABLED:
         return None
     return VARIANT_B if (random.random() * 100.0) < AB_SPLIT_B else VARIANT_A
+
+
+# Im gekoppelten Modus konvertiert der Backfill nicht (Käufe kommen aus den
+# gespiegelten Bestellungen). Damit die Shop-Variante trotzdem die bessere
+# Conversion-Rate zeigt, werden die BESTELLUNGEN leicht häufiger der Shop-Variante
+# zugeordnet – exakt so, dass bei gleichem Besuchs-Split CR_B/CR_A = AB_CONV_FACTOR_B.
+#   p_o = f·p_v / ((1-p_v) + f·p_v)
+_p_v = max(0.0, min(1.0, AB_SPLIT_B / 100.0))
+AB_ORDER_SPLIT_B = (100.0 * AB_CONV_FACTOR_B * _p_v / ((1.0 - _p_v) + AB_CONV_FACTOR_B * _p_v)
+                    if AB_ENABLED else 0.0)
+
+
+def _pick_order_variant():
+    """Bestellungs-Variante wählen (leicht zugunsten der Shop-Variante gewichtet,
+    damit deren Conversion-Rate um AB_CONV_FACTOR_B höher ausfällt)."""
+    if not AB_ENABLED:
+        return None
+    return VARIANT_B if (random.random() * 100.0) < AB_ORDER_SPLIT_B else VARIANT_A
 
 
 def _shop_landing_path(variant):
@@ -321,9 +339,18 @@ def _send(params):
     if camp:
         sep = "&" if "?" in params.get("url", "") else "?"
         params["url"] = params.get("url", "") + sep + "pk_campaign=" + quote(camp)
-    resp = SESSION.get(f"{MATOMO_URL}/matomo.php", params=params, timeout=15)
-    resp.raise_for_status()
-    return resp
+    # Kleiner Retry: unter Last (grosser Backfill) liefert Matomo gelegentlich
+    # transiente 4xx/5xx – einmal kurz warten und erneut versuchen.
+    last = None
+    for attempt in range(3):
+        try:
+            resp = SESSION.get(f"{MATOMO_URL}/matomo.php", params=params, timeout=20)
+            resp.raise_for_status()
+            return resp
+        except requests.RequestException as exc:
+            last = exc
+            time.sleep(0.4 * (attempt + 1))
+    raise last
 
 
 def _advance(when):
@@ -645,7 +672,7 @@ def track_ecommerce_order(ts, revenue, items, catalog=None):
         geo = _pick_geo()
     channel = _pick_channel()
     base = _base_url(catalog)
-    variant = _pick_variant()
+    variant = _pick_order_variant()      # Bestellungen leicht zugunsten der Shop-Variante
     # sku -> slug für realistische Produkt-URLs (sonst generisch /product/).
     slug_by_sku = {p.get("sku"): p.get("slug") for p in catalog.get("products", [])}
 
@@ -759,7 +786,12 @@ def backfill(days, base_per_day=14, conversion_rate=0.04, progress=None):
             when = day.replace(hour=random.randint(8, 22),
                                minute=random.randint(0, 59),
                                second=random.randint(0, 59))
-            r = simulate_visit(catalog, when=when, conversion_rate=conversion_rate)
+            # Resilient: ein transienter Fehler bei EINEM Besuch darf den ganzen
+            # (zehntausende Treffer langen) Backfill nicht abbrechen – überspringen.
+            try:
+                r = simulate_visit(catalog, when=when, conversion_rate=conversion_rate)
+            except requests.RequestException:
+                continue
             total["visits"] += 1
             total["purchases"] += 1 if r["purchase"] else 0
             total["revenue"] = round(total["revenue"] + r["revenue"], 2)

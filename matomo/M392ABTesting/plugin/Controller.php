@@ -24,33 +24,27 @@ class Controller extends \Piwik\Plugin\Controller
 
         $rows = [];
         if ($idDimension !== null) {
-            // Besuche je Variante.
+            // Ein Aufruf: Besuche + (verschachtelt) die Ziel-Kennzahlen je Variante.
+            // Die E-Commerce-Bestellungen/-Umsatz stehen unter goals['idgoal=ecommerceOrder']
+            // (die Spalte nb_conversions auf Zeilenebene wäre die Summe ALLER Ziele).
             $base = Request::processRequest('CustomDimensions.getCustomDimension', [
                 'idSite' => $idSite, 'period' => $period, 'date' => $date,
                 'idDimension' => $idDimension, 'format' => 'original',
             ]);
-            // E-Commerce-Kennzahlen je Variante (idGoal=ecommerceOrder).
-            $eco = Request::processRequest('CustomDimensions.getCustomDimension', [
-                'idSite' => $idSite, 'period' => $period, 'date' => $date,
-                'idDimension' => $idDimension, 'idGoal' => '0', 'format' => 'original',
-            ]);
-            $ecoByLabel = [];
-            foreach ($eco->getRows() as $r) {
-                $ecoByLabel[$r->getColumn('label')] = $r;
-            }
             foreach ($base->getRows() as $r) {
-                $label = $r->getColumn('label');
-                $e = $ecoByLabel[$label] ?? null;
                 $visits = (int) $r->getColumn('nb_visits');
-                $orders = $e ? (int) $e->getColumn('nb_conversions') : 0;
-                $revenue = $e ? (float) $e->getColumn('revenue') : 0.0;
+                $goals  = $r->getColumn('goals');
+                $eco    = is_array($goals) && isset($goals['idgoal=ecommerceOrder'])
+                    ? $goals['idgoal=ecommerceOrder'] : [];
+                $orders  = (int) ($eco['nb_conversions'] ?? 0);
+                $revenue = (float) ($eco['revenue'] ?? 0.0);
                 $rows[] = [
-                    'label'    => $label,
-                    'visits'   => $visits,
-                    'orders'   => $orders,
-                    'revenue'  => $revenue,
-                    'cr'       => $visits > 0 ? round(100 * $orders / $visits, 2) : 0.0,
-                    'aov'      => $orders > 0 ? round($revenue / $orders, 2) : 0.0,
+                    'label'   => $r->getColumn('label'),
+                    'visits'  => $visits,
+                    'orders'  => $orders,
+                    'revenue' => $revenue,
+                    'cr'      => $visits > 0 ? round(100 * $orders / $visits, 2) : 0.0,
+                    'aov'     => $orders > 0 ? round($revenue / $orders, 2) : 0.0,
                 ];
             }
         }

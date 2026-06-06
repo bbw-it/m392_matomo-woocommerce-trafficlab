@@ -247,24 +247,27 @@ fi
 # --- M392-Plugins: native Matomo-Plugins aktivieren ------------------------
 # Die Plugin-Ordner sind via docker-compose nach plugins/M392Funnels bzw.
 # plugins/M392ABTesting gemountet. Aktivierung über config.ini.php (kein PHP im
-# curl-Container). Idempotent.
-activate_plugin() {
-  name="$1"
-  if [ ! -f "$CFG" ]; then return; fi
-  if grep -q "Plugins\[\] = \"$name\"" "$CFG" 2>/dev/null; then
-    log "Plugin $name bereits aktiv."
-    return
+# curl-Container). Die [Plugins]-Eintraege sind ADDITIV zu den Default-Plugins aus
+# global.ini.php – fehlt die Sektion (frisches Matomo), wird sie angelegt. Idempotent.
+ini_add() {  # $1=Sektion (Plugins|PluginsInstalled)  $2=Plugin-Name
+  section="$1"; name="$2"
+  grep -q "${section}\[\] = \"$name\"" "$CFG" 2>/dev/null && return
+  if grep -q "^\[${section}\]" "$CFG" 2>/dev/null; then
+    tmp="$(mktemp)"
+    awk -v s="[${section}]" -v line="${section}[] = \"$name\"" \
+      '{ print } $0==s && !d { print line; d=1 }' "$CFG" > "$tmp" \
+      && cat "$tmp" > "$CFG" && rm -f "$tmp"
+  else
+    printf '\n[%s]\n%s[] = "%s"\n' "$section" "$section" "$name" >> "$CFG"
   fi
-  log "Aktiviere Plugin $name ..."
-  tmp="$(mktemp)"
-  awk -v p="$name" '
-    { print }
-    /^\[Plugins\]/ && !d1 { print "Plugins[] = \"" p "\""; d1=1 }
-    /^\[PluginsInstalled\]/ && !d2 { print "PluginsInstalled[] = \"" p "\""; d2=1 }
-  ' "$CFG" > "$tmp" && cat "$tmp" > "$CFG" && rm -f "$tmp"
 }
-activate_plugin "M392Funnels"
-activate_plugin "M392ABTesting"
+if [ -f "$CFG" ]; then
+  for name in M392Funnels M392ABTesting; do
+    ini_add "PluginsInstalled" "$name"
+    ini_add "Plugins" "$name"
+    log "Plugin $name aktiviert (config.ini)."
+  done
+fi
 
 # --- M392-Plugins: Daten-Grundlage (A/B Custom Dimension + Funnel-Ziele) ----
 # Setup-Skripte in matomo/M392ABTesting/ und matomo/M392Funnels/ (nach
