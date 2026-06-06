@@ -290,7 +290,9 @@ def _maybe_auto_seed():
         return
     monthly = _env_float("TRAFFIC_AVG_MONTHLY_REVENUE", 0.0)
     cr = max(0.001, STATE["conversion_rate"])
-    if monthly > 0:
+    # Kopplung nur, wenn auch wirklich Bestellungen erzeugt werden (sonst käme gar
+    # kein E-Commerce in Matomo an, weil der Backfill dann nicht mehr konvertiert).
+    if monthly > 0 and orders.ENABLED:
         # Gekoppelter Modus: Die E-Commerce-Conversions kommen aus den gespiegelten
         # WooCommerce-Bestellungen (track_ecommerce_order) – NICHT aus dem Backfill.
         # Der Backfill liefert daher nur die NICHT kaufenden Besuche (conversion=0),
