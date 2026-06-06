@@ -232,6 +232,7 @@
             <span class="lg"><i style="background:var(--blue)"></i>Besuche</span>
             <span class="lg"><i style="background:var(--green)"></i>Käufe</span>
             <span class="lg"><i style="background:var(--orange)"></i>Wiederkehrende</span>
+            <span class="lg" style="color:var(--mut)">· Käufe/Wiederkehrende: eigene Skala</span>
           </div>
         </div>
         <div class="seg" id="seg">
@@ -402,15 +403,25 @@ function drawChart(hist){
   const buckets=[]; for(let b=0;b<N_BARS;b++) buckets.push({v:0,p:0,r:0, t:start+(b+0.5)*bw});
   pts.forEach(pt=>{ if(pt.t>=start){ const idx=Math.min(N_BARS-1, Math.floor((pt.t-start)/bw));
     buckets[idx].v+=pt.v; buckets[idx].p+=pt.p; buckets[idx].r+=pt.r; } });
-  const max=Math.max(1, ...buckets.map(b=>Math.max(b.v,b.p,b.r)));
-  const hgt=n=> Math.round(10+(n/max)*88);
-  // Besuche immer (0 = grauer Stummel); Käufe/Wiederkehrende nur sichtbar, wenn >0
-  const bar=(n,cls,stub)=>{ const h = n>0?hgt(n):(stub?3:0);
-    return '<div class="b '+cls+(n===0&&stub?' zero':'')+'" style="height:'+h+'%"></div>'; };
+  // Besuche und Käufe/Wiederkehrende haben sehr unterschiedliche Größenordnungen
+  // (z. B. 200 Besuche vs. 1 Kauf). Auf EINER Skala würde ein einzelner Besuchs-
+  // Spike die Käufe unsichtbar machen → eigene Skala: Besuche relativ zum Besuchs-
+  // Max, Käufe + Wiederkehrende relativ zu IHREM Max (gemeinsam, damit untereinander
+  // vergleichbar). Exakte Zahlen stehen im Tooltip.
+  const vMax  = Math.max(1, ...buckets.map(b=>b.v));
+  const prMax = Math.max(1, ...buckets.map(b=>Math.max(b.p,b.r)));
+  const hV  = n=> n>0 ? Math.round(8  + (n/vMax)  * 90) : 3;   // 0 = grauer Stummel
+  const hPR = n=> n>0 ? Math.round(34 + (n/prMax) * 64) : 0;   // ab 1 klar sichtbar
+  const bar=(n,cls,h,stub)=>
+    '<div class="b '+cls+(n===0&&stub?' zero':'')+'" style="height:'+h+'%"></div>';
   $('#chart').innerHTML = buckets.map((b,i)=>{
     const ax = (i%6===0 || i===N_BARS-1) ? '<span class="ax">'+clock(b.t)+'</span>' : '';
     const tip='<span class="tip"><b>'+b.v+'</b> Besuche · <b>'+b.p+'</b> Käufe · <b>'+b.r+'</b> wiederk.<em>'+clock(b.t)+'</em></span>';
-    return '<div class="slot"><div class="grp">'+bar(b.v,'v',true)+bar(b.p,'p',false)+bar(b.r,'r',false)+'</div>'+tip+ax+'</div>';
+    return '<div class="slot"><div class="grp">'
+      + bar(b.v,'v',hV(b.v),true)
+      + bar(b.p,'p',hPR(b.p),false)
+      + bar(b.r,'r',hPR(b.r),false)
+      + '</div>'+tip+ax+'</div>';
   }).join('');
 }
 
