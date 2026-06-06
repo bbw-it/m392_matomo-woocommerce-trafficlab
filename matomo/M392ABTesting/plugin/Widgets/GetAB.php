@@ -1,17 +1,35 @@
 <?php
-namespace Piwik\Plugins\M392ABTesting;
+/**
+ * M392 A/B-Test – Report-Seite (Widget) mit Vergleichstabelle Original vs.
+ * Shop-Variante. Liest die Custom Dimension „AB-Variante" inkl. der
+ * E-Commerce-Kennzahlen je Variante. Kostenfreier Ersatz fuer das bezahlte
+ * A/B-Testing-Plugin. Gerendert als Sidebar-Seite via Category/Subcategory.
+ */
+namespace Piwik\Plugins\M392ABTesting\Widgets;
 
 use Piwik\API\Request;
 use Piwik\Common;
+use Piwik\Piwik;
 use Piwik\View;
+use Piwik\Widget\Widget;
+use Piwik\Widget\WidgetConfig;
 
-class Controller extends \Piwik\Plugin\Controller
+class GetAB extends Widget
 {
-    public function index()
+    public static function configure(WidgetConfig $config)
+    {
+        $config->setCategoryId('M392ABTesting');
+        $config->setSubcategoryId('M392ABTesting_Overview');
+        $config->setName('Vergleich');
+        $config->setOrder(1);
+    }
+
+    public function render()
     {
         $idSite = Common::getRequestVar('idSite', 1, 'int');
         $period = Common::getRequestVar('period', 'month', 'string');
         $date   = Common::getRequestVar('date', 'today', 'string');
+        Piwik::checkUserHasViewAccess($idSite);
 
         // Index der Custom Dimension "AB-Variante" ermitteln.
         $idDimension = null;
@@ -19,14 +37,17 @@ class Controller extends \Piwik\Plugin\Controller
             'idSite' => $idSite, 'format' => 'original',
         ]);
         foreach ((array) $dims as $d) {
-            if (($d['name'] ?? '') === 'AB-Variante') { $idDimension = (int) $d['idcustomdimension']; break; }
+            if (($d['name'] ?? '') === 'AB-Variante') {
+                $idDimension = (int) $d['idcustomdimension'];
+                break;
+            }
         }
 
         $rows = [];
         if ($idDimension !== null) {
             // Ein Aufruf: Besuche + (verschachtelt) die Ziel-Kennzahlen je Variante.
             // Die E-Commerce-Bestellungen/-Umsatz stehen unter goals['idgoal=ecommerceOrder']
-            // (die Spalte nb_conversions auf Zeilenebene wäre die Summe ALLER Ziele).
+            // (die Spalte nb_conversions auf Zeilenebene waere die Summe ALLER Ziele).
             $base = Request::processRequest('CustomDimensions.getCustomDimension', [
                 'idSite' => $idSite, 'period' => $period, 'date' => $date,
                 'idDimension' => $idDimension, 'format' => 'original',
@@ -49,9 +70,13 @@ class Controller extends \Piwik\Plugin\Controller
             }
         }
 
-        // Gewinner (höhere Conversion-Rate) markieren.
+        // Gewinner (hoehere Conversion-Rate) markieren.
         $best = null;
-        foreach ($rows as $r) { if ($best === null || $r['cr'] > $best) { $best = $r['cr']; } }
+        foreach ($rows as $r) {
+            if ($best === null || $r['cr'] > $best) {
+                $best = $r['cr'];
+            }
+        }
 
         $view = new View('@M392ABTesting/index');
         $view->rows = $rows;

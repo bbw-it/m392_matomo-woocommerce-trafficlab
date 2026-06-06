@@ -140,6 +140,10 @@ for P in M392ABTesting M392Funnels; do
     echo "      (— ${P} konnte nicht aktiviert werden – Report-Seite ggf. nicht verfuegbar)"
   fi
 done
+# Cache leeren, damit die eigenen Sidebar-Kategorien (Category/Subcategory/Widget)
+# „M392 · Funnel" und „M392 · A/B-Test" sofort im Berichtsmenue erscheinen.
+"${DC[@]}" exec -T -u www-data matomo ./console core:clear-caches >/dev/null 2>&1 || true
+echo "      → Berichtsmenue: „M392 · Funnel\" und „M392 · A/B-Test\""
 
 if [ "$WAIT_SEED" -eq 1 ]; then
   echo

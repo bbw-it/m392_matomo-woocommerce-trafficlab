@@ -23,7 +23,7 @@ realistisch (jeder Schritt verliert Besucher:innen), sodass die Zahlen mit Besuc
 |---|---|---|
 | **Daten/Setup** | `setup.sh` (hier) | legt die 4 Funnel-Ziele an (von `matomo-init.sh` aufgerufen) |
 | **Traffic** | `traffic/generator.py` | erzeugt den Schritt-für-Schritt-Pfad (Produkt→Warenkorb→Kasse→Kauf) |
-| **Report-Seite** | `plugin/` *(Phase 2)* | natives Matomo-Plugin mit Trichter-Diagramm |
+| **Report-Seite** | `plugin/` (Category + Subcategory + Widget) | natives Matomo-Plugin mit Trichter-Diagramm |
 
 ## Report-Seite (natives Plugin)
 Der Ordner `plugin/` ist ein vollwertiges Matomo-5-Plugin. Es wird per Bind-Mount in den
@@ -37,7 +37,9 @@ Das ist sicher: `console plugin:activate` schreibt die **vollständige** Plugin-
 Auth) in die `config.ini.php`. Ein *manueller* `[Plugins]`-Eintrag würde dagegen die Default-Plugins
 ersetzen und Matomo lahmlegen – diesen Weg meiden wir bewusst.
 
-Aufruf der Report-Seite: Berichts-Menü → **„M392 Funnel"** (Trichter-Diagramm mit Drop-off je Schritt).
+Technik (Matomo 5): eigene **Category + Subcategory + Widget** (`Categories/`, `Widgets/`) erzeugen
+den Sidebar-Eintrag – der ältere `configureReportingMenu`-Weg erzeugt in Matomo 5 KEINE Kategorie.
+Aufruf der Report-Seite: Berichts-Menü → **„M392 · Funnel" → „Trichter"** (Trichter mit Drop-off je Schritt).
 
 ## Auswertung in Matomo (alternativ, ganz ohne Plugin)
 *Ziele* → die vier „Funnel-…"-Ziele zeigen je Schritt Conversions und Conversion-Rate; der Vergleich

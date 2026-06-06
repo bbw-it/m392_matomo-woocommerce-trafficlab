@@ -14,7 +14,7 @@ Conversion und Umsatz** vergleicht. Variante B konvertiert bewusst etwas besser 
 | **Daten/Setup** | `setup.sh` (hier) | legt die Custom Dimension „AB-Variante" an (von `matomo-init.sh` aufgerufen) |
 | **Varianten-Rendering** | `wordpress/init/mu-plugins/m392-ab-test.php` *(Phase 2)* | zeigt Variante A/B der Shop-Seite + setzt die Dimension im Tracking |
 | **Traffic** | `traffic/generator.py` | weist generierten Besuchen A/B zu (`dimension1`) + Conversion-Bias |
-| **Report-Seite** | `plugin/` *(Phase 2)* | natives Matomo-Plugin mit A/B-Vergleichstabelle |
+| **Report-Seite** | `plugin/` (Category + Subcategory + Widget) | natives Matomo-Plugin mit A/B-Vergleichstabelle |
 
 ## Konfiguration (`.env`)
 - `M392_AB_TEST_ENABLED` – A/B-Test aktiv (true/false)
@@ -33,8 +33,10 @@ Das ist sicher: `console plugin:activate` schreibt die **vollständige** Plugin-
 Auth) in die `config.ini.php`. Ein *manueller* `[Plugins]`-Eintrag würde dagegen die Default-Plugins
 ersetzen und Matomo lahmlegen – diesen Weg meiden wir bewusst.
 
-Aufruf der Report-Seite: Berichts-Menü → **„M392 A/B"** (vergleicht Original vs. Shop-Variante inkl.
-E-Commerce-Conversion und Umsatz, Gewinner markiert).
+Technik (Matomo 5): eigene **Category + Subcategory + Widget** (`Categories/`, `Widgets/`) erzeugen
+den Sidebar-Eintrag – der ältere `configureReportingMenu`-Weg erzeugt in Matomo 5 KEINE Kategorie.
+Aufruf der Report-Seite: Berichts-Menü → **„M392 · A/B-Test" → „Vergleich"** (Original vs. Shop-Variante
+inkl. E-Commerce-Conversion und Umsatz, Gewinner markiert).
 
 ## Auswertung in Matomo (alternativ, ganz ohne Plugin)
 *Besucher → Custom Dimensions → AB-Variante* (oder als Segment „AB-Variante == Shop-Variante" über
