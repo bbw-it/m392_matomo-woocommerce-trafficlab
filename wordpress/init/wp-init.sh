@@ -332,15 +332,13 @@ else
 fi
 
 if [ "$SHOP_SEEDED" = "0" ]; then
-  # --- 4) WooCommerce + Storefront ---
-  echo "[wp-init] Installiere WooCommerce + Storefront ..."
+  # --- 4) WooCommerce ---
+  # (Theme wird weiter unten als Botiga installiert/aktiviert – kein Storefront.)
+  echo "[wp-init] Installiere WooCommerce ..."
   if ! wp plugin is-installed woocommerce --allow-root; then
     wp plugin install woocommerce --version="${WOOCOMMERCE_VERSION}" --activate --allow-root
   else
     wp plugin activate woocommerce --allow-root || true
-  fi
-  if ! wp theme is-installed storefront --allow-root; then
-    wp theme install storefront --allow-root
   fi
 
   # --- 5) Shop-Basis: Deutschland / EUR ---
@@ -425,28 +423,9 @@ fi
 wp rewrite structure '/%postname%/' --allow-root >/dev/null 2>&1 || true
 wp rewrite flush --allow-root >/dev/null 2>&1 || true
 
-# .htaccess mit WordPress-Rewrite-Block sicherstellen (idempotent).
-# Noetig, weil 'wp rewrite flush' im CLI-Kontext mod_rewrite nicht erkennt und
-# daher KEINE Rewrite-Regeln in .htaccess schreibt -> sonst 404 auf huebschen
-# URLs (Produktseiten, /kasse/, /checkout/order-received/...). Der Apache des
-# offiziellen WordPress-Images erlaubt .htaccess-Overrides.
-HTACCESS="/var/www/html/.htaccess"
-if ! grep -q "RewriteEngine On" "$HTACCESS" 2>/dev/null; then
-  echo "[wp-init] Schreibe WordPress-Rewrite-Block in .htaccess ..."
-  cat > "$HTACCESS" <<'HTEOF'
-# BEGIN WordPress
-<IfModule mod_rewrite.c>
-RewriteEngine On
-RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
-RewriteBase /
-RewriteRule ^index\.php$ - [L]
-RewriteCond %{REQUEST_FILENAME} !-f
-RewriteCond %{REQUEST_FILENAME} !-d
-RewriteRule . /index.php [L]
-</IfModule>
-# END WordPress
-HTEOF
-fi
+# .htaccess mit WordPress-Rewrite-Block sicherstellen (idempotent) – nutzt die
+# gemeinsame Funktion ensure_htaccess() vom Skriptanfang (von beiden Modi geteilt).
+ensure_htaccess
 
 # --- 10) Produktbilder (HYBRID: echtes Foto -> sonst Platzhalter), idempotent ---
 echo "[wp-init] Pruefe/setze Produktbilder ..."
@@ -592,8 +571,7 @@ for i in $(seq 0 $((PRODUCT_COUNT-1))); do
   rm -f "$TMP"
 done
 
-# --- 11) Platzhalter fuer kuenftige Gateway-Schritte (laeuft bei jedem Aufruf) ---
-# (Noch keine Zahlungs-Gateways konfiguriert – Schritt bewusst als no-op belassen.)
-echo "[wp-init] (Gateway-Schritte: derzeit keine – Platzhalter)"
+# (Zahlungs-Gateways werden zur Laufzeit vom mu-plugin m392-test-payments.php
+#  bereitgestellt – hier kein eigener Schritt noetig.)
 
 echo "[wp-init] Fertig."

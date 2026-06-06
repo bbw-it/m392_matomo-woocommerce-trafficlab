@@ -406,7 +406,7 @@ werden. Ein `down -v && up -d` liefert also wieder **exakt denselben Shop**.
 │  ├─ requirements.txt
 │  └─ templates/index.html       # Dashboard-Oberfläche
 │
-└─ docs/                         # Interne Design-/Planungsdokumente
+└─ docs/                         # Architektur-Doku + Produkt-Workflow
 ```
 
 ## Troubleshooting
