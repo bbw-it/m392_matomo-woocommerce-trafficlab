@@ -62,6 +62,7 @@ Mit dieser Umgebung lassen sich u. a. folgende Kompetenzen aus Modul 392 abdecke
 > 📐 **Ausführliche Architektur-Doku** (Tracking-Wege, Datenfluss, Diagramme): siehe
 > [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
 > 📝 **Änderungsverlauf:** siehe [`CHANGELOG.md`](CHANGELOG.md).
+> 🛍️ **Produkte hinzufügen** (Workflow-Konzept, KI-Bilder): siehe [`docs/PRODUKTE-WORKFLOW.md`](docs/PRODUKTE-WORKFLOW.md).
 
 Ein `docker compose` startet sechs Container (drei dauerhafte Web-Dienste, zwei einmalige
 Einrichtungs-Container und eine Datenbank):
