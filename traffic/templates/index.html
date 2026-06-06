@@ -117,13 +117,11 @@
          weißer Thumb mit farbigem Glow passend zur Position (per JS gesetzt) ---- */
   input[type=range]{-webkit-appearance:none; appearance:none; width:100%; height:6px; border-radius:99px; margin:0; cursor:pointer;
     background:linear-gradient(90deg,#3b82f6 0%,#22b8cf 24%,#37c97a 46%,#f4c430 66%,#ff8a3d 84%,#f5523f 100%)}
-  input[type=range].readonly{pointer-events:none; cursor:default}
   input[type=range]::-webkit-slider-thumb{-webkit-appearance:none; width:20px; height:20px; border-radius:50%; background:#fff;
     border:2px solid var(--glow,#3b82f6);
     box-shadow:0 0 0 4px var(--ring,rgba(59,130,246,.20)), 0 1px 4px rgba(16,24,40,.22);
     cursor:pointer; transition:transform .12s}
   input[type=range]::-webkit-slider-thumb:hover{transform:scale(1.12)}
-  input[type=range].readonly::-webkit-slider-thumb{cursor:default}
   input[type=range]::-moz-range-thumb{width:18px; height:18px; border-radius:50%; background:#fff;
     border:2px solid var(--glow,#3b82f6); box-shadow:0 0 0 4px var(--ring,rgba(59,130,246,.20)); cursor:pointer}
 
@@ -273,7 +271,6 @@
             </div>
             <div class="prm result">
               <div class="prm-top"><span class="k">Erwartete Käufe</span><span class="v" id="pph">≈ 1.8 / Std</span></div>
-              <input type="range" id="s-pph" class="readonly" min="0" max="120" value="2" tabindex="-1" aria-hidden="true">
             </div>
           </div>
         </div>
@@ -339,7 +336,7 @@ function pushDrip(){ post('/api/set-drip', {visitors_per_hour:state.drip_per_hou
 $('#drip-toggle').addEventListener('change', ()=> post('/api/toggle-drip'));
 
 // drei Parameter-Slider: Besucher/Stunde, Conversion-Rate, Wiederkehrende Kunden
-const sVph=$('#s-vph'), sCr=$('#s-cr'), sRet=$('#s-ret'), sPph=$('#s-pph');
+const sVph=$('#s-vph'), sCr=$('#s-cr'), sRet=$('#s-ret');
 sVph.addEventListener('input', ()=>{ state.drip_per_hour=+sVph.value;        renderDerived(); });
 sCr .addEventListener('input', ()=>{ state.conversion_rate=(+sCr.value)/1000; renderDerived(); });
 sRet.addEventListener('input', ()=>{ state.returning_rate=(+sRet.value)/100;  renderDerived(); });
@@ -351,14 +348,13 @@ function renderDerived(){
   $('#ret-val').textContent = Math.round(state.returning_rate*100)+'%';
   const pph = state.drip_per_hour * state.conversion_rate;
   $('#pph').textContent = '≈ '+pph.toFixed(1)+' / Std';
-  // Ergebnis-Gauge: sqrt-Skala, damit auch kleine Werte sichtbar wandern (Zahl bleibt exakt)
-  const pf = Math.sqrt(Math.min(1, pph/120));
-  sPph.value = Math.round(pf*120);
-  // Track-Thumb einfärben + Werte in der jeweiligen Positionsfarbe
+  // „Erwartete Käufe" ist nur Anzeige: Wert in der Intensitätsfarbe (sqrt-Skala)
+  const pc = spectrum(Math.sqrt(Math.min(1, pph/120)));
+  $('#pph').style.color = 'rgb('+pc[0]+','+pc[1]+','+pc[2]+')';
+  // Track-Thumb der drei Slider einfärben + Werte in der jeweiligen Positionsfarbe
   $('#vph-val').style.color = paintSlider(sVph, fracOf(sVph));
   $('#cr-val').style.color  = paintSlider(sCr,  fracOf(sCr));
   $('#ret-val').style.color = paintSlider(sRet, fracOf(sRet));
-  $('#pph').style.color     = paintSlider(sPph, pf);
 }
 
 // Slider-Positionen aus dem Server-State übernehmen – aber nicht, während gezogen wird
