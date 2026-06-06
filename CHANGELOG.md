@@ -13,7 +13,7 @@ Format lose angelehnt an [Keep a Changelog](https://keepachangelog.com/de/).
   Richtwert (`TRAFFIC_AVG_MONTHLY_REVENUE`) bezieht sich ebenfalls auf den Produktumsatz ohne Versand. Der Backfill erzeugt
   in diesem Modus keine eigenen Käufe mehr, sondern nur noch nicht-kaufende Besuche – skaliert so, dass
   die Conversion-Rate realistisch bleibt. Besuche und Bestellungen decken denselben Zeitraum ab
-  (`TRAFFIC_BACKFILL_DAYS` = `TRAFFIC_SEED_ORDERS_DAYS`, Standard jetzt 100). Hinweis: mehr Besuche ⇒
+  (`TRAFFIC_BACKFILL_DAYS` = `TRAFFIC_SEED_ORDERS_DAYS`, Standard 180). Hinweis: mehr Besuche ⇒
   längere Installation (Stellschrauben: Fenster, `TRAFFIC_CONVERSION_RATE`, Richtwert).
 - **Umsatz-Richtwert für den Bestell-Seed (`TRAFFIC_AVG_MONTHLY_REVENUE`):** Statt einer festen
   Bestellanzahl kann nun ein durchschnittlicher Monatsumsatz (EUR) vorgegeben werden. Der Startseed

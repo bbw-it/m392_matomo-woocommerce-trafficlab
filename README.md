@@ -128,7 +128,7 @@ Sind `wp-init` und `matomo-init` mit `Exited (0)` beendet, ist alles bereit.
 | **Matomo** | http://localhost:8091 | `MATOMO_ADMIN_USER` / `MATOMO_ADMIN_PASSWORD` aus `.env` |
 | **Datengenerierungstool** | http://localhost:8092 | – |
 
-> Die Standard-Logins stehen in `.env.example` (z. B. `admin` / `admin123` bzw. `admin` / `matomo123`).
+> Die Standard-Logins stehen in `.env.example` (z. B. `admin` / `wp123` bzw. `admin` / `matomo123`).
 > Für den Unterricht bewusst einfach gehalten – **nicht für produktiven Einsatz**.
 
 ## Die drei Komponenten
@@ -312,7 +312,7 @@ Alles wird zentral über `.env` gesteuert (Kopie von `.env.example`). Wichtigste
 |---|---|---|
 | `WORDPRESS_PORT` / `MATOMO_PORT` / `TRAFFIC_PORT` | `8090` / `8091` / `8092` | Host-Ports der drei Dienste |
 | `MARIADB_VERSION`, `WORDPRESS_VERSION`, `MATOMO_VERSION`, `WOOCOMMERCE_VERSION` | gepinnt | Image-/Software-Versionen (für reproduzierbare Kurse) |
-| `WP_ADMIN_USER` / `WP_ADMIN_PASSWORD` / `WP_ADMIN_EMAIL` | `admin` / `admin123` / … | Shop-Admin |
+| `WP_ADMIN_USER` / `WP_ADMIN_PASSWORD` / `WP_ADMIN_EMAIL` | `admin` / `wp123` / … | Shop-Admin |
 | `MATOMO_ADMIN_USER` / `MATOMO_ADMIN_PASSWORD` / `MATOMO_ADMIN_EMAIL` | `admin` / `matomo123` / … | Matomo-Superuser |
 | `SHOP_CURRENCY` / `SHOP_COUNTRY` / `WP_LOCALE` | `EUR` / `DE` / `de_CH` | Shop-Währung, -Land, Sprachpaket |
 | `*_DB_*` / `MYSQL_ROOT_PASSWORD` | siehe Datei | Datenbank-Namen, -Benutzer, -Passwörter |

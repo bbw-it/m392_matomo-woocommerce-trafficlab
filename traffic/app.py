@@ -57,7 +57,7 @@ STATE = {
     "conversion_rate": float(os.environ.get("TRAFFIC_CONVERSION_RATE", "0.04")),
     # Anteil wiederkehrender Kund:innen (0..1) – steuert, wie oft Bestellungen
     # bestehenden WooCommerce-Kund:innen zugeordnet werden statt neuen.
-    "returning_rate": float(os.environ.get("TRAFFIC_RETURNING_RATE", "0.35")),
+    "returning_rate": float(os.environ.get("TRAFFIC_RETURNING_RATE", "0.08")),
     "drip_per_hour": _initial_drip_per_hour(),
     "totals": {"visits": 0, "purchases": 0, "revenue": 0.0},
     "last_log": [],

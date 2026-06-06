@@ -96,13 +96,6 @@
   .rowm{display:flex; align-items:center; justify-content:space-between; padding:13px 0; border-top:1px solid var(--line2); font-size:14px}
   .rowm .k{color:var(--gray)}
   .rowm .v{font-weight:700; font-variant-numeric:tabular-nums}
-  .rowm .v.edit{cursor:pointer; border-bottom:1px dashed transparent; transition:.15s}
-  .rowm .v.edit:hover{border-bottom-color:var(--mut)}
-  .pill{background:var(--blue-soft); color:var(--blue); font-weight:700; font-size:13px; padding:3px 10px; border-radius:99px; cursor:pointer}
-  .vedit{width:80px; height:30px; padding:4px 8px; border:1px solid var(--blue); border-radius:7px; font-family:var(--font);
-    font-size:14px; text-align:right; font-weight:600}
-  .vedit:focus{outline:none}
-  .slbl{font-size:11px; font-weight:600; letter-spacing:.06em; text-transform:uppercase; color:var(--mut); margin:18px 0 12px}
   /* parameter sliders (Besucher/Stunde, Conversion-Rate, Wiederkehrende Kunden) */
   .prm{margin:18px 0}
   .prm:first-child{margin-top:8px}
@@ -117,7 +110,6 @@
     border:1px solid #d4d8e0; box-shadow:0 1px 4px rgba(16,24,40,.2); cursor:pointer; transition:transform .12s}
   input[type=range]::-webkit-slider-thumb:hover{transform:scale(1.1)}
   input[type=range]::-moz-range-thumb{width:16px; height:16px; border-radius:50%; background:#fff; border:1px solid #d4d8e0; cursor:pointer}
-  .slider-ax{display:flex; justify-content:space-between; font-size:12px; color:var(--mut); margin-top:8px}
 
   .switch{position:relative; width:42px; height:24px; flex:none}
   .switch input{opacity:0; width:0; height:0}
@@ -134,7 +126,6 @@
   .drip-params.off{opacity:.45; filter:grayscale(.4); pointer-events:none}
 
   .man-row{margin-bottom:14px}
-  .man-row > .l{font-size:13px; color:var(--gray); margin-bottom:7px; display:block}
   .man-ctl{display:flex; gap:12px; align-items:center}
   input[type=number]{width:74px; height:42px; padding:8px 12px; border:1px solid var(--line); border-radius:9px;
     background:var(--card); font-family:var(--font); font-size:14px; text-align:center; flex:none}
@@ -238,7 +229,7 @@
       <h2>Aktionen</h2>
       <div class="akt-body">
         <!-- LIVE-TROPF -->
-        <div class="block drip-block">
+        <div class="block">
           <p class="sec-lbl">Live-Tropf</p>
           <div class="toprow">
             <span class="t">Kontinuierlich senden</span>

@@ -1,7 +1,3 @@
-# Referenzmaterial / generierbar – nicht versionieren
-matomo-latest/
-matomo-latest.zip
-
 # Lokale Konfiguration & Secrets
 .env
 
@@ -15,9 +11,6 @@ wordpress/www/
 # Python
 __pycache__/
 *.pyc
-
-# Node
-node_modules/
 
 # Fixtures fuer reproduzierbaren Demo-Shop MUESSEN versioniert werden
 # (DB-Dump + Uploads-Archiv), daher hier explizit NICHT ignorieren.

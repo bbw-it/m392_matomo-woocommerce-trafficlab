@@ -294,7 +294,8 @@ nicht über Matomo, sondern über einen geschützten REST-Endpunkt im WordPress-
 ```
 
 - **Kund:innen:** Pro Bestellung wird eine **echte WooCommerce-Kund:in** (Rolle *customer*) angelegt
-  oder – zu ~35 % – eine bestehende wiederverwendet (wiederkehrende Käufer:innen), der Bestellung
+  oder – mit Wahrscheinlichkeit `TRAFFIC_RETURNING_RATE` (Standard in `.env.example`: 8 %) – eine
+  bestehende wiederverwendet (wiederkehrende Käufer:innen), der Bestellung
   via `set_customer_id()` zugeordnet und die wc-admin-Kunden-Lookup-Tabelle aktualisiert
   (`DataStore::sync_order_customer`). Dadurch erscheinen sie unter *WooCommerce → Kunden* bzw.
   *Analytics → Kunden* – nicht als anonyme Gäste. Der Anteil wiederkehrender Kund:innen ist im
