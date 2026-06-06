@@ -249,6 +249,7 @@ function m392_create_orders(WP_REST_Request $req) {
         && wc_get_coupon_id_by_code($coupon_code) > 0;
 
     $created = [];
+    $details = [];                        // pro Umsatz-Bestellung: ts/revenue/items (Matomo-Spiegelung)
     $batch_revenue = 0.0;                 // Summe der „Umsatz"-Bestellungen dieses Batches
     $revenue_statuses = m392_revenue_statuses();
     for ($i = 0; $i < $count; $i++) {
@@ -307,14 +308,21 @@ function m392_create_orders(WP_REST_Request $req) {
         if (is_wp_error($order)) { continue; }
         if ($customer_id) { $order->set_customer_id($customer_id); }
 
-        // Positionen
+        // Positionen (zusätzlich die Artikel für die Matomo-Spiegelung sammeln:
+        // [sku, name, kategorie, preis, menge] – exakt das Matomo-ec_items-Format).
         $subtotal = 0.0;
+        $line_items = [];
         foreach ($pick_products() as $pid) {
             $product = wc_get_product($pid);
             if (!$product) { continue; }
             $qty = (random_int(1, 100) <= 80) ? 1 : 2;
             $order->add_product($product, $qty);
             $subtotal += (float) $product->get_price() * $qty;
+            $sku = $product->get_sku(); if (!$sku) { $sku = 'wc_' . $product->get_id(); }
+            $cat = '';
+            $terms = get_the_terms($product->get_id(), 'product_cat');
+            if ($terms && !is_wp_error($terms)) { $cat = $terms[0]->name; }
+            $line_items[] = [$sku, $product->get_name(), $cat, (float) $product->get_price(), $qty];
         }
 
         // Versand (frei ab 50 €, sonst 4,90 €)
@@ -388,6 +396,12 @@ function m392_create_orders(WP_REST_Request $req) {
 
         if (in_array($status, $revenue_statuses, true)) {
             $batch_revenue += (float) $order->get_total();
+            // Detail für die Matomo-Spiegelung: Zeitstempel, Gesamtumsatz, Artikel.
+            $details[] = [
+                'ts'      => (int) ($created_dt ? $created_dt->getTimestamp() : time()),
+                'revenue' => round((float) $order->get_total(), 2),
+                'items'   => $line_items,
+            ];
         }
         $created[] = $order->get_id();
     }
@@ -396,6 +410,7 @@ function m392_create_orders(WP_REST_Request $req) {
         'count'   => count($created),
         'created' => $created,
         'revenue' => round($batch_revenue, 2),
+        'details' => $details,
     ], 201);
 }
 

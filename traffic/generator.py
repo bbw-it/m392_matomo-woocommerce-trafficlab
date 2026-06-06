@@ -543,6 +543,50 @@ def generate_orders(count, when=None):
     return summary
 
 
+def track_ecommerce_order(ts, revenue, items, catalog=None):
+    """Spiegelt eine bestehende (WooCommerce-)Bestellung als Matomo-E-Commerce-
+    Conversion – damit Matomo dieselben Bestellungen/Umsätze zeigt wie der Shop.
+
+    `ts`      = Bestell-Zeitstempel (Epoch-Sekunden)
+    `revenue` = Gesamtumsatz der Bestellung
+    `items`   = [[sku, name, kategorie, preis, menge], ...] (Matomo-ec_items-Format)
+
+    Erzeugt einen kurzen Besuch (Einstieg über einen Akquise-Kanal + Bestell-
+    bestätigung) und sendet die E-Commerce-Bestellung. So ist die Conversion einer
+    Quelle zugeordnet und taucht in *Akquise*/*E-Commerce* auf.
+    """
+    if catalog is None:
+        catalog = _load_catalog()
+    when = datetime.fromtimestamp(int(ts))
+    visitor_id = uuid.uuid4().hex[:16]
+    ua = random.choice(USER_AGENTS)
+    geo = _pick_geo()
+    while not geo.get("can_purchase", True):
+        geo = _pick_geo()
+    channel = _pick_channel()
+    base = _base_url(catalog)
+
+    # 1) Einstiegs-Pageview (Kanal/Referrer) – ordnet die Bestellung einer Quelle zu.
+    p = _base_params(catalog, visitor_id, ua, when=when,
+                     urlref=("" if channel["kind"] == "campaign" else channel["ref"]), geo=geo)
+    p["url"] = f"{base}/checkout/order-received/"
+    p["action_name"] = "Bestellbestätigung"
+    if channel["kind"] == "campaign" and channel["ref"]:
+        p["__campaign"] = channel["ref"]
+    _send(p)
+
+    # 2) Die E-Commerce-Bestellung (idgoal=0) mit exakt den Artikeln/Umsatz der Order.
+    q = _base_params(catalog, visitor_id, ua, when=_advance(when), urlref="", geo=geo)
+    q["url"] = f"{base}/checkout/order-received/"
+    q["idgoal"] = 0
+    q["ec_id"] = uuid.uuid4().hex[:12]
+    q["revenue"] = round(float(revenue), 2)
+    if items:
+        q["ec_items"] = json.dumps(items, ensure_ascii=False)
+        q["ec_st"] = round(sum(float(it[3]) * int(it[4]) for it in items), 2)
+    _send(q)
+
+
 def _trend_season(d, days, day):
     """Deterministischer Tagesfaktor: Wachstums-Trend × Wochen-Saisonalität.
 

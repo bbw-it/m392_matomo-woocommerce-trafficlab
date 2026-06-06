@@ -288,7 +288,26 @@ def set_drip():
 def _maybe_auto_seed():
     if os.environ.get("TRAFFIC_AUTO_SEED", "true").lower() != "true":
         return
-    days = int(os.environ.get("TRAFFIC_BACKFILL_DAYS", "180"))
+    monthly = _env_float("TRAFFIC_AVG_MONTHLY_REVENUE", 0.0)
+    cr = max(0.001, STATE["conversion_rate"])
+    if monthly > 0:
+        # Gekoppelter Modus: Die E-Commerce-Conversions kommen aus den gespiegelten
+        # WooCommerce-Bestellungen (track_ecommerce_order) – NICHT aus dem Backfill.
+        # Der Backfill liefert daher nur die NICHT kaufenden Besuche (conversion=0),
+        # und zwar so viele, dass die Conversion-Rate insgesamt realistisch bleibt:
+        #   Besuche/Tag ≈ Bestellungen/Tag × (1/CR − 1).
+        # Fenster = Bestellfenster, damit Besuche und Bestellungen denselben Zeitraum
+        # abdecken. Ø-Bestellwert nur grob geschätzt (skaliert nur die Besucherzahl,
+        # nicht den Umsatz – der kommt exakt aus den Bestellungen).
+        days = int(_env_float("TRAFFIC_SEED_ORDERS_DAYS", _env_float("TRAFFIC_BACKFILL_DAYS", 180)))
+        aov_est = 33.0
+        orders_per_day = (monthly / 30.0) / aov_est
+        base_per_day = max(1, int(round(orders_per_day * (1.0 / cr - 1.0))))
+        backfill_conv = 0.0
+    else:
+        days = int(_env_float("TRAFFIC_BACKFILL_DAYS", 180))
+        base_per_day = 14
+        backfill_conv = STATE["conversion_rate"]
     _set_seed("history", "running")
 
     def _progress(done, total, running):
@@ -307,15 +326,15 @@ def _maybe_auto_seed():
         # statt blind 20 s zu schlafen. Verhindert das Rennen mit matomo-init,
         # damit der historische Backfill (braucht token_auth) zuverlaessig landet.
         _log(f"Auto-Seed: warte auf Matomo-Bereitschaft; befülle danach {days} Tage "
-             f"(~24 Monate) Historie ...")
+             f"Historie ({base_per_day} Besuche/Tag) ...")
         if not generator.wait_for_ready(timeout=600):
             _log("Auto-Seed-Fehler: Matomo nicht rechtzeitig bereit (Timeout).")
             _set_seed("history", "error")
             return
         for attempt in range(1, 4):
             try:
-                s = generator.backfill(days, conversion_rate=STATE["conversion_rate"],
-                                       progress=_progress)
+                s = generator.backfill(days, base_per_day=base_per_day,
+                                       conversion_rate=backfill_conv, progress=_progress)
                 _accumulate(s)
                 _log(f"Auto-Seed: {days} Tage Historie befüllt ({s['visits']} Besuche)")
                 _set_seed("history", "done")
@@ -329,15 +348,25 @@ def _maybe_auto_seed():
     threading.Thread(target=seed, daemon=True).start()
 
 
-def _create_dated_batches(dates, made_offset, total, ret_pct):
+def _create_dated_batches(dates, made_offset, total, ret_pct, mirror=False, catalog=None):
     """Legt Bestellungen zu den (sortierten) `dates` in Häppchen von 20 an
     (schont WooCommerce). Gibt `(angelegte_Anzahl, summierter_Umsatz)` zurück und
-    aktualisiert die Fortschrittsanzeige fortlaufend."""
+    aktualisiert die Fortschrittsanzeige fortlaufend.
+
+    `mirror=True`: jede Umsatz-Bestellung wird zusätzlich als Matomo-E-Commerce-
+    Conversion gespiegelt (gleiches Datum/Umsatz/Artikel) → Matomo = WooCommerce."""
     made, revenue = 0, 0.0
     for i in range(0, len(dates), 20):
         res = orders.create_orders(0, dates=dates[i:i + 20], returning_rate=ret_pct)
         made += res["count"]
         revenue += res["revenue"]
+        if mirror:
+            for d in res.get("details", []):
+                try:
+                    generator.track_ecommerce_order(d["ts"], d["revenue"],
+                                                    d.get("items", []), catalog=catalog)
+                except Exception as exc:
+                    _log(f"Matomo-Spiegelung übersprungen: {exc}")
         _set_progress("orders", made_offset + made, total)
     return made, revenue
 
@@ -369,6 +398,7 @@ def _seed_orders_by_revenue(status, days, monthly, ret_pct):
       2. Kleine Kalibrier-Charge anlegen und den Ø-Bestellwert daraus messen.
       3. Restanzahl = Restumsatz / Ø-Bestellwert; verteilt über das Fenster anlegen.
     Idempotent: füllt nur bis zum Zielumsatz auf (nutzt den Ping-Umsatz)."""
+    cat = generator._load_catalog()      # einmal laden, für die Matomo-Spiegelung
     months = max(0.1, days / 30.0)
     total_target = monthly * months
     existing_rev = float(status.get("revenue", 0.0))
@@ -391,7 +421,8 @@ def _seed_orders_by_revenue(status, days, monthly, ret_pct):
     _log(f"Bestellungen: kalibriere Ø-Bestellwert (Umsatz-Richtwert "
          f"EUR {monthly:.0f}/Monat, Ziel ~EUR {total_target:.0f} über {months_lbl} Monate) ...")
     cal_dates = sorted(generator.history_order_dates(days, cal_n))
-    cal_made, cal_rev = _create_dated_batches(cal_dates, 0, len(cal_dates), ret_pct)
+    cal_made, cal_rev = _create_dated_batches(cal_dates, 0, len(cal_dates), ret_pct,
+                                              mirror=True, catalog=cat)
     aov = (cal_rev / cal_made) if cal_made else 0.0
     if aov <= 0:
         _log("Bestell-Seed-Fehler: Ø-Bestellwert nicht ermittelbar.")
@@ -406,15 +437,15 @@ def _seed_orders_by_revenue(status, days, monthly, ret_pct):
     if need > 0:
         total_n = made + need
         dates = sorted(generator.history_order_dates(days, need))
-        m2, r2 = _create_dated_batches(dates, made, total_n, ret_pct)
+        m2, r2 = _create_dated_batches(dates, made, total_n, ret_pct, mirror=True, catalog=cat)
         made += m2
         revenue += r2
         _log(f"Bestellungen … {made}/{total_n} angelegt")
 
     total_rev = existing_rev + revenue
-    _log(f"Bestellungen: {made} Bestellungen erzeugt – ~EUR {total_rev:.0f} Gesamtumsatz "
-         f"über {months_lbl} Monate (Ø ~EUR {total_rev / months:.0f}/Monat, "
-         f"Richtwert EUR {monthly:.0f}).")
+    _log(f"Bestellungen: {made} Bestellungen erzeugt (auch in Matomo gespiegelt) – "
+         f"~EUR {total_rev:.0f} Gesamtumsatz über {months_lbl} Monate "
+         f"(Ø ~EUR {total_rev / months:.0f}/Monat, Richtwert EUR {monthly:.0f}).")
     _set_seed("orders", "done")
 
 
