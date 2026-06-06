@@ -3,10 +3,26 @@
 Kostenfreier Ersatz für Matomos bezahltes A/B-Testing – für die Lehrumgebung Modul 392.
 
 ## Idee
-Jede:r Besucher:in wird einer **Variante A oder B** der Shop-Seite zugewiesen (fix per Cookie).
-Die Variante wird in der Matomo-**Custom Dimension „AB-Variante"** (Scope: Besuch) getrackt. Matomo
-erzeugt daraus automatisch einen Bericht, der **A vs. B** mit allen Kennzahlen inкл. **E-Commerce-
-Conversion und Umsatz** vergleicht. Variante B konvertiert bewusst etwas besser → sichtbarer Lerneffekt.
+Mehrere **A/B-Tests** verwaltbar. Ein Test = Name + Hypothese + Beschreibung + N **Varianten**,
+je definiert über ein Matomo-**Segment** (Custom Dimension „AB-Variante" oder Seiten-URL-Muster).
+Die Report-Seite zeigt je Test eine Variations-Tabelle (Besuche / eindeutige Besucher / Bestellungen /
+Conversion-Rate / Umsatz / Ø-Bestellwert) mit **Total-Zeile** und **Gewinner-Markierung**.
+
+Der **Standard-Test „ShopVariante"** (Original `/shop/` vs. Shop-Variante `/shop-variante/`, über die
+Custom Dimension) ist immer vorhanden; Variante B konvertiert bewusst etwas besser → sichtbarer
+Lerneffekt. Weitere Tests legt man über das Formular **„+ Neuen A/B-Test anlegen"** an (gespeichert in
+einer Matomo-Option). 
+
+### Bayes-Auswertung (Beta-Binomial)
+Die Conversion-Rate je Variante ist Beta-verteilt; mit Prior Beta(1,1) ist die Posterior
+`Beta(1+Bestellungen, 1+Besuche−Bestellungen)`. **P(Variante besser als Original)** wird sofort als
+**Normal-Näherung** angezeigt; der Button **„exakt"** rechnet eine **Monte-Carlo-Simulation**
+(100 000 Stichproben, ~90 ms) und zeigt zusätzlich die erwartete relative **Steigerung** und das
+**95 %-Intervall** der Conversion-Differenz.
+
+Code: `Storage.php` (Test-CRUD via Option), `Stats.php` (Kennzahlen je Segment + Bayes),
+`Controller.php` (Formular/Speichern/Löschen/Bayes-AJAX), `Widgets/GetAB.php` (Übersicht),
+`templates/index.twig` + `create.twig`.
 
 ## Bestandteile
 | Teil | Wo | Zweck |
