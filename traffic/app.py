@@ -146,7 +146,7 @@ def _history_worker():
                 "visits": STATE["totals"]["visits"],
                 "purchases": STATE["totals"]["purchases"],
             })
-            STATE["history"] = STATE["history"][-120:]  # ~10 min bei 5s-Takt
+            STATE["history"] = STATE["history"][-740:]  # ~1 h bei 5s-Takt (für 1-Std-Chart)
         time.sleep(5)
 
 

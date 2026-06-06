@@ -6,329 +6,271 @@
 <title>Traffic Lab — M392</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
   :root{
-    --bg:#f8fafc; --card:#ffffff; --line:#e2e8f0;
-    --ink:#1e293b; --gray:#64748b; --mut:#94a3b8;
-    --indigo:#4f6ef7; --indigo-soft:rgba(79,110,247,.1);
-    --amber:#f59e0b; --red:#ef4444; --green:#22c55e;
-    --shadow:0 4px 6px rgba(0,0,0,.03);
-    --r:16px;
+    --bg:#f6f7f9; --card:#ffffff; --line:#e9ebf0; --line2:#eef0f4;
+    --ink:#1e2330; --gray:#6b7280; --mut:#9aa1ad;
+    --blue:#2f6bff; --blue-d:#2257e6; --blue-soft:#eaf1ff;
+    --green:#22c55e; --red:#ef4444;
+    --r:16px; --sh:0 1px 2px rgba(16,24,40,.04), 0 1px 3px rgba(16,24,40,.04);
     --font:'Inter',system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
-    --mono:'Geist Mono',ui-monospace,SFMono-Regular,Menlo,monospace;
+    --mono:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,monospace;
   }
   *{box-sizing:border-box}
   html,body{margin:0}
   body{background:var(--bg); color:var(--ink); font-family:var(--font);
-    -webkit-font-smoothing:antialiased; line-height:1.45; min-height:100vh}
+    -webkit-font-smoothing:antialiased; line-height:1.45}
 
-  /* ---------- top nav ---------- */
-  .topnav{background:var(--card); border-bottom:1px solid var(--line)}
-  .topnav-inner{max-width:1440px; margin:0 auto; height:72px; padding:0 32px;
-    display:grid; grid-template-columns:1fr auto 1fr; align-items:center; gap:16px}
-  .brand{display:flex; align-items:center; gap:16px}
-  .logo{width:40px; height:40px; border-radius:8px; background:var(--indigo);
-    display:grid; place-items:center; flex:none}
-  .logo svg{width:24px; height:24px}
-  .brand h1{font-size:18px; font-weight:700; margin:0; color:var(--ink); letter-spacing:-.01em}
-  .brand p{margin:2px 0 0; font-size:12px; color:var(--mut)}
-  .status{display:inline-flex; align-items:center; gap:8px; padding:6px 12px; border-radius:99px;
-    border:1px solid var(--line); background:var(--card); font-size:13px; font-weight:600; color:var(--ink)}
-  .dot{width:8px; height:8px; border-radius:50%; background:var(--mut)}
-  .status.live .dot{background:var(--green); box-shadow:0 0 0 0 rgba(34,197,94,.5); animation:pulse 1.8s infinite}
-  @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(34,197,94,.45)}70%{box-shadow:0 0 0 6px rgba(34,197,94,0)}100%{box-shadow:0 0 0 0 rgba(34,197,94,0)}}
-  .nav-right{display:flex; align-items:center; gap:24px; justify-self:end}
-  .nav-right a{display:inline-flex; align-items:center; gap:5px; color:var(--gray); font-size:14px; font-weight:500;
-    text-decoration:none; transition:color .15s}
-  .nav-right a:hover{color:var(--indigo)}
-  .avatar{width:32px; height:32px; border-radius:16px; flex:none; display:grid; place-items:center;
-    background:linear-gradient(145deg,#c7d2fe,#a5b4fc); color:#3730a3}
-  .avatar svg{width:18px; height:18px}
+  /* ---------- header ---------- */
+  .hdr{background:var(--card); border-bottom:1px solid var(--line)}
+  .hdr-in{max-width:1360px; margin:0 auto; padding:16px 28px; display:flex; align-items:center; gap:18px}
+  .logo{width:34px; height:34px; border-radius:9px; background:var(--blue); flex:none;
+    display:grid; place-items:center}
+  .logo svg{width:19px; height:19px}
+  .brand{display:flex; align-items:baseline; gap:14px; min-width:0}
+  .brand b{font-size:19px; font-weight:700; letter-spacing:-.01em}
+  .brand span{font-size:14px; color:var(--mut); white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+  .brand .sep{color:var(--line); font-weight:300}
+  .live{margin-left:auto; display:inline-flex; align-items:center; gap:9px; flex:none;
+    padding:8px 16px; border-radius:99px; border:1px solid var(--line); background:#fbfbfc;
+    font-size:13px; font-weight:600}
+  .live .pdot{width:8px; height:8px; border-radius:50%; background:var(--mut); flex:none}
+  .live.on .pdot{background:var(--green); animation:pulse 1.8s infinite}
+  .live .meta{font-family:var(--mono); font-weight:500; color:var(--gray); font-size:12px}
+  @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(34,197,94,.5)}70%{box-shadow:0 0 0 6px rgba(34,197,94,0)}100%{box-shadow:0 0 0 0 rgba(34,197,94,0)}}
 
   /* ---------- layout ---------- */
-  .content{max-width:1440px; margin:0 auto; padding:32px; display:flex; flex-direction:column; gap:24px}
-  .row{display:flex; gap:24px; align-items:stretch}
-  .kpi-row > *{flex:1 1 0; min-width:0}
-  .middle-row .activity{flex:1 1 0; min-width:0}
-  .middle-row .feed{width:340px; flex:none}
-  .bottom-row > *{flex:1 1 0; min-width:0}
-  @media(max-width:1000px){
-    .kpi-row{flex-wrap:wrap} .kpi-row > *{flex:1 1 calc(50% - 12px)}
-    .middle-row,.bottom-row{flex-direction:column} .middle-row .feed{width:auto}
-  }
-  @media(max-width:560px){ .kpi-row > *{flex:1 1 100%} .topnav-inner,.content{padding-left:18px;padding-right:18px} }
+  .wrap{max-width:1360px; margin:0 auto; padding:26px 28px 40px;
+    display:flex; flex-direction:column; gap:22px}
+  .kpis{display:grid; grid-template-columns:repeat(4,1fr); gap:22px}
+  .main{display:grid; grid-template-columns:1fr 384px; gap:22px; align-items:start}
+  @media(max-width:1180px){ .main{grid-template-columns:1fr} }
+  @media(max-width:760px){ .kpis{grid-template-columns:repeat(2,1fr); gap:16px} .hdr-in,.wrap{padding-left:16px; padding-right:16px} .brand span{display:none} }
 
-  /* ---------- cards ---------- */
-  .card{background:var(--card); border:1px solid var(--line); border-radius:var(--r);
-    padding:24px; box-shadow:var(--shadow);
-    opacity:0; transform:translateY(8px); animation:rise .5s cubic-bezier(.2,.7,.2,1) forwards}
-  @keyframes rise{to{opacity:1; transform:none}}
-  .panel-title{font-size:16px; font-weight:700; color:var(--ink); margin:0 0 8px}
+  .card{background:var(--card); border:1px solid var(--line); border-radius:var(--r); box-shadow:var(--sh)}
+  .pad{padding:22px 24px}
 
   /* ---------- KPI ---------- */
-  .kpi{display:flex; flex-direction:column; gap:16px}
-  .kpi-head{display:flex; align-items:center; justify-content:space-between}
-  .kpi-lbl{font-size:12px; font-weight:600; text-transform:uppercase; letter-spacing:.04em; color:var(--gray)}
-  .kpi-ic{width:40px; height:40px; border-radius:10px; background:var(--indigo-soft); display:grid; place-items:center; flex:none}
-  .kpi-ic svg{width:20px; height:20px; stroke:var(--indigo)}
-  .kpi-num{font-size:32px; font-weight:700; color:var(--ink); line-height:1; letter-spacing:-.02em}
-  .kpi-sub{font-size:14px; color:var(--mut); margin-top:4px}
-  .kpi.flash .kpi-num{animation:flash .7s}
-  @keyframes flash{0%{color:var(--indigo)}100%{color:var(--ink)}}
+  .kpi{padding:20px 22px}
+  .kpi-top{display:flex; align-items:flex-start; justify-content:space-between; margin-bottom:14px}
+  .kpi-lbl{font-size:12px; font-weight:600; letter-spacing:.05em; text-transform:uppercase; color:var(--mut)}
+  .kpi-ic{width:38px; height:38px; border-radius:10px; background:var(--blue-soft); display:grid; place-items:center; flex:none}
+  .kpi-ic svg{width:19px; height:19px; stroke:var(--blue); fill:none}
+  .kpi-val{font-size:30px; font-weight:700; letter-spacing:-.02em; line-height:1.05}
+  .kpi-sub{display:flex; align-items:center; gap:8px; margin-top:6px; font-size:13px; color:var(--mut)}
+  .kpi-spark{margin-left:auto}
+  .kpi.flash .kpi-val{animation:flash .7s}
+  @keyframes flash{0%{color:var(--blue)}100%{color:var(--ink)}}
 
-  /* ---------- activity / chart ---------- */
-  .activity{display:flex; flex-direction:column; gap:28px}
-  .act-head{display:flex; align-items:flex-start; justify-content:space-between; gap:16px}
-  .act-head h2{font-size:16px; font-weight:700; margin:0; color:var(--ink)}
-  .act-head p{font-size:13px; color:var(--mut); margin:4px 0 0}
-  .act-now{display:flex; align-items:center; gap:12px; flex:none}
-  .act-now b{font-size:14px; font-weight:600; color:var(--ink); font-variant-numeric:tabular-nums}
-  .act-now svg{width:16px; height:16px; stroke:var(--mut)}
-  .act-now.spin svg{animation:spin .6s ease}
-  @keyframes spin{to{transform:rotate(360deg)}}
-  .chart-plot{position:relative; height:240px; border:1px solid var(--line); border-radius:14px;
-    padding:18px 18px 34px; background:var(--card)}
-  .chart-grid{position:absolute; left:18px; right:18px; top:18px; bottom:34px;
-    display:flex; flex-direction:column; justify-content:space-between; pointer-events:none}
-  .chart-grid i{height:1px; background:var(--line); opacity:.65}
-  .bars{position:relative; height:100%; display:flex; align-items:flex-end; gap:12px}
-  /* Jede Spalte ist volle Hoehe → auch leere Intervalle sind hoverbar */
-  .bars .slot{position:relative; flex:1 1 0; min-width:0; height:100%;
-    display:flex; align-items:flex-end}
-  .bars .slot .bar{width:100%; min-height:6px;
-    background:linear-gradient(180deg,#6a82fb,var(--indigo)); border-radius:7px 7px 0 0;
-    transition:height .45s cubic-bezier(.2,.7,.2,1)}
-  .bars .slot .bar.zero{background:var(--line)}
-  .bars .slot:hover .bar{filter:brightness(1.06)}
-  .bars .slot .bl{position:absolute; bottom:-26px; left:-6px; right:-6px; text-align:center;
-    font-size:12px; color:var(--mut); font-variant-numeric:tabular-nums}
-  /* Hover-Overlay: Anzahl Besuche + Zeitpunkt des Intervalls */
-  .bars .slot .tip{position:absolute; bottom:100%; left:50%;
-    transform:translate(-50%,-8px); background:var(--ink); color:#fff;
-    padding:6px 10px; border-radius:9px; font-size:12px; line-height:1.25;
-    white-space:nowrap; text-align:center; opacity:0; pointer-events:none;
-    transition:opacity .12s ease; box-shadow:0 6px 18px rgba(15,23,42,.22); z-index:6}
-  .bars .slot .tip b{font-weight:700; font-variant-numeric:tabular-nums}
-  .bars .slot .tip em{display:block; font-style:normal; font-weight:500;
-    font-size:11px; opacity:.7; margin-top:1px; font-variant-numeric:tabular-nums}
-  .bars .slot .tip::after{content:''; position:absolute; top:100%; left:50%;
-    transform:translateX(-50%); border:5px solid transparent; border-top-color:var(--ink)}
-  .bars .slot:hover .tip{opacity:1}
+  /* ---------- chart ---------- */
+  .ch-head{display:flex; align-items:center; justify-content:space-between; gap:16px; margin-bottom:22px}
+  .ch-head h2{font-size:17px; font-weight:600; margin:0}
+  .seg{display:inline-flex; background:#f1f2f5; border-radius:9px; padding:3px}
+  .seg button{border:0; background:transparent; font-family:var(--font); font-size:13px; font-weight:500;
+    color:var(--gray); padding:6px 13px; border-radius:7px; cursor:pointer; transition:.15s}
+  .seg button.on{background:var(--card); color:var(--ink); box-shadow:0 1px 2px rgba(16,24,40,.08); font-weight:600}
+  .plot{position:relative; height:300px; padding-bottom:26px}
+  .grid{position:absolute; left:0; right:0; top:0; bottom:26px; display:flex; flex-direction:column; justify-content:space-between; pointer-events:none}
+  .grid i{height:1px; background:var(--line2)}
+  .bars{position:relative; height:100%; display:flex; align-items:flex-end; gap:5px}
+  .slot{position:relative; flex:1 1 0; min-width:0; height:100%; display:flex; align-items:flex-end}
+  .slot .bar{width:100%; min-height:4px; background:var(--blue); border-radius:5px 5px 0 0; transition:height .4s cubic-bezier(.2,.7,.2,1)}
+  .slot .bar.zero{background:#e6e9f0}
+  .slot:hover .bar:not(.zero){background:var(--blue-d)}
+  .slot .ax{position:absolute; bottom:-22px; left:50%; transform:translateX(-50%); font-size:12px; color:var(--mut); white-space:nowrap}
+  .slot .tip{position:absolute; bottom:100%; left:50%; transform:translate(-50%,-8px); background:var(--ink); color:#fff;
+    padding:6px 10px; border-radius:8px; font-size:12px; white-space:nowrap; opacity:0; pointer-events:none; transition:opacity .12s; z-index:5}
+  .slot .tip b{font-weight:700}
+  .slot .tip em{display:block; font-style:normal; opacity:.7; font-size:11px}
+  .slot .tip::after{content:''; position:absolute; top:100%; left:50%; transform:translateX(-50%); border:5px solid transparent; border-top-color:var(--ink)}
+  .slot:hover .tip{opacity:1}
 
-  /* ---------- live feed ---------- */
-  .feed{display:flex; flex-direction:column; gap:20px}
-  .feed-list{display:flex; flex-direction:column; gap:16px}
-  .ft-row{display:flex; align-items:center; justify-content:space-between; gap:12px}
-  .ft-title{font-size:14px; font-weight:600; color:var(--ink)}
-  .ft-sub{font-size:12px; color:var(--mut); margin-top:2px}
-  .divider{height:1px; background:var(--line); width:100%}
-  .metric{display:flex; flex-direction:column; gap:8px}
-  .metric-row{display:flex; align-items:center; justify-content:space-between; font-size:14px}
-  .m-label{color:var(--gray)}
-  .m-val{font-weight:700; color:var(--ink); font-variant-numeric:tabular-nums}
+  /* ---------- aktionen ---------- */
+  .akt h2{font-size:17px; font-weight:600; margin:0 0 18px}
+  .akt-body{display:flex; flex-direction:column; gap:0}
+  .sec-lbl{font-size:11px; font-weight:600; letter-spacing:.06em; text-transform:uppercase; color:var(--mut); margin:0 0 14px}
+  .block{flex:1 1 0; min-width:0}
+  .toprow{display:flex; align-items:center; justify-content:space-between; margin-bottom:6px}
+  .toprow .t{font-size:15px; font-weight:500}
+  .rowm{display:flex; align-items:center; justify-content:space-between; padding:13px 0; border-top:1px solid var(--line2); font-size:14px}
+  .rowm .k{color:var(--gray)}
+  .rowm .v{font-weight:700; font-variant-numeric:tabular-nums}
+  .rowm .v.edit{cursor:pointer; border-bottom:1px dashed transparent; transition:.15s}
+  .rowm .v.edit:hover{border-bottom-color:var(--mut)}
+  .pill{background:var(--blue-soft); color:var(--blue); font-weight:700; font-size:13px; padding:3px 10px; border-radius:99px; cursor:pointer}
+  .vedit{width:80px; height:30px; padding:4px 8px; border:1px solid var(--blue); border-radius:7px; font-family:var(--font);
+    font-size:14px; text-align:right; font-weight:600}
+  .vedit:focus{outline:none}
+  .slbl{font-size:11px; font-weight:600; letter-spacing:.06em; text-transform:uppercase; color:var(--mut); margin:18px 0 12px}
+  input[type=range]{-webkit-appearance:none; appearance:none; width:100%; height:6px; border-radius:3px; margin:0; cursor:pointer;
+    background:linear-gradient(90deg, var(--blue) 0%, var(--blue) var(--fill,50%), #e6e9f0 var(--fill,50%), #e6e9f0 100%)}
+  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none; width:18px; height:18px; border-radius:50%; background:#fff;
+    border:1px solid #d4d8e0; box-shadow:0 1px 4px rgba(16,24,40,.2); cursor:pointer; transition:transform .12s}
+  input[type=range]::-webkit-slider-thumb:hover{transform:scale(1.1)}
+  input[type=range]::-moz-range-thumb{width:16px; height:16px; border-radius:50%; background:#fff; border:1px solid #d4d8e0; cursor:pointer}
+  .slider-ax{display:flex; justify-content:space-between; font-size:12px; color:var(--mut); margin-top:8px}
 
-  /* range slider styled as progress bar */
-  input[type=range]{-webkit-appearance:none; appearance:none; width:100%; height:6px; border-radius:3px; outline:none; margin:0;
-    background:linear-gradient(90deg, var(--c) 0%, var(--c) var(--fill,30%), #eef2f7 var(--fill,30%), #eef2f7 100%); cursor:pointer}
-  input[type=range].ind{--c:var(--indigo)} input[type=range].amb{--c:var(--amber)}
-  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none; width:16px; height:16px; border-radius:50%; background:#fff;
-    border:3px solid var(--c); box-shadow:0 1px 4px rgba(15,23,42,.18); cursor:pointer; transition:transform .12s}
-  input[type=range]::-webkit-slider-thumb:hover{transform:scale(1.12)}
-  input[type=range]::-moz-range-thumb{width:14px; height:14px; border-radius:50%; background:#fff; border:3px solid var(--c); cursor:pointer}
-
-  /* switch */
-  .switch{position:relative; width:40px; height:22px; flex:none}
+  .switch{position:relative; width:42px; height:24px; flex:none}
   .switch input{opacity:0; width:0; height:0}
-  .track{position:absolute; inset:0; border-radius:99px; background:#cbd5e1; transition:.2s; cursor:pointer}
-  .track:before{content:""; position:absolute; width:16px; height:16px; left:3px; top:3px; border-radius:50%; background:#fff; transition:.2s; box-shadow:0 1px 3px rgba(0,0,0,.2)}
-  .switch input:checked + .track{background:var(--indigo)}
+  .track{position:absolute; inset:0; border-radius:99px; background:#d6d9e0; transition:.2s; cursor:pointer}
+  .track:before{content:""; position:absolute; width:18px; height:18px; left:3px; top:3px; border-radius:50%; background:#fff; transition:.2s; box-shadow:0 1px 3px rgba(0,0,0,.25)}
+  .switch input:checked + .track{background:var(--blue)}
   .switch input:checked + .track:before{transform:translateX(18px)}
 
-  /* ---------- manual controls ---------- */
-  .manual{display:flex; flex-direction:column; gap:20px}
-  .m-list{display:flex; flex-direction:column; gap:16px}
-  .m-item{display:flex; align-items:center; justify-content:space-between; gap:12px}
-  .m-item > label{font-size:14px; font-weight:500; color:var(--ink); flex:1}
-  /* Parameter-Controls ausgrauen, wenn der Live-Tropf pausiert ist (sofort,
-     ohne Transition – der Poll-Loop setzt den Zustand sonst zyklisch zurueck). */
-  .drip-params.off{opacity:.4; filter:grayscale(.5); pointer-events:none; user-select:none}
-  .m-ctl{display:flex; align-items:center; gap:12px; flex:none}
-  input[type=number]{width:80px; height:40px; padding:8px 12px; border-radius:8px; border:1px solid var(--line);
-    background:var(--bg); color:var(--ink); font-family:var(--font); font-size:14px; text-align:right}
-  input[type=number]:focus{outline:none; border-color:var(--indigo)}
-  .btn{height:40px; padding:10px 16px; border-radius:8px; font-family:var(--font); font-size:14px; font-weight:600;
-    border:1px solid transparent; cursor:pointer; transition:.15s; white-space:nowrap}
-  /* Manuell-Senden: gleich breite, sauber untereinander ausgerichtete Eingaben + Buttons */
-  .m-ctl input[type=number]{width:96px}
-  .m-ctl .btn{width:132px; padding-left:0; padding-right:0; text-align:center}
-  .btn.primary{background:var(--indigo); color:#fff}
-  .btn.primary:hover{background:#4360e6}
-  .btn.amber{background:var(--amber); color:#fff}
-  .btn.amber:hover{background:#e08e07}
-  .btn.ghost{background:var(--card); color:var(--ink); border-color:var(--line)}
-  .btn.ghost:hover{border-color:var(--indigo); color:var(--indigo)}
-  /* Klick-Bestätigung (1 s): dunkleres Indigo + eingedrückter Schatten */
-  .btn.sent{background:#324ecc !important; color:#fff !important; border-color:transparent !important;
-    box-shadow:inset 0 2px 4px rgba(0,0,0,.25); cursor:default}
-  .note{font-size:12px; line-height:1.5; color:var(--mut); margin:0}
+  /* "oder" divider – horizontal (1-col) by default */
+  .akt-or{display:flex; align-items:center; gap:14px; color:var(--mut); font-size:13px; margin:20px 0}
+  .akt-or::before,.akt-or::after{content:''; height:1px; background:var(--line2); flex:1}
 
-  /* ---------- protocol / log ---------- */
-  .log-wrap{border:1px solid var(--line); border-radius:8px; overflow:hidden; max-height:280px; overflow-y:auto; font-family:var(--mono); font-size:12px}
-  .log-row{display:flex; gap:12px; padding:12px; border-bottom:1px solid var(--line); align-items:flex-start}
-  .log-row:last-child{border-bottom:none}
-  .log-row:nth-child(odd){background:var(--bg)}
-  .log-row .lt{color:var(--mut); flex:none; width:70px}
-  .log-row .lm{flex:1; min-width:0; color:#475569; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
-  .log-row .lm.err{color:var(--red)}
-  .log-wrap:empty{border:1px dashed var(--line)}
-  .log-wrap:empty:after{content:"Noch keine Aktivität."; display:block; padding:16px; color:var(--mut); font-family:var(--font)}
-  .log-wrap::-webkit-scrollbar{width:8px}.log-wrap::-webkit-scrollbar-thumb{background:#e2e8f0; border-radius:8px}
+  /* drip params disabled when paused */
+  .drip-params.off{opacity:.45; filter:grayscale(.4); pointer-events:none}
 
-  /* ---------- footer ---------- */
-  .foot{display:flex; align-items:center; justify-content:space-between; padding-top:24px; font-size:12px; color:var(--mut)}
+  .man-row{margin-bottom:14px}
+  .man-row > .l{font-size:13px; color:var(--gray); margin-bottom:7px; display:block}
+  .man-ctl{display:flex; gap:12px; align-items:center}
+  input[type=number]{width:74px; height:42px; padding:8px 12px; border:1px solid var(--line); border-radius:9px;
+    background:var(--card); font-family:var(--font); font-size:14px; text-align:center; flex:none}
+  input[type=number]:focus{outline:none; border-color:var(--blue)}
+  .man-ctl .lbl{font-size:14px; color:var(--ink); flex:1; min-width:0}
+  .btn{height:42px; padding:0 22px; border:0; border-radius:9px; background:var(--blue); color:#fff;
+    font-family:var(--font); font-size:14px; font-weight:600; cursor:pointer; transition:.15s; white-space:nowrap; flex:none}
+  .btn:hover{background:var(--blue-d)}
+  .btn.sent{background:#1c46c4; cursor:default}
+
+  /* desktop sidebar = 1 col; tablet (761-1180) = 2 col */
+  @media(min-width:761px) and (max-width:1180px){
+    .akt-body{flex-direction:row; gap:0}
+    .akt-or{flex-direction:column; margin:0 26px; align-self:stretch}
+    .akt-or::before,.akt-or::after{height:auto; width:1px; flex:1}
+  }
+
+  /* ---------- protokoll ---------- */
+  .log-head{display:flex; align-items:center; gap:14px; margin-bottom:8px}
+  .log-head h2{font-size:17px; font-weight:600; margin:0}
+  .log-head .as{display:inline-flex; align-items:center; gap:8px; font-size:13px; color:var(--mut)}
+  .log-head .clear{margin-left:auto; background:0; border:0; color:var(--blue); font-family:var(--font); font-size:14px; font-weight:600; cursor:pointer}
+  .switch.sm{width:34px; height:20px}
+  .switch.sm .track:before{width:14px; height:14px}
+  .switch.sm input:checked + .track:before{transform:translateX(14px)}
+  .log{font-family:var(--mono); font-size:12.5px; max-height:340px; overflow-y:auto}
+  .lrow{display:flex; align-items:center; gap:16px; padding:13px 4px; border-top:1px solid var(--line2)}
+  .lrow:first-child{border-top:0}
+  .lrow .lt{color:var(--mut); flex:none}
+  .lrow .ld{width:8px; height:8px; border-radius:50%; flex:none; background:var(--mut)}
+  .lrow .ld.g{background:var(--green)} .lrow .ld.r{background:var(--red)}
+  .lrow .lm{color:#3f4654; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+  .log:empty::after{content:"Noch keine Aktivität."; display:block; padding:18px 4px; color:var(--mut); font-family:var(--font)}
+  .log::-webkit-scrollbar{width:8px}.log::-webkit-scrollbar-thumb{background:#e4e7ee; border-radius:8px}
 </style>
 </head>
 <body>
 
-<!-- top nav -->
-<div class="topnav">
-  <div class="topnav-inner">
+<header class="hdr">
+  <div class="hdr-in">
+    <div class="logo">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 15l4-5 4 3 5-7"/></svg>
+    </div>
     <div class="brand">
-      <div class="logo">
-        <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></svg>
-      </div>
-      <div>
-        <h1>Traffic Lab</h1>
-        <p>M392 – Matomo Datengenerierung</p>
-      </div>
+      <b>Traffic Lab</b>
+      <span class="sep">|</span>
+      <span>392 Nutzer-Daten mittels Analysetools auswerten</span>
     </div>
-    <span class="status" id="status"><span class="dot"></span><span id="status-txt">…</span></span>
-    <div class="nav-right">
-      <a href="http://localhost:8090" target="_blank" rel="noopener">Shop ↗</a>
-      <a href="http://localhost:8091" target="_blank" rel="noopener">Matomo ↗</a>
-      <span class="avatar" title="Lehrumgebung">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-      </span>
-    </div>
+    <span class="live" id="live"><span class="pdot"></span><span id="live-txt">…</span></span>
   </div>
-</div>
+</header>
 
-<div class="content">
+<div class="wrap">
 
-  <!-- KPI row -->
-  <div class="row kpi-row">
-    <div class="card kpi" style="animation-delay:.02s">
-      <div class="kpi-head">
-        <span class="kpi-lbl">Besuche</span>
-        <span class="kpi-ic"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span>
-      </div>
-      <div><div class="kpi-num" id="k-visits">0</div><div class="kpi-sub" id="k-visits-sub">(gesamt)</div></div>
+  <!-- KPIs -->
+  <div class="kpis">
+    <div class="card kpi">
+      <div class="kpi-top"><span class="kpi-lbl">Gesamt heute</span>
+        <span class="kpi-ic"><svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.1a4 4 0 0 1 0 7.75"/></svg></span></div>
+      <div class="kpi-val" id="k-visits">0</div>
+      <div class="kpi-sub">gesamt</div>
     </div>
-
-    <div class="card kpi" style="animation-delay:.06s">
-      <div class="kpi-head">
-        <span class="kpi-lbl">Käufe</span>
-        <span class="kpi-ic"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="21" r="1"/><circle cx="19" cy="21" r="1"/><path d="M2 2h2l2.7 12.4a2 2 0 0 0 2 1.6h9.7a2 2 0 0 0 2-1.6L23 6H5.1"/></svg></span>
-      </div>
-      <div><div class="kpi-num" id="k-purch">0</div><div class="kpi-sub" id="k-purch-sub">(gesamt)</div></div>
+    <div class="card kpi">
+      <div class="kpi-top"><span class="kpi-lbl">Käufe heute</span>
+        <span class="kpi-ic"><svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="21" r="1"/><circle cx="19" cy="21" r="1"/><path d="M2 2h2l2.7 12.4a2 2 0 0 0 2 1.6h9.7a2 2 0 0 0 2-1.6L23 6H5.1"/></svg></span></div>
+      <div class="kpi-val" id="k-purch">0</div>
+      <div class="kpi-sub" id="k-purch-sub">0.0% effektiv</div>
     </div>
-
-    <div class="card kpi" style="animation-delay:.1s">
-      <div class="kpi-head">
-        <span class="kpi-lbl">Umsatz</span>
-        <span class="kpi-ic"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 10h12"/><path d="M4 14h9"/><path d="M19 6a7.7 7.7 0 0 0-5.2-2A7.9 7.9 0 0 0 6 12c0 4.4 3.5 8 7.8 8 2 0 3.8-.8 5.2-2"/></svg></span>
-      </div>
-      <div><div class="kpi-num" id="k-rev">0</div><div class="kpi-sub">(EUR · brutto)</div></div>
+    <div class="card kpi">
+      <div class="kpi-top"><span class="kpi-lbl">Umsatz heute</span>
+        <span class="kpi-ic"><svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg></span></div>
+      <div class="kpi-val" id="k-rev">€ 0</div>
+      <div class="kpi-sub">brutto</div>
     </div>
-
-    <div class="card kpi" style="animation-delay:.14s">
-      <div class="kpi-head">
-        <span class="kpi-lbl">Conversion</span>
-        <span class="kpi-ic"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg></span>
-      </div>
-      <div><div class="kpi-num" id="k-cr">0%</div><div class="kpi-sub">(eingestellt)</div></div>
+    <div class="card kpi">
+      <div class="kpi-top"><span class="kpi-lbl">Conversion Rate</span>
+        <span class="kpi-ic"><svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg></span></div>
+      <div class="kpi-val" id="k-cr">0%</div>
+      <div class="kpi-sub">berechnet <svg class="kpi-spark" id="spark" width="74" height="22" viewBox="0 0 74 22" fill="none"></svg></div>
     </div>
   </div>
 
-  <!-- middle row: activity + live feed -->
-  <div class="row middle-row">
-    <div class="card activity" style="animation-delay:.18s">
-      <div class="act-head">
-        <div>
-          <h2>Aktivität – Besuche pro Intervall</h2>
-          <p>letzte ~3 Minuten · 5s-Takt</p>
-        </div>
-        <div class="act-now" id="act-now">
-          <b id="chart-now">0 / 5s</b>
-          <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.5 9a9 9 0 0 1 14.9-3.4L23 10M1 14l4.6 4.4A9 9 0 0 0 20.5 15"/></svg>
+  <!-- chart + aktionen -->
+  <div class="main">
+    <div class="card pad">
+      <div class="ch-head">
+        <h2>Aktivität – Besuche pro Intervall</h2>
+        <div class="seg" id="seg">
+          <button data-min="5" class="on">5 Min</button>
+          <button data-min="15">15 Min</button>
+          <button data-min="60">1 Std</button>
         </div>
       </div>
-      <div class="chart-plot">
-        <div class="chart-grid"><i></i><i></i><i></i><i></i><i></i></div>
+      <div class="plot">
+        <div class="grid"><i></i><i></i><i></i><i></i><i></i></div>
         <div class="bars" id="chart"></div>
       </div>
     </div>
 
-    <div class="card feed" style="animation-delay:.22s">
-      <h2 class="panel-title">Live-Tropf</h2>
-      <div class="feed-list">
-        <div class="ft-row">
-          <div><div class="ft-title">Kontinuierlich senden</div><div class="ft-sub">Läuft im Hintergrund</div></div>
-          <label class="switch"><input type="checkbox" id="drip-toggle"><span class="track"></span></label>
+    <div class="card pad akt">
+      <h2>Aktionen</h2>
+      <div class="akt-body">
+        <!-- LIVE-TROPF -->
+        <div class="block drip-block">
+          <p class="sec-lbl">Live-Tropf</p>
+          <div class="toprow">
+            <span class="t">Kontinuierlich senden</span>
+            <label class="switch"><input type="checkbox" id="drip-toggle"><span class="track"></span></label>
+          </div>
+          <div class="drip-params" id="drip-params">
+            <div class="rowm"><span class="k">Besucher / Stunde</span><span class="v" id="vph-val">120</span></div>
+            <div class="rowm"><span class="k">Konversions-Rate</span><span class="pill" id="cr-val" data-edit="cr">1.5%</span></div>
+            <div class="rowm"><span class="k">Wiederholende Kunden</span><span class="v edit" id="ret-val" data-edit="ret">10%</span></div>
+            <div class="rowm"><span class="k">Organische Käufe</span><span class="v" id="pph">≤ 1.0 / Std</span></div>
+            <p class="slbl">KI-Intensität</p>
+            <input type="range" id="vph" min="6" max="1200" step="6" value="120">
+            <div class="slider-ax"><span>Low</span><span>High</span></div>
+          </div>
         </div>
-        <div class="divider"></div>
-        <div class="drip-params" id="drip-params">
-          <div class="metric">
-            <div class="metric-row"><span class="m-label">Besucher / Stunde</span><span class="m-val" id="vph-val">120</span></div>
-            <input type="range" class="ind" id="vph" min="6" max="1200" step="6" value="120">
+
+        <div class="akt-or">oder</div>
+
+        <!-- MANUELL -->
+        <div class="block">
+          <p class="sec-lbl">Manuell senden</p>
+          <div class="man-row">
+            <div class="man-ctl"><input type="number" id="m-visits" value="50" min="1"><span class="lbl">Besuche sofort senden</span><button class="btn" data-act="visits">Senden</button></div>
           </div>
-          <div class="metric">
-            <div class="metric-row"><span class="m-label">Conversion-Rate</span><span class="m-val" id="cr-val">4.0%</span></div>
-            <input type="range" class="amb" id="cr" min="0" max="25" step="0.5" value="4">
+          <div class="man-row">
+            <div class="man-ctl"><input type="number" id="m-orders" value="10" min="1"><span class="lbl">Käufe erzwingen</span><button class="btn" data-act="orders">Ausführen</button></div>
           </div>
-          <div class="metric">
-            <div class="metric-row"><span class="m-label">Wiederkehrende Kunden</span><span class="m-val" id="ret-val">35%</span></div>
-            <input type="range" class="ind" id="ret" min="0" max="100" step="5" value="35">
-          </div>
-          <div class="metric-row"><span class="m-label">Erwartete Käufe</span><span class="m-val" id="pph">≈ 5 / Std</span></div>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- bottom row: manual + protocol -->
-  <div class="row bottom-row">
-    <div class="card manual" style="animation-delay:.26s">
-      <h2 class="panel-title">Manuell Senden</h2>
-      <div class="m-list">
-        <div class="m-item">
-          <label for="m-visits">Besuche sofort senden</label>
-          <div class="m-ctl"><input type="number" id="m-visits" value="50" min="1"><button class="btn primary" data-act="visits">Senden</button></div>
-        </div>
-        <div class="m-item">
-          <label for="m-orders">Käufe erzwingen</label>
-          <div class="m-ctl"><input type="number" id="m-orders" value="10" min="1"><button class="btn primary" data-act="orders">Auslösen</button></div>
-        </div>
-        <div class="m-item">
-          <label for="m-days">Historie befüllen (Tage)</label>
-          <div class="m-ctl"><input type="number" id="m-days" value="180" min="1"><button class="btn primary" data-act="backfill">Backfill</button></div>
-        </div>
-        <p class="note">Backfill simuliert datierte Besuche in der Vergangenheit (für gefüllte Charts in Matomo). Standard: 180 Tage ≈ 6 Monate – das kann ein bis zwei Minuten dauern.</p>
-      </div>
+  <!-- protokoll -->
+  <div class="card pad">
+    <div class="log-head">
+      <h2>Protokoll</h2>
+      <span class="as">Autoscroll <label class="switch sm"><input type="checkbox" id="autoscroll" checked><span class="track"></span></label></span>
+      <button class="clear" id="clear">Leeren</button>
     </div>
-
-    <div class="card" style="animation-delay:.3s; display:flex; flex-direction:column; gap:16px">
-      <h2 class="panel-title">Protokoll</h2>
-      <div class="log-wrap" id="log"></div>
-    </div>
-  </div>
-
-  <div class="foot">
-    <span id="sysver">Traffic Lab Analytics</span>
-    <span>© 2026 · Modul 392 Lehrumgebung</span>
+    <div class="log" id="log"></div>
   </div>
 
 </div>
@@ -336,130 +278,135 @@
 <script>
 const $ = s => document.querySelector(s);
 const nf = new Intl.NumberFormat('de-DE');
-const eur = n => new Intl.NumberFormat('de-DE',{minimumFractionDigits:0,maximumFractionDigits:0}).format(n);
-let dragging = false, initialised = false;
-const prev = {visits:0, purchases:0};
+const eur = n => '€ ' + new Intl.NumberFormat('de-DE',{maximumFractionDigits:0}).format(n||0);
+let initialised=false, intervalMin=5, cleared=0;
+const prev={visits:0, purchases:0};
+const state={drip_per_hour:120, conversion_rate:0.015, returning_rate:0.10, live_drip:true};
 
-function setFill(el){ const p=(el.value-el.min)/(el.max-el.min)*100; el.style.setProperty('--fill', p+'%'); }
+function setFill(el){ el.style.setProperty('--fill', ((el.value-el.min)/(el.max-el.min)*100)+'%'); }
 
-async function post(url, data){
-  const now=$('#act-now'); now.classList.add('spin'); setTimeout(()=>now.classList.remove('spin'),600);
-  try{ await fetch(url,{method:'POST', body:new URLSearchParams(data||{})}); }
-  finally{ refresh(); }
-}
+async function post(url, data){ try{ await fetch(url,{method:'POST', body:new URLSearchParams(data||{})}); } finally{ refresh(); } }
+function pushDrip(){ post('/api/set-drip', {visitors_per_hour:state.drip_per_hour,
+   conversion_rate:state.conversion_rate, returning_rate:state.returning_rate}); }
 
-// drip toggle + sliders
+// toggle
 $('#drip-toggle').addEventListener('change', ()=> post('/api/toggle-drip'));
-['vph','cr','ret'].forEach(id=>{
-  const el=$('#'+id);
-  el.addEventListener('input', ()=>{ dragging=true; setFill(el); renderDerived(); });
-  el.addEventListener('change', ()=>{
-    dragging=false;
-    post('/api/set-drip', {visitors_per_hour:$('#vph').value, conversion_rate:($('#cr').value/100),
-                           returning_rate:($('#ret').value/100)});
-  });
-});
+
+// KI-Intensität slider -> Besucher/Stunde
+const vph=$('#vph');
+vph.addEventListener('input', ()=>{ state.drip_per_hour=+vph.value; setFill(vph); $('#vph-val').textContent=vph.value; renderDerived(); });
+vph.addEventListener('change', pushDrip);
+
+// click-to-edit Konversions-Rate + Wiederkehrer
+function editValue(el, kind){
+  if(el.querySelector('input')) return;
+  const cur = kind==='cr' ? (state.conversion_rate*100).toFixed(1) : Math.round(state.returning_rate*100);
+  const old = el.textContent, cls = el.className;
+  el.className=''; el.innerHTML='<input class="vedit" type="number" step="'+(kind==='cr'?'0.1':'1')+'" min="0" max="'+(kind==='cr'?'25':'100')+'" value="'+cur+'">';
+  const inp=el.querySelector('input'); inp.focus(); inp.select();
+  const done=save=>{
+    if(save){ const v=Math.max(0,Math.min(kind==='cr'?25:100, +inp.value||0));
+      if(kind==='cr') state.conversion_rate=v/100; else state.returning_rate=v/100; pushDrip(); }
+    el.className=cls; renderDerived();
+  };
+  inp.addEventListener('keydown', e=>{ if(e.key==='Enter') done(true); if(e.key==='Escape') done(false); });
+  inp.addEventListener('blur', ()=>done(true));
+}
+$('#cr-val').addEventListener('click', e=>editValue(e.currentTarget,'cr'));
+$('#ret-val').addEventListener('click', e=>editValue(e.currentTarget,'ret'));
+
 function renderDerived(){
-  $('#vph-val').textContent = $('#vph').value;
-  $('#cr-val').textContent = (+$('#cr').value).toFixed(1)+'%';
-  $('#ret-val').textContent = $('#ret').value+'%';
-  const pph = Math.round($('#vph').value * ($('#cr').value/100) * 10)/10;
-  $('#pph').textContent = '≈ '+ pph +' / Std';
+  $('#vph-val').textContent = state.drip_per_hour;
+  $('#cr-val').textContent = (state.conversion_rate*100).toFixed(1)+'%';
+  $('#ret-val').textContent = Math.round(state.returning_rate*100)+'%';
+  const pph = state.drip_per_hour * state.conversion_rate;
+  $('#pph').textContent = (pph<1?'≤ 1.0':('≈ '+pph.toFixed(1)))+' / Std';
 }
 
 // manual actions
 document.querySelectorAll('button[data-act]').forEach(b=>b.addEventListener('click',()=>{
-  if(b.dataset.sent) return;                 // während der Bestätigung gesperrt
+  if(b.dataset.sent) return;
   const a=b.dataset.act;
   if(a==='visits') post('/api/generate-visits',{count:$('#m-visits').value});
   if(a==='orders') post('/api/generate-orders',{count:$('#m-orders').value});
-  if(a==='backfill') post('/api/backfill',{days:$('#m-days').value});
-  confirmClick(b);
+  const lbl=b.textContent; b.dataset.sent='1'; b.textContent='Gesendet ✓'; b.classList.add('sent');
+  setTimeout(()=>{ b.textContent=lbl; b.classList.remove('sent'); delete b.dataset.sent; }, 1000);
 }));
 
-// Klick-Feedback: 1 s lang „Gesendet ✓" anzeigen, dann zurück in den Ausgangszustand.
-function confirmClick(btn){
-  btn.dataset.sent='1';
-  btn.dataset.label=btn.textContent;
-  btn.textContent='Gesendet ✓';
-  btn.classList.add('sent');
-  setTimeout(()=>{
-    btn.textContent=btn.dataset.label;
-    btn.classList.remove('sent');
-    delete btn.dataset.sent; delete btn.dataset.label;
-  }, 1000);
-}
+// interval toggle
+$('#seg').addEventListener('click', e=>{ const b=e.target.closest('button'); if(!b) return;
+  $('#seg').querySelectorAll('button').forEach(x=>x.classList.toggle('on', x===b));
+  intervalMin=+b.dataset.min; if(window._hist) drawChart(window._hist); });
+
+// log clear (client-seitig)
+$('#clear').addEventListener('click', ()=>{ cleared=Date.now()/1000; $('#log').innerHTML=''; });
 
 function flash(id){ const c=$(id).closest('.kpi'); c.classList.remove('flash'); void c.offsetWidth; c.classList.add('flash'); }
 
-const N_BARS = 8, GROUP = 4;   // 8 Balken × 4×5s = 20s je Balken ≈ letzte ~3 Min
-// Relatives Zeitlabel: wie lange ist das Intervall her? "jetzt", "−0:20", "−1:20" …
-// (Wanduhr-MM:SS war verwirrend – relativ passt zu einem Live-„letzte ~3 Min"-Chart.)
-function relLabel(t, now){
-  if(!t) return '';
-  const d = Math.round(now - t);
-  if(d < 10) return 'jetzt';
-  const m = Math.floor(d/60), s = d % 60;
-  return '−'+m+':'+String(s).padStart(2,'0');
-}
+const N_BARS=24;
+function pad2(n){ return String(n).padStart(2,'0'); }
+function clock(t){ const d=new Date(t*1000); return pad2(d.getHours())+':'+pad2(d.getMinutes()); }
 function drawChart(hist){
-  const pts=[];
-  for(let i=1;i<hist.length;i++) pts.push({t:hist[i].t, v:Math.max(0, hist[i].visits-hist[i-1].visits)});
-  $('#chart-now').textContent = (pts.length? pts[pts.length-1].v : 0) + ' / 5s';
-  const now = pts.length ? pts[pts.length-1].t : (Date.now()/1000);
-  const need=N_BARS*GROUP;
-  let slice=pts.slice(-need);
-  while(slice.length<need) slice.unshift(null);
-  const buckets=[];
-  for(let b=0;b<N_BARS;b++){
-    const seg=slice.slice(b*GROUP,(b+1)*GROUP).filter(Boolean);
-    buckets.push({ sum: seg.reduce((a,p)=>a+p.v,0), t: seg.length? seg[seg.length-1].t : null });
-  }
+  window._hist=hist;
+  const pts=[]; for(let i=1;i<hist.length;i++) pts.push({t:hist[i].t, v:Math.max(0,hist[i].visits-hist[i-1].visits)});
+  const now = pts.length? pts[pts.length-1].t : Date.now()/1000;
+  const span = intervalMin*60, bw = span/N_BARS, start = now - span;
+  const buckets=[]; for(let b=0;b<N_BARS;b++) buckets.push({sum:0, t:start+(b+0.5)*bw});
+  pts.forEach(p=>{ if(p.t>=start){ const idx=Math.min(N_BARS-1, Math.floor((p.t-start)/bw)); buckets[idx].sum+=p.v; } });
   const max=Math.max(1, ...buckets.map(b=>b.sum));
-  $('#chart').innerHTML = buckets.map(b=>{
-    const zero = b.sum===0;
-    const h = zero ? 4 : Math.round(14 + (b.sum/max)*78);   // 14%..92%
-    const label = relLabel(b.t, now);
-    const noun  = b.sum===1 ? 'Besucher:in' : 'Besucher:innen';
-    const when  = label ? '<em>'+label+'</em>' : '';
-    return '<div class="slot">'+
-             '<div class="bar'+(zero?' zero':'')+'" style="height:'+h+'%">'+
-               '<span class="tip"><b>'+b.sum+'</b> '+noun+when+'</span>'+
-             '</div>'+
-             '<span class="bl">'+label+'</span>'+
-           '</div>';
+  $('#chart').innerHTML = buckets.map((b,i)=>{
+    const zero=b.sum===0, h=zero?3:Math.round(10+(b.sum/max)*88);
+    const ax = (i%6===0 || i===N_BARS-1) ? '<span class="ax">'+clock(b.t)+'</span>' : '';
+    const noun=b.sum===1?'Besuch':'Besuche';
+    return '<div class="slot"><div class="bar'+(zero?' zero':'')+'" style="height:'+h+'%">'+
+      '<span class="tip"><b>'+b.sum+'</b> '+noun+'<em>'+clock(b.t)+'</em></span></div>'+ax+'</div>';
   }).join('');
 }
 
+function drawSpark(hist){
+  const pts=[]; for(let i=1;i<hist.length;i++) pts.push(Math.max(0,hist[i].visits-hist[i-1].visits));
+  const s=pts.slice(-16); if(s.length<2){ $('#spark').innerHTML=''; return; }
+  const max=Math.max(1,...s), W=74,H=22;
+  const d=s.map((v,i)=>(i?'L':'M')+(i/(s.length-1)*W).toFixed(1)+' '+(H-2-(v/max)*(H-4)).toFixed(1)).join(' ');
+  $('#spark').innerHTML='<path d="'+d+'" stroke="#2f6bff" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/>';
+}
+
+const logColor = m => /fehler|error|timeout|⚠/i.test(m) ? 'r' : /live-tropf|manuell|backfill|bestellung|besuche|✓|gesendet|erzeugt|conversion/i.test(m) ? 'g' : '';
+
 async function refresh(){
   let s; try{ s=await (await fetch('/api/status')).json(); }catch(e){ return; }
-  const st=$('#status'); st.classList.toggle('live', s.live_drip);
-  $('#status-txt').textContent = s.live_drip ? ('LIVE · '+s.drip_per_hour+'/Std') : 'PAUSIERT';
+  state.drip_per_hour=s.drip_per_hour; state.conversion_rate=s.conversion_rate;
+  state.returning_rate=s.returning_rate ?? 0.10; state.live_drip=s.live_drip;
+
+  const live=$('#live'); live.classList.toggle('on', s.live_drip);
+  $('#live-txt').innerHTML = s.live_drip
+    ? 'LIVE <span class="meta">('+s.drip_per_hour+' User / Stunde → localhost:8090)</span>'
+    : 'PAUSIERT';
   $('#drip-toggle').checked = s.live_drip;
-  // Parameter-Controls ausgrauen + sperren, wenn pausiert (Toggle bleibt bedienbar)
   $('#drip-params').classList.toggle('off', !s.live_drip);
-  ['#vph','#cr','#ret'].forEach(id => { $(id).disabled = !s.live_drip; });
 
   if(s.totals.visits!==prev.visits){ $('#k-visits').textContent=nf.format(s.totals.visits); flash('#k-visits'); prev.visits=s.totals.visits; }
   if(s.totals.purchases!==prev.purchases){ $('#k-purch').textContent=nf.format(s.totals.purchases); flash('#k-purch'); prev.purchases=s.totals.purchases; }
   $('#k-rev').textContent = eur(s.totals.revenue);
   $('#k-cr').textContent = (s.conversion_rate*100).toFixed(1)+'%';
   const realCr = s.totals.visits ? (s.totals.purchases/s.totals.visits*100) : 0;
-  $('#k-purch-sub').textContent = '('+realCr.toFixed(1)+'% effektiv)';
+  $('#k-purch-sub').textContent = realCr.toFixed(1)+'% effektiv';
 
-  if(!initialised){
-    $('#vph').value=s.drip_per_hour; $('#cr').value=(s.conversion_rate*100).toFixed(1);
-    $('#ret').value=Math.round((s.returning_rate ?? 0.35)*100);
-    setFill($('#vph')); setFill($('#cr')); setFill($('#ret')); renderDerived(); initialised=true;
-  } else if(!dragging){ renderDerived(); }
+  if(!initialised){ vph.value=s.drip_per_hour; setFill(vph); initialised=true; }
+  if(!document.querySelector('.vedit')) renderDerived();
 
-  drawChart(s.history||[]);
-  $('#log').innerHTML = (s.log||[]).map(l=>{
-    const msg=(l.msg||'').replace(/</g,'&lt;');
-    const err=/fehler|error|timeout/i.test(msg) ? ' err' : '';
-    return '<div class="log-row"><span class="lt">'+(l.t||'')+'</span><span class="lm'+err+'">'+msg+'</span></div>';
+  drawChart(s.history||[]); drawSpark(s.history||[]);
+
+  const rows=(s.log||[]).filter(l=>!cleared || (toEpoch(l.t)>cleared));
+  $('#log').innerHTML = rows.map(l=>{
+    const msg=(l.msg||'').replace(/</g,'&lt;'); const c=logColor(msg);
+    return '<div class="lrow"><span class="lt">'+ts(l.t)+'</span><span class="ld '+c+'"></span><span class="lm">'+msg+'</span></div>';
   }).join('');
+  if($('#autoscroll').checked){ const lg=$('#log'); lg.scrollTop=0; }
 }
+// Log-Zeitstempel: "HH:MM:SS" -> mit Datum-Prefix wie im Master (heute)
+function ts(t){ const d=new Date(); return d.getFullYear()+'-'+pad2(d.getMonth()+1)+'-'+pad2(d.getDate())+' '+(t||''); }
+function toEpoch(t){ if(!t) return 0; const d=new Date(); const [h,m,s]=t.split(':').map(Number); d.setHours(h,m,s||0,0); return d.getTime()/1000; }
 
 refresh(); setInterval(refresh, 2500);
 </script>
