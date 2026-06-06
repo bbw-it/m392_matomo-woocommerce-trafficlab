@@ -27,9 +27,9 @@ class GetFunnel extends Widget
 
     public static function configure(WidgetConfig $config)
     {
-        $config->setCategoryId('M392Funnels');
+        $config->setCategoryId('ProfessionalServices_PromoFunnels');
         $config->setSubcategoryId('M392Funnels_Overview');
-        $config->setName('Trichter');
+        $config->setName('Trichter (M392)');
         $config->setOrder(1);
     }
 

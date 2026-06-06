@@ -37,9 +37,10 @@ Das ist sicher: `console plugin:activate` schreibt die **vollständige** Plugin-
 Auth) in die `config.ini.php`. Ein *manueller* `[Plugins]`-Eintrag würde dagegen die Default-Plugins
 ersetzen und Matomo lahmlegen – diesen Weg meiden wir bewusst.
 
-Technik (Matomo 5): eigene **Category + Subcategory + Widget** (`Categories/`, `Widgets/`) erzeugen
-den Sidebar-Eintrag – der ältere `configureReportingMenu`-Weg erzeugt in Matomo 5 KEINE Kategorie.
-Aufruf der Report-Seite: Berichts-Menü → **„M392 · Funnel" → „Trichter"** (Trichter mit Drop-off je Schritt).
+Technik (Matomo 5): **Subcategory + Widget** (`Categories/`, `Widgets/`) hängen die Seite unter den
+bestehenden Menüpunkt **„Funnels"** (Promo-Kategorie `ProfessionalServices_PromoFunnels`, Icon
+`icon-funnel`). Der ältere `configureReportingMenu`-Weg erzeugt in Matomo 5 KEINEN Sidebar-Eintrag.
+Aufruf der Report-Seite: Berichts-Menü → **„Funnels" → „Trichter (M392)"** (Trichter mit Drop-off je Schritt).
 
 ## Auswertung in Matomo (alternativ, ganz ohne Plugin)
 *Ziele* → die vier „Funnel-…"-Ziele zeigen je Schritt Conversions und Conversion-Rate; der Vergleich

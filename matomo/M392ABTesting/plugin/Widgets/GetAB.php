@@ -18,9 +18,9 @@ class GetAB extends Widget
 {
     public static function configure(WidgetConfig $config)
     {
-        $config->setCategoryId('M392ABTesting');
+        $config->setCategoryId('ProfessionalServices_PromoAbTesting');
         $config->setSubcategoryId('M392ABTesting_Overview');
-        $config->setName('Vergleich');
+        $config->setName('Vergleich (M392)');
         $config->setOrder(1);
     }
 

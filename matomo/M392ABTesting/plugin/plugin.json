@@ -1,9 +1,16 @@
 {
   "name": "M392ABTesting",
-  "description": "M392 Lehrumgebung: A/B-Test der Shop-Seite (Original vs. Shop-Variante) – kostenfreier Ersatz fuer das bezahlte A/B-Testing-Plugin.",
+  "description": "M392 Lehrumgebung: A/B-Test der Shop-Seite (Original vs. Shop-Variante). Kostenfreier Ersatz fuer das bezahlte A/B-Testing-Plugin; haengt sich unter den Menuepunkt 'A/B Tests'.",
   "version": "1.0.0",
   "theme": false,
   "require": {
     "matomo": ">=5.0.0,<6.0.0"
-  }
+  },
+  "authors": [
+    {
+      "name": "M392 Lehrumgebung"
+    }
+  ],
+  "license": "GPL v3+",
+  "keywords": ["abtest", "ab-testing", "m392", "lehrmittel"]
 }
