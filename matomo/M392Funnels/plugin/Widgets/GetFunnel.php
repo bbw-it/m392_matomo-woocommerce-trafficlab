@@ -17,13 +17,17 @@ use Piwik\Widget\WidgetConfig;
 class GetFunnel extends Widget
 {
     /** Die vier Funnel-Schritte (Ziel-Namen exakt wie in M392Funnels/setup.sh). */
-    private static $steps = [
-        'Funnel-1: Produkt angesehen',
-        'Funnel-2: In den Warenkorb',
-        'Funnel-3: Kasse',
-        'Funnel-4: Kauf abgeschlossen',
+    /**
+     * Die vier Funnel-Schritte. Jeder Schritt entspricht EINER konkreten
+     * WordPress/WooCommerce-Seite (Spalten page/path) und dem zugehoerigen
+     * URL-Ziel (goal, exakt wie in M392Funnels/setup.sh angelegt).
+     */
+    private static $defs = [
+        ['goal' => 'Funnel-1: Produkt angesehen',   'label' => 'Produkt angesehen',  'page' => 'Produkt-Detailseite', 'path' => '/product/…/'],
+        ['goal' => 'Funnel-2: In den Warenkorb',    'label' => 'In den Warenkorb',   'page' => 'Warenkorb',           'path' => '/cart/'],
+        ['goal' => 'Funnel-3: Kasse',               'label' => 'Kasse',              'page' => 'Kasse',               'path' => '/checkout/'],
+        ['goal' => 'Funnel-4: Kauf abgeschlossen',  'label' => 'Kauf abgeschlossen', 'page' => 'Bestellbestätigung',  'path' => '/checkout/order-received/'],
     ];
-    private static $labels = ['Produkt', 'Warenkorb', 'Kasse', 'Kauf'];
 
     public static function configure(WidgetConfig $config)
     {
@@ -53,12 +57,12 @@ class GetFunnel extends Widget
 
         $steps = [];
         $firstCount = null;
-        foreach (self::$steps as $i => $name) {
+        foreach (self::$defs as $i => $def) {
             $count = 0;
-            if (isset($idByName[$name])) {
+            if (isset($idByName[$def['goal']])) {
                 $table = Request::processRequest('Goals.get', [
                     'idSite' => $idSite, 'period' => $period, 'date' => $date,
-                    'idGoal' => $idByName[$name], 'format' => 'original',
+                    'idGoal' => $idByName[$def['goal']], 'format' => 'original',
                 ]);
                 $row = $table->getFirstRow();
                 $count = $row ? (int) $row->getColumn('nb_conversions') : 0;
@@ -67,17 +71,21 @@ class GetFunnel extends Widget
                 $firstCount = max(1, $count);
             }
             $steps[] = [
-                'label'     => self::$labels[$i],
-                'name'      => $name,
+                'label'     => $def['label'],
+                'name'      => $def['goal'],
+                'page'      => $def['page'],
+                'path'      => $def['path'],
                 'count'     => $count,
                 'pct_total' => round(100 * $count / $firstCount, 1),
             ];
         }
-        // Drop-off zum jeweils vorherigen Schritt.
+        // Verhaeltnis + Abbruch zum jeweils VORHERIGEN Schritt (absolut + Prozent).
         foreach ($steps as $i => &$s) {
             $prev = $i > 0 ? $steps[$i - 1]['count'] : $s['count'];
-            $s['pct_step'] = $prev > 0 ? round(100 * $s['count'] / $prev, 1) : 100.0;
-            $s['dropoff']  = $prev > 0 ? round(100 * ($prev - $s['count']) / $prev, 1) : 0.0;
+            $s['pct_step']  = $prev > 0 ? round(100 * $s['count'] / $prev, 1) : 100.0;
+            $s['dropoff']   = $prev > 0 ? round(100 * ($prev - $s['count']) / $prev, 1) : 0.0;
+            $s['drop_abs']  = max(0, $prev - $s['count']);
+            $s['is_widest'] = ($s['pct_total'] >= 100);
         }
         unset($s);
 

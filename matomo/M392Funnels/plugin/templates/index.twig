@@ -1,30 +1,56 @@
-<div style="padding:24px 28px;max-width:760px;font-family:inherit;">
-  <h2 style="margin:0 0 4px;">Conversion-Trichter (M392)</h2>
-  <p style="color:#666;margin:0 0 22px;">Klassischer E-Commerce-Funnel · {{ prettyDate }}</p>
+<div class="m392fn" style="padding:24px 28px;max-width:860px;font-family:inherit;color:#2c2e3a;">
+  <h2 style="margin:0 0 4px;font-size:22px;font-weight:700;">Conversion-Trichter</h2>
+  <p style="color:#6b7280;margin:0 0 6px;">Klassischer E-Commerce-Funnel &middot; {{ prettyDate }}</p>
+  <p style="color:#9aa1ad;font-size:12.5px;margin:0 0 26px;">
+    Jeder Schritt ist eine konkrete Shop-Seite (URL-Ziel). Die <strong>Balkenbreite</strong> = Anteil
+    der Besuche am Start; je schmaler, desto mehr sind unterwegs abgesprungen.
+  </p>
+
+  {% set colors = ['#2f6bff', '#3a86c8', '#3aa0a8', '#f59e0b'] %}
 
   {% for s in steps %}
-    <div style="margin:0 0 14px;">
-      <div style="display:flex;justify-content:space-between;font-size:14px;margin-bottom:4px;">
-        <strong>{{ loop.index }}. {{ s.label }}</strong>
-        <span>{{ s.count }} &nbsp;<span style="color:#888;">({{ s.pct_total }}% vom Start)</span></span>
+    {# Verbindung + Abbruch zum vorherigen Schritt #}
+    {% if not loop.first %}
+      <div style="display:flex;align-items:center;justify-content:center;gap:10px;margin:7px 0;">
+        <span style="color:#c4c9d4;">&darr;</span>
+        <span style="font-size:12.5px;color:#16a34a;font-weight:600;">{{ s.pct_step }} % weiter</span>
+        {% if s.drop_abs > 0 %}
+          <span style="font-size:12.5px;color:#e2574c;">&middot; {{ s.drop_abs }} Abbruch ({{ s.dropoff }} %)</span>
+        {% endif %}
       </div>
-      <div style="background:#eef0f2;border-radius:8px;overflow:hidden;height:34px;position:relative;">
-        <div style="height:100%;width:{{ s.pct_total }}%;min-width:2%;
-                    background:linear-gradient(90deg,#2e7d9a,#3aa0c2);
-                    display:flex;align-items:center;color:#fff;font-size:13px;padding-left:10px;">
-          {{ s.pct_step }}%
-        </div>
+    {% endif %}
+
+    {# Kopfzeile: Schritt-Nr + Name + konkrete WordPress-Seite + Zahlen #}
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:14px;margin:0 0 7px;">
+      <div style="display:flex;align-items:center;gap:11px;min-width:0;">
+        <span style="flex:none;width:26px;height:26px;border-radius:50%;background:{{ colors[loop.index0] }};
+                     color:#fff;font-size:13px;font-weight:700;display:inline-flex;align-items:center;justify-content:center;">{{ loop.index }}</span>
+        <span style="font-weight:600;font-size:15px;">{{ s.label }}</span>
+        <span style="color:#9aa1ad;font-size:12.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+          &rarr; {{ s.page }}
+          <code style="background:#f1f3f7;color:#475569;padding:1px 6px;border-radius:5px;font-size:12px;">{{ s.path }}</code>
+        </span>
       </div>
-      {% if not loop.first %}
-        <div style="font-size:12px;color:#c0392b;margin-top:3px;">
-          ↓ Abbruch zum vorherigen Schritt: {{ s.dropoff }}%
-        </div>
-      {% endif %}
+      <div style="white-space:nowrap;font-size:13px;color:#6b7280;flex:none;">
+        <b style="color:#2c2e3a;font-size:15px;">{{ s.count }}</b> Besuche
+        &middot; <span style="color:#9aa1ad;">{{ s.pct_total }} % vom Start</span>
+      </div>
+    </div>
+
+    {# Zentrierter Funnel-Balken (Breite = Anteil am Start) #}
+    <div style="display:flex;justify-content:center;margin:0 0 4px;">
+      <div style="width:{{ s.pct_total < 7 ? 7 : s.pct_total }}%;height:48px;border-radius:10px;
+                  background:linear-gradient(180deg,{{ colors[loop.index0] }},{{ colors[loop.index0] }}cc);
+                  display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:15px;
+                  box-shadow:0 1px 3px rgba(16,24,40,.14);">
+        {% if s.pct_total >= 14 %}{{ s.pct_total }} %{% endif %}
+      </div>
     </div>
   {% endfor %}
 
-  <p style="color:#888;font-size:12px;margin-top:20px;">
-    Datenquelle: die vier „Funnel-…"-Ziele. Vergleich nach A/B-Variante:
-    Segment „AB-Variante" hinzufügen.
+  <p style="color:#9aa1ad;font-size:12px;margin-top:26px;border-top:1px solid #eef0f4;padding-top:14px;line-height:1.6;">
+    <strong>Datenquelle:</strong> die vier URL-Ziele „Funnel-1 &hellip; 4" (Menü <em>Ziele</em>) &mdash;
+    je ein Seitenaufruf der oben genannten Shop-Seiten.<br>
+    <strong>A/B-Vergleich:</strong> oben rechts das Segment „AB-Variante" (Original / Shop-Variante) hinzufügen.
   </p>
 </div>
