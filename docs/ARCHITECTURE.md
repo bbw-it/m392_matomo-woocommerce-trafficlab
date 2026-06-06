@@ -328,13 +328,16 @@ nicht über Matomo, sondern über einen geschützten REST-Endpunkt im WordPress-
     `up -d` (ohne `-v`) wird nur bis zum Zielumsatz aufgefüllt.
   - **Feste Anzahl** (`TRAFFIC_SEED_ORDERS`, Standard 120): klassischer Modus, wenn kein Richtwert
     gesetzt ist. Idempotent über die Bestellanzahl.
-  „Umsatz" zählt dabei bezahlte/laufende Bestellungen (Status `processing`/`completed`/`on-hold`;
-  ohne storniert/erstattet/offen).
+  „Umsatz" = **Produktumsatz ohne Versand** (`get_subtotal()` = WC-„Bruttoumsatz") der bezahlten/
+  laufenden Bestellungen (Status `processing`/`completed`/`on-hold`; ohne storniert/erstattet/offen).
+  So entspricht der Richtwert genau dem WooCommerce-„Bruttoumsatz" **und** dem Matomo-Umsatz.
 - **Matomo-Kopplung (nur im Richtwert-Modus):** Jede geseedete Umsatz-Bestellung wird **zusätzlich
-  als Matomo-E-Commerce-Conversion gespiegelt** – mit **demselben Datum, Umsatz und denselben
-  Artikeln** (`track_ecommerce_order`; der Order-Endpunkt liefert dazu pro Bestellung `ts/revenue/items`
-  zurück). Dadurch zeigen **Matomo *E-Commerce* und WooCommerce *Statistiken* dieselben Zahlen**
-  (Umsatz, Bestellungen, Ø-Bestellwert). Damit die **Conversion-Rate realistisch** bleibt, erzeugt der
+  als Matomo-E-Commerce-Conversion gespiegelt** – mit **demselben Datum, Produktumsatz (ohne Versand)
+  und denselben Artikeln** (`track_ecommerce_order`; der Order-Endpunkt liefert dazu pro Bestellung
+  `ts/revenue/items` zurück). Dadurch zeigen **Matomo *E-Commerce* „Gesamteinnahmen" und WooCommerce
+  „Bruttoumsatz" dieselben Zahlen** (Umsatz, Bestellungen, Ø-Bestellwert, verkaufte Artikel).
+  Bewusst **nicht** abgebildet (Lerneffekt „Tools unterscheiden sich"): **Versand**, **Gutschein-
+  Rabatte** und **Retouren** erscheinen nur in WooCommerce (Netto-/Gesamtumsatz, Retouren-Zeile). Damit die **Conversion-Rate realistisch** bleibt, erzeugt der
   Backfill in diesem Modus **keine eigenen Käufe** mehr (die Conversions kommen aus den Bestellungen),
   sondern nur noch die **nicht-kaufenden Besuche** – und zwar so viele, dass
   `Besuche/Tag ≈ Bestellungen/Tag × (1/CR − 1)`. Besuche und Bestellungen decken **denselben Zeitraum**

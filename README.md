@@ -235,8 +235,10 @@ Ein modernes Dashboard auf **http://localhost:8092** erzeugt realistischen Traff
   Anzahl). Dazu misst er beim Start kurz den durchschnittlichen Bestellwert (Kalibrierung) und leitet
   die nötige Bestellzahl daraus ab – unabhängig von Preisen oder Warenkorb-Größe. Der Wert hat Vorrang
   vor `TRAFFIC_SEED_ORDERS`; `0`/leer schaltet zurück auf den festen Anzahl-Modus.
-  Im Richtwert-Modus wird **jede Bestellung zusätzlich in Matomo gespiegelt** (gleiches Datum/Umsatz/
-  Artikel), sodass *Matomo → E-Commerce* und *WooCommerce → Statistiken* **dieselben Umsätze** zeigen.
+  Im Richtwert-Modus wird **jede Bestellung zusätzlich in Matomo gespiegelt** (gleiches Datum/Artikel,
+  **Produktumsatz ohne Versand**), sodass *Matomo → E-Commerce* „Gesamteinnahmen" und *WooCommerce →
+  Statistiken* „Bruttoumsatz" **dieselben Zahlen** zeigen. Versand/Gutscheine/Retouren bleiben bewusst
+  WooCommerce-exklusiv (Lerneffekt: Tools messen Unterschiedliches).
   Damit die Conversion-Rate realistisch bleibt, skaliert dabei die Besucherzahl mit – mehr Umsatz/Tage
   ⇒ **längere Installation** (reduzierbar über kleineres `TRAFFIC_BACKFILL_DAYS`/`TRAFFIC_SEED_ORDERS_DAYS`,
   höhere `TRAFFIC_CONVERSION_RATE` oder kleineren Richtwert).

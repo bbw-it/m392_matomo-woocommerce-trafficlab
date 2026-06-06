@@ -548,7 +548,8 @@ def track_ecommerce_order(ts, revenue, items, catalog=None):
     Conversion – damit Matomo dieselben Bestellungen/Umsätze zeigt wie der Shop.
 
     `ts`      = Bestell-Zeitstempel (Epoch-Sekunden)
-    `revenue` = Gesamtumsatz der Bestellung
+    `revenue` = Produktumsatz OHNE Versand (= WC-Bruttoumsatz; bewusst ohne Versand,
+                damit Matomo-„Gesamteinnahmen" = WooCommerce-„Bruttoumsatz")
     `items`   = [[sku, name, kategorie, preis, menge], ...] (Matomo-ec_items-Format)
 
     Erzeugt einen kurzen Besuch (Einstieg über einen Akquise-Kanal + Bestell-

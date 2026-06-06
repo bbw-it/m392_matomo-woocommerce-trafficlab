@@ -7,8 +7,10 @@ Format lose angelehnt an [Keep a Changelog](https://keepachangelog.com/de/).
 
 ### Hinzugefügt
 - **Matomo ↔ WooCommerce gekoppelt (im Richtwert-Modus):** Jede geseedete Bestellung wird zusätzlich
-  als Matomo-E-Commerce-Conversion gespiegelt (gleiches Datum/Umsatz/Artikel). Dadurch zeigen Matomo
-  *E-Commerce* und WooCommerce *Statistiken* **dieselben Umsätze/Bestellungen**. Der Backfill erzeugt
+  als Matomo-E-Commerce-Conversion gespiegelt (gleiches Datum/Artikel, **Produktumsatz ohne Versand**).
+  Dadurch zeigen Matomo *E-Commerce* „Gesamteinnahmen" und WooCommerce „Bruttoumsatz" **dieselben
+  Zahlen**. Versand/Gutscheine/Retouren bleiben bewusst WooCommerce-exklusiv (Lerneffekt). Der
+  Richtwert (`TRAFFIC_AVG_MONTHLY_REVENUE`) bezieht sich ebenfalls auf den Produktumsatz ohne Versand. Der Backfill erzeugt
   in diesem Modus keine eigenen Käufe mehr, sondern nur noch nicht-kaufende Besuche – skaliert so, dass
   die Conversion-Rate realistisch bleibt. Besuche und Bestellungen decken denselben Zeitraum ab
   (`TRAFFIC_BACKFILL_DAYS` = `TRAFFIC_SEED_ORDERS_DAYS`, Standard jetzt 100). Hinweis: mehr Besuche ⇒

@@ -78,7 +78,10 @@ function m392_revenue_statuses() {
     return ['processing', 'completed', 'on-hold'];
 }
 
-/** Summe der Bestelltotale über alle „Umsatz"-Bestellungen (siehe oben). */
+/** Summe des PRODUKTUMSATZES (Zwischensumme, OHNE Versand) über alle
+ *  „Umsatz"-Bestellungen. Bewusst `get_subtotal()` statt `get_total()`:
+ *  So entspricht der Richtwert-/Seed-Umsatz dem WooCommerce-„Bruttoumsatz"
+ *  und damit exakt dem, was wir nach Matomo spiegeln (Versand bleibt außen vor). */
 function m392_orders_revenue_sum() {
     if (!function_exists('wc_get_orders')) { return 0.0; }
     $ids = wc_get_orders([
@@ -89,7 +92,7 @@ function m392_orders_revenue_sum() {
     $sum = 0.0;
     foreach ($ids as $oid) {
         $o = wc_get_order($oid);
-        if ($o) { $sum += (float) $o->get_total(); }
+        if ($o) { $sum += (float) $o->get_subtotal(); }
     }
     return round($sum, 2);
 }
@@ -395,11 +398,14 @@ function m392_create_orders(WP_REST_Request $req) {
         m392_fix_customer_dates($customer_id, $ots);
 
         if (in_array($status, $revenue_statuses, true)) {
-            $batch_revenue += (float) $order->get_total();
-            // Detail für die Matomo-Spiegelung: Zeitstempel, Gesamtumsatz, Artikel.
+            // Produktumsatz OHNE Versand (= WC-Bruttoumsatz) – konsistent für
+            // Richtwert/Idempotenz UND Matomo-Spiegelung (Versand bleibt außen vor).
+            $sub = (float) $order->get_subtotal();
+            $batch_revenue += $sub;
+            // Detail für die Matomo-Spiegelung: Zeitstempel, Produktumsatz, Artikel.
             $details[] = [
                 'ts'      => (int) ($created_dt ? $created_dt->getTimestamp() : time()),
-                'revenue' => round((float) $order->get_total(), 2),
+                'revenue' => round($sub, 2),
                 'items'   => $line_items,
             ];
         }
