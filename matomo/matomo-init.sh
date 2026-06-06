@@ -244,32 +244,11 @@ if [ -n "${TOKEN:-}" ]; then
   fi
 fi
 
-# --- M392-Plugins: native Matomo-Plugins aktivieren ------------------------
-# Die Plugin-Ordner sind via docker-compose nach plugins/M392Funnels bzw.
-# plugins/M392ABTesting gemountet. Aktivierung über config.ini.php (kein PHP im
-# curl-Container). Die [Plugins]-Eintraege sind ADDITIV zu den Default-Plugins aus
-# global.ini.php – fehlt die Sektion (frisches Matomo), wird sie angelegt. Idempotent.
-ini_add() {  # $1=Sektion (Plugins|PluginsInstalled)  $2=Plugin-Name
-  section="$1"; name="$2"
-  grep -q "${section}\[\] = \"$name\"" "$CFG" 2>/dev/null && return
-  if grep -q "^\[${section}\]" "$CFG" 2>/dev/null; then
-    tmp="$(mktemp)"
-    awk -v s="[${section}]" -v line="${section}[] = \"$name\"" \
-      '{ print } $0==s && !d { print line; d=1 }' "$CFG" > "$tmp" \
-      && cat "$tmp" > "$CFG" && rm -f "$tmp"
-  else
-    printf '\n[%s]\n%s[] = "%s"\n' "$section" "$section" "$name" >> "$CFG"
-  fi
-}
-if [ -f "$CFG" ]; then
-  for name in M392Funnels M392ABTesting; do
-    ini_add "PluginsInstalled" "$name"
-    ini_add "Plugins" "$name"
-    log "Plugin $name aktiviert (config.ini)."
-  done
-fi
-
 # --- M392-Plugins: Daten-Grundlage (A/B Custom Dimension + Funnel-Ziele) ----
+# Hinweis: Die NATIVEN Report-Plugins (M392Funnels/M392ABTesting) werden NICHT
+# hier aktiviert – eine config.ini-[Plugins]-Sektion würde die Default-Plugins
+# (inkl. Login) ERSETZEN und Matomo lahmlegen. Die Aktivierung erfolgt sauber per
+# `console plugin:activate` in install.sh (merged korrekt mit den Defaults).
 # Setup-Skripte in matomo/M392ABTesting/ und matomo/M392Funnels/ (nach
 # /matomo-src gemountet). Idempotent.
 if [ -n "${TOKEN:-}" ]; then
