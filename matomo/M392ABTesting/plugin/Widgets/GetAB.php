@@ -1,18 +1,22 @@
 <?php
 /**
- * M392 A/B-Test – Report-Seite (Widget) mit Vergleichstabelle Original vs.
- * Shop-Variante. Liest die Custom Dimension „AB-Variante" inkl. der
- * E-Commerce-Kennzahlen je Variante. Kostenfreier Ersatz fuer das bezahlte
- * A/B-Testing-Plugin. Gerendert als Sidebar-Seite via Category/Subcategory.
+ * M392 A/B-Test – Übersicht (Report-Seite unter „A/B Tests").
+ * Listet alle konfigurierten Tests; je Test eine Variations-Tabelle
+ * (Besuche / eindeutige Besucher / Bestellungen / Conversion-Rate / Umsatz /
+ * Ø-Bestellwert) inkl. Total-Zeile, Bayes-Wahrscheinlichkeit „besser als
+ * Original" (Sofort-Näherung) und Gewinner-Markierung. Tests anlegen/löschen
+ * läuft über den Controller.
  */
 namespace Piwik\Plugins\M392ABTesting\Widgets;
 
-use Piwik\API\Request;
 use Piwik\Common;
+use Piwik\Nonce;
 use Piwik\Piwik;
 use Piwik\View;
 use Piwik\Widget\Widget;
 use Piwik\Widget\WidgetConfig;
+use Piwik\Plugins\M392ABTesting\Stats;
+use Piwik\Plugins\M392ABTesting\Storage;
 
 class GetAB extends Widget
 {
@@ -31,58 +35,83 @@ class GetAB extends Widget
         $date   = Common::getRequestVar('date', 'today', 'string');
         Piwik::checkUserHasViewAccess($idSite);
 
-        // Index der Custom Dimension "AB-Variante" ermitteln.
-        $idDimension = null;
-        $dims = Request::processRequest('CustomDimensions.getConfiguredCustomDimensions', [
-            'idSite' => $idSite, 'format' => 'original',
-        ]);
-        foreach ((array) $dims as $d) {
-            if (($d['name'] ?? '') === 'AB-Variante') {
-                $idDimension = (int) $d['idcustomdimension'];
-                break;
-            }
-        }
-
-        $rows = [];
-        if ($idDimension !== null) {
-            // Ein Aufruf: Besuche + (verschachtelt) die Ziel-Kennzahlen je Variante.
-            // Die E-Commerce-Bestellungen/-Umsatz stehen unter goals['idgoal=ecommerceOrder']
-            // (die Spalte nb_conversions auf Zeilenebene waere die Summe ALLER Ziele).
-            $base = Request::processRequest('CustomDimensions.getCustomDimension', [
-                'idSite' => $idSite, 'period' => $period, 'date' => $date,
-                'idDimension' => $idDimension, 'format' => 'original',
-            ]);
-            foreach ($base->getRows() as $r) {
-                $visits = (int) $r->getColumn('nb_visits');
-                $goals  = $r->getColumn('goals');
-                $eco    = is_array($goals) && isset($goals['idgoal=ecommerceOrder'])
-                    ? $goals['idgoal=ecommerceOrder'] : [];
-                $orders  = (int) ($eco['nb_conversions'] ?? 0);
-                $revenue = (float) ($eco['revenue'] ?? 0.0);
-                $rows[] = [
-                    'label'   => $r->getColumn('label'),
-                    'visits'  => $visits,
-                    'orders'  => $orders,
-                    'revenue' => $revenue,
-                    'cr'      => $visits > 0 ? round(100 * $orders / $visits, 2) : 0.0,
-                    'aov'     => $orders > 0 ? round($revenue / $orders, 2) : 0.0,
-                ];
-            }
-        }
-
-        // Gewinner (hoehere Conversion-Rate) markieren.
-        $best = null;
-        foreach ($rows as $r) {
-            if ($best === null || $r['cr'] > $best) {
-                $best = $r['cr'];
-            }
+        $tests = [];
+        foreach (Storage::getTests() as $def) {
+            $tests[] = self::computeTest($def, $idSite, $period, $date);
         }
 
         $view = new View('@M392ABTesting/index');
-        $view->rows = $rows;
-        $view->bestCr = $best;
+        $view->tests = $tests;
         $view->prettyDate = $period . ' / ' . $date;
-        $view->configured = ($idDimension !== null);
+        $view->idSite = $idSite;
+        $view->period = $period;
+        $view->date = $date;
+        $view->deleteNonce = Nonce::getNonce('M392ABTesting.delete');
+        $view->defaultId = Storage::defaultTest()['id'];
         return $view->render();
+    }
+
+    /** Kennzahlen + Bayes für einen Test aufbereiten. */
+    public static function computeTest(array $def, $idSite, $period, $date)
+    {
+        $variants = [];
+        $tot = ['visits' => 0, 'uniq' => 0, 'orders' => 0, 'revenue' => 0.0];
+        foreach (($def['variants'] ?? []) as $v) {
+            $m = Stats::variantMetrics($idSite, $period, $date, $v['segment'] ?? '');
+            $m['label']   = $v['label'] ?? '?';
+            $m['segment'] = $v['segment'] ?? '';
+            $variants[] = $m;
+            $tot['visits']  += $m['visits'];
+            $tot['uniq']    += $m['uniq'];
+            $tot['orders']  += $m['orders'];
+            $tot['revenue'] += $m['revenue'];
+        }
+        $tot['cr'] = $tot['visits'] > 0 ? $tot['orders'] / $tot['visits'] : 0.0;
+
+        // Basis = erste Variante (Original). Bayes je weiterer Variante dagegen.
+        $base = $variants[0] ?? null;
+        foreach ($variants as $i => &$v) {
+            if ($i === 0 || !$base) {
+                $v['prob'] = null;          // Basis hat keine Vergleichswahrscheinlichkeit
+            } else {
+                $v['prob'] = Stats::probBetterNormal(
+                    $base['orders'], $base['visits'], $v['orders'], $v['visits']
+                );
+            }
+        }
+        unset($v);
+
+        // Gewinner: höchste Conversion-Rate, aber nur bei echten Daten und klarem
+        // Vorsprung (keine „alle Gewinner" bei Gleichstand / 0 Bestellungen).
+        $winner = -1; $bestCr = -1; $tie = false;
+        foreach ($variants as $i => $v) {
+            if ($v['visits'] <= 0) { continue; }
+            if ($v['cr'] > $bestCr + 1e-9) { $bestCr = $v['cr']; $winner = $i; $tie = false; }
+            elseif (abs($v['cr'] - $bestCr) <= 1e-9) { $tie = true; }
+        }
+        if ($winner < 0 || $tie || $bestCr <= 0) { $winner = -1; }
+        foreach ($variants as $i => &$v) { $v['is_winner'] = ($i === $winner); }
+        unset($v);
+
+        $created = (int) ($def['created'] ?? 0);
+        if ($created > 0) {
+            $days = max(0, (int) floor((time() - $created) / 86400));
+            $running = 'läuft seit ' . $days . ' Tag' . ($days === 1 ? '' : 'en')
+                     . ' (seit ' . date('d.m.Y', $created) . ')';
+        } else {
+            $running = 'läuft seit Beginn der Daten';
+        }
+
+        return [
+            'id'          => $def['id'] ?? '',
+            'name'        => $def['name'] ?? '',
+            'hypothesis'  => $def['hypothesis'] ?? '',
+            'description' => $def['description'] ?? '',
+            'running'     => $running,
+            'variants'    => $variants,
+            'total'       => $tot,
+            'has_winner'  => $winner >= 0,
+            'has_data'    => $tot['visits'] > 0,
+        ];
     }
 }

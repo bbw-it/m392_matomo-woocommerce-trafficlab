@@ -1,41 +1,134 @@
-<div style="padding:24px 28px;max-width:760px;font-family:inherit;">
-  <h2 style="margin:0 0 4px;">A/B-Test: Shop-Seite (M392)</h2>
-  <p style="color:#666;margin:0 0 22px;">Original (/shop/) vs. Shop-Variante (/shop-variante/) · {{ prettyDate }}</p>
+<div class="m392ab" style="padding:20px 24px;font-family:inherit;color:#2c2e3a;">
+  <style>
+    .m392ab h2{font-size:21px;font-weight:700;margin:0 0 2px;}
+    .m392ab .sub{color:#6b7280;font-size:12.5px;margin:0 0 14px;}
+    .m392ab .card{background:#fff;border:1px solid #e6e8ee;border-radius:8px;margin:0 0 22px;overflow:hidden;}
+    .m392ab .card-h{padding:16px 18px 12px;border-bottom:1px solid #eef0f4;}
+    .m392ab .card-h .t{font-size:17px;font-weight:700;}
+    .m392ab .card-h .run{color:#16a34a;font-size:12px;margin-left:8px;font-weight:600;}
+    .m392ab .hyp{color:#475569;font-size:12.5px;margin:6px 0 0;line-height:1.5;}
+    .m392ab table{width:100%;border-collapse:collapse;font-size:13px;}
+    .m392ab th{text-align:right;color:#8a93a3;font-weight:600;font-size:11px;letter-spacing:.04em;
+      text-transform:uppercase;padding:10px 14px;border-bottom:1px solid #eef0f4;white-space:nowrap;}
+    .m392ab th.l,.m392ab td.l{text-align:left;}
+    .m392ab td{text-align:right;padding:11px 14px;border-bottom:1px solid #f1f3f7;
+      font-variant-numeric:tabular-nums;white-space:nowrap;}
+    .m392ab tr.win td{background:#eafaf0;}
+    .m392ab tr.tot td{font-weight:700;border-top:2px solid #e6e8ee;background:#fafbfc;}
+    .m392ab .star{color:#16a34a;}
+    .m392ab .winlbl{color:#16a34a;font-weight:700;font-size:11px;display:block;}
+    .m392ab .prob b{font-size:14px;}
+    .m392ab .exact{margin-left:8px;border:1px solid #d4d8e0;background:#fff;border-radius:6px;
+      font-size:11px;padding:3px 8px;cursor:pointer;color:#2f6bff;}
+    .m392ab .exact:hover{background:#f3f6ff;}
+    .m392ab .mc{display:block;color:#6b7280;font-size:11px;margin-top:2px;}
+    .m392ab .btn{display:inline-block;background:#2f6bff;color:#fff;text-decoration:none;font-weight:600;
+      font-size:13px;padding:8px 16px;border-radius:8px;}
+    .m392ab .btn:hover{background:#2257e6;}
+    .m392ab .del{color:#b91c1c;font-size:12px;text-decoration:none;float:right;}
+    .m392ab .del:hover{text-decoration:underline;}
+    .m392ab .foot{color:#9aa1ad;font-size:12px;margin-top:18px;line-height:1.6;}
+    .m392ab .nodata{color:#9aa1ad;font-size:13px;padding:14px 18px;}
+  </style>
 
-  {% if not configured %}
-    <p style="color:#c0392b;">Custom Dimension „AB-Variante" ist noch nicht konfiguriert.</p>
-  {% elseif rows is empty %}
-    <p style="color:#888;">Noch keine Daten im gewählten Zeitraum.</p>
-  {% else %}
-  <table style="border-collapse:collapse;width:100%;font-size:14px;">
-    <thead>
-      <tr style="text-align:left;border-bottom:2px solid #e0e0e0;">
-        <th style="padding:8px 10px;">Variante</th>
-        <th style="padding:8px 10px;text-align:right;">Besuche</th>
-        <th style="padding:8px 10px;text-align:right;">Bestellungen</th>
-        <th style="padding:8px 10px;text-align:right;">Conversion-Rate</th>
-        <th style="padding:8px 10px;text-align:right;">Umsatz</th>
-        <th style="padding:8px 10px;text-align:right;">Ø-Bestellwert</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for r in rows %}
-      <tr style="border-bottom:1px solid #eee;{% if r.cr == bestCr %}background:#eafaf1;{% endif %}">
-        <td style="padding:8px 10px;font-weight:600;">
-          {{ r.label }}{% if r.cr == bestCr %} <span style="color:#27ae60;">★ Gewinner</span>{% endif %}
-        </td>
-        <td style="padding:8px 10px;text-align:right;">{{ r.visits }}</td>
-        <td style="padding:8px 10px;text-align:right;">{{ r.orders }}</td>
-        <td style="padding:8px 10px;text-align:right;font-weight:700;">{{ r.cr }} %</td>
-        <td style="padding:8px 10px;text-align:right;">{{ r.revenue|round(2) }} €</td>
-        <td style="padding:8px 10px;text-align:right;">{{ r.aov }} €</td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
-  <p style="color:#888;font-size:12px;margin-top:18px;">
-    Datenquelle: Custom Dimension „AB-Variante". Der Trichter je Variante:
-    Bericht „M392 Funnel" + Segment „AB-Variante == Shop-Variante".
+  <h2>A/B-Tests (M392)</h2>
+  <p class="sub">Beta-Binomial-Bayes je Test &middot; {{ prettyDate }}</p>
+
+  {% for t in tests %}
+    <div class="card">
+      <div class="card-h">
+        {% if t.id != defaultId %}
+          <a class="del" href="index.php?module=M392ABTesting&action=deleteTest&idSite={{ idSite }}&period={{ period }}&date={{ date }}&testId={{ t.id }}&nonce={{ deleteNonce }}"
+             onclick="return confirm('Test „{{ t.name }}“ wirklich löschen?');">Test löschen</a>
+        {% endif %}
+        <span class="t">{{ t.name }}</span><span class="run">{{ t.running }}</span>
+        {% if t.hypothesis %}<p class="hyp"><strong>Hypothese:</strong> {{ t.hypothesis }}</p>{% endif %}
+        {% if t.description %}<p class="hyp">{{ t.description }}</p>{% endif %}
+      </div>
+
+      {% if not t.has_data %}
+        <div class="nodata">Noch keine Besuche im gewählten Zeitraum. Zeitraum oben anpassen oder Daten erzeugen.</div>
+      {% else %}
+      <table>
+        <thead>
+          <tr>
+            <th class="l">Variante</th>
+            <th>Besuche</th>
+            <th>Eindeutige Besucher</th>
+            <th>Bestellungen</th>
+            <th>Conversion-Rate</th>
+            <th>Umsatz</th>
+            <th>Ø-Bestellwert</th>
+            <th>P(besser als Original)</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for v in t.variants %}
+            <tr class="{{ v.is_winner ? 'win' : '' }}">
+              <td class="l">
+                <strong>{{ v.label }}</strong>{% if v.is_winner %} <span class="star">&#9733;</span><span class="winlbl">Gewinner</span>{% endif %}
+              </td>
+              <td>{{ v.visits|number_format(0, ',', '.') }}</td>
+              <td>{{ v.uniq|number_format(0, ',', '.') }}</td>
+              <td>{{ v.orders|number_format(0, ',', '.') }}</td>
+              <td><strong>{{ (v.cr*100)|number_format(2, ',', '.') }} %</strong></td>
+              <td>{{ v.revenue|number_format(0, ',', '.') }} &euro;</td>
+              <td>{{ v.aov|number_format(0, ',', '.') }} &euro;</td>
+              <td class="prob">
+                {% if v.prob is null %}
+                  <span style="color:#9aa1ad;">Basis</span>
+                {% else %}
+                  <b id="prob-{{ t.id }}-{{ loop.index0 }}">{{ (v.prob*100)|number_format(1, ',', '.') }} %</b>
+                  <button class="exact" onclick="m392bayes('{{ t.id }}', {{ loop.index0 }}, this)">exakt</button>
+                  <span class="mc" id="mc-{{ t.id }}-{{ loop.index0 }}">Näherung</span>
+                {% endif %}
+              </td>
+            </tr>
+          {% endfor %}
+          <tr class="tot">
+            <td class="l">Total</td>
+            <td>{{ t.total.visits|number_format(0, ',', '.') }}</td>
+            <td>{{ t.total.uniq|number_format(0, ',', '.') }}</td>
+            <td>{{ t.total.orders|number_format(0, ',', '.') }}</td>
+            <td>{{ (t.total.cr*100)|number_format(2, ',', '.') }} %</td>
+            <td>{{ t.total.revenue|number_format(0, ',', '.') }} &euro;</td>
+            <td>&mdash;</td>
+            <td>&mdash;</td>
+          </tr>
+        </tbody>
+      </table>
+      {% endif %}
+    </div>
+  {% endfor %}
+
+  <a class="btn" href="index.php?module=M392ABTesting&action=createTest&idSite={{ idSite }}&period={{ period }}&date={{ date }}">+ Neuen A/B-Test anlegen</a>
+
+  <p class="foot">
+    <strong>Datenquelle:</strong> je Variante ein Matomo-<em>Segment</em> (Custom Dimension „AB-Variante"
+    bzw. Seiten-URL). Bestellungen/Umsatz = E-Commerce-Ziel.<br>
+    <strong>Bayes:</strong> Conversion-Rate je Variante als Beta-Posterior (Prior Beta(1,1)).
+    „P(besser als Original)" ist sofort als Normal-Näherung angezeigt; „exakt" rechnet eine
+    Monte-Carlo-Simulation (100&thinsp;000 Stichproben) und zeigt zusätzlich die erwartete Steigerung
+    samt 95&thinsp;%-Intervall.
   </p>
-  {% endif %}
+
+  <script>
+  function m392bayes(testId, variant, btn){
+    var probEl = document.getElementById('prob-'+testId+'-'+variant);
+    var mcEl   = document.getElementById('mc-'+testId+'-'+variant);
+    btn.disabled = true; btn.textContent = 'rechnet …';
+    var u = 'index.php?module=M392ABTesting&action=bayesExact'
+          + '&idSite={{ idSite }}&period={{ period }}&date={{ date }}'
+          + '&testId='+encodeURIComponent(testId)+'&variant='+variant;
+    fetch(u).then(function(r){return r.json();}).then(function(d){
+      btn.disabled = false; btn.textContent = 'exakt';
+      if(!d.ok){ mcEl.textContent = 'keine Daten'; return; }
+      probEl.textContent = (d.prob*100).toFixed(1).replace('.', ',') + ' %';
+      var up = (d.uplift*100).toFixed(1).replace('.', ',');
+      var lo = (d.ci_low*100).toFixed(2).replace('.', ',');
+      var hi = (d.ci_high*100).toFixed(2).replace('.', ',');
+      mcEl.textContent = 'Monte-Carlo · Steigerung ' + up + ' % (95 %: ' + lo + '…' + hi + ' Pp)';
+    }).catch(function(){ btn.disabled=false; btn.textContent='exakt'; mcEl.textContent='Fehler'; });
+  }
+  </script>
 </div>

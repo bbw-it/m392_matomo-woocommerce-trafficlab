@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <title>Neuen A/B-Test anlegen – M392</title>
+  <style>
+    body{margin:0;background:#f3f4f6;font-family:'Helvetica Neue',Arial,sans-serif;color:#2c2e3a;}
+    .wrap{max-width:760px;margin:0 auto;padding:34px 24px 60px;}
+    h1{font-size:24px;font-weight:700;margin:0 0 6px;}
+    .lead{color:#6b7280;font-size:13.5px;margin:0 0 26px;line-height:1.5;}
+    .card{background:#fff;border:1px solid #e6e8ee;border-radius:10px;padding:24px 26px;}
+    label{display:block;font-weight:600;font-size:13px;margin:18px 0 6px;}
+    label .hint{display:block;font-weight:400;color:#8a93a3;font-size:12px;margin-top:2px;}
+    input[type=text],textarea{width:100%;box-sizing:border-box;border:1px solid #d4d8e0;border-radius:7px;
+      padding:9px 11px;font-size:14px;font-family:inherit;}
+    input[type=text]:focus,textarea:focus{outline:none;border-color:#2f6bff;}
+    textarea{min-height:64px;resize:vertical;}
+    .var{display:grid;grid-template-columns:1fr 1.3fr;gap:12px;margin-top:10px;}
+    .var .vlab{font-size:11px;color:#8a93a3;text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px;}
+    .sec{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#8a93a3;
+      margin:26px 0 4px;border-top:1px solid #eef0f4;padding-top:18px;}
+    .err{background:#fdecec;border:1px solid #f3c0c0;color:#b91c1c;border-radius:7px;padding:10px 12px;
+      font-size:13px;margin:0 0 18px;}
+    .actions{margin-top:26px;display:flex;gap:14px;align-items:center;}
+    .btn{background:#2f6bff;color:#fff;border:0;border-radius:8px;font-weight:600;font-size:14px;
+      padding:10px 20px;cursor:pointer;}
+    .btn:hover{background:#2257e6;}
+    .back{color:#475569;font-size:13px;text-decoration:none;}
+    .back:hover{text-decoration:underline;}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Neuen A/B-Test anlegen</h1>
+    <p class="lead">Ein A/B-Test vergleicht zwei (oder mehr) Versionen einer Seite und zeigt, welche
+      besser konvertiert. Jede Variante wird über ein Seiten-URL-Muster erkannt. Die erste Variante
+      gilt als <strong>Original</strong> (Basis für die Bayes-Wahrscheinlichkeit).</p>
+
+    {% if error %}<div class="err">{{ error }}</div>{% endif %}
+
+    <form class="card" method="post" action="index.php?module=M392ABTesting&action=saveTest">
+      <input type="hidden" name="nonce" value="{{ nonce }}">
+      <input type="hidden" name="idSite" value="{{ idSite }}">
+      <input type="hidden" name="period" value="{{ period }}">
+      <input type="hidden" name="date" value="{{ date }}">
+
+      <label>Name
+        <span class="hint">Eindeutiger Name, nur Buchstaben/Zahlen. Max. 50 Zeichen. z. B. „CheckoutButtonFarbe".</span>
+        <input type="text" name="name" maxlength="50" placeholder="z. B. ProduktbildGross" required>
+      </label>
+
+      <label>Hypothese
+        <span class="hint">Was erwartest du und warum? z. B. „Wenn das Produktbild grösser ist, dann steigt die Conversion-Rate, weil das Produkt attraktiver wirkt."</span>
+        <textarea name="hypothesis" placeholder="Wenn … dann … weil …"></textarea>
+      </label>
+
+      <label>Beschreibung
+        <span class="hint">Was genau wird verglichen? z. B. „Original-Produktseite vs. Variante mit grossem Bild".</span>
+        <textarea name="description"></textarea>
+      </label>
+
+      <div class="sec">Varianten (Label + Seiten-URL enthält)</div>
+      {% for i in 0..3 %}
+        <div class="var">
+          <div>
+            <div class="vlab">{{ i == 0 ? 'Variante 1 (Original)' : 'Variante ' ~ (i+1) }}</div>
+            <input type="text" name="variant_label[]" placeholder="{{ i == 0 ? 'Original' : 'Variante ' ~ (i+1) }}"{{ i < 2 ? ' required' : '' }}>
+          </div>
+          <div>
+            <div class="vlab">URL enthält</div>
+            <input type="text" name="variant_url[]" placeholder="{{ i == 0 ? '/shop/' : '/shop-variante/' }}"{{ i < 2 ? ' required' : '' }}>
+          </div>
+        </div>
+      {% endfor %}
+
+      <div class="actions">
+        <button class="btn" type="submit">A/B-Test anlegen</button>
+        <a class="back" href="{{ overviewUrl }}">Abbrechen</a>
+      </div>
+    </form>
+  </div>
+</body>
+</html>
