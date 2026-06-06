@@ -38,16 +38,25 @@ def _ab_float(name, default):
 
 AB_ENABLED = (os.environ.get("M392_AB_TEST_ENABLED", "true").split("#", 1)[0].strip().lower()
               == "true")
-AB_SPLIT_B = _ab_float("M392_AB_SPLIT_B", 50.0)          # Prozent der Besuche -> Variante B
-AB_CONV_FACTOR_B = _ab_float("M392_AB_CONV_FACTOR_B", 1.25)  # Conversion-Multiplikator Variante B
+AB_SPLIT_B = _ab_float("M392_AB_SPLIT_B", 50.0)          # Prozent der Besuche -> Shop-Variante
+AB_CONV_FACTOR_B = _ab_float("M392_AB_CONV_FACTOR_B", 1.25)  # Conversion-Multiplikator Shop-Variante
 AB_DIMENSION = 1                                          # Matomo Custom-Dimension-Index
+
+# Varianten-Namen = Dimensionswerte in Matomo (sauber lesbar) + Shop-Landing-URL.
+VARIANT_A = "Original"            # /shop/
+VARIANT_B = "Shop-Variante"       # /shop-variante/
 
 
 def _pick_variant():
-    """Variante A/B nach Split wählen (oder None, wenn A/B deaktiviert)."""
+    """Variante wählen (oder None, wenn A/B deaktiviert)."""
     if not AB_ENABLED:
         return None
-    return "B" if (random.random() * 100.0) < AB_SPLIT_B else "A"
+    return VARIANT_B if (random.random() * 100.0) < AB_SPLIT_B else VARIANT_A
+
+
+def _shop_landing_path(variant):
+    """Shop-Einstiegs-URL je Variante."""
+    return "/shop-variante/" if variant == VARIANT_B else "/shop/"
 
 # Verbindungs-Pool: deutlich schneller beim 24-Monats-Backfill (zehntausende Requests).
 SESSION = requests.Session()
@@ -374,9 +383,9 @@ def simulate_visit(catalog, when=None, force_purchase=False, conversion_rate=0.0
         geo = _pick_geo()
     # Kanalabhaengige Conversion (Social konvertiert ueberdurchschnittlich).
     eff_cr = min(0.95, conversion_rate * channel["mult"])
-    # A/B-Variante zuweisen; Variante B konvertiert leicht besser.
+    # A/B-Variante zuweisen; die Shop-Variante konvertiert leicht besser.
     variant = _pick_variant()
-    if variant == "B":
+    if variant == VARIANT_B:
         eff_cr = min(0.95, eff_cr * AB_CONV_FACTOR_B)
 
     pages = 0
@@ -397,6 +406,18 @@ def simulate_visit(catalog, when=None, force_purchase=False, conversion_rate=0.0
         if variant:
             p["dimension%d" % AB_DIMENSION] = variant
         return p
+
+    # --- Shop-Einstieg (A/B): Original /shop/ vs. Shop-Variante /shop-variante/
+    # Die Landing-Variante ist das, was wir A/B-testen; die übrigen Schritte sind
+    # für beide Varianten gleich (Vergleich per Dimension/Segment).
+    if variant:
+        p = mkparams()
+        p["url"] = f"{base}{_shop_landing_path(variant)}"
+        p["action_name"] = "Shop: " + variant
+        p.update(_perf())
+        _send(p)
+        pages += 1
+        when = _advance(when)
 
     # --- Optionaler Einstieg ueber eine On-Site-Suche (~30%) ----------------
     if random.random() < 0.30:
@@ -642,10 +663,16 @@ def track_ecommerce_order(ts, revenue, items, catalog=None):
             p["dimension%d" % AB_DIMENSION] = variant
         return p
 
-    # Schritt 1: Produktansicht (Einstieg trägt Referrer/Kampagne)
+    # Schritt 0: Shop-Einstieg (A/B-Variante) – trägt Referrer/Kampagne
+    prod_entry = True
+    if variant:
+        _send(mk(f"{base}{_shop_landing_path(variant)}", "Shop: " + variant, ref_entry=True))
+        when = _advance(when)
+        prod_entry = False
+    # Schritt 1: Produktansicht
     sku0 = items[0][0] if items else None
     slug0 = slug_by_sku.get(sku0) or "produkt"
-    _send(mk(f"{base}/product/{slug0}/", items[0][1] if items else "Produkt", ref_entry=True))
+    _send(mk(f"{base}/product/{slug0}/", items[0][1] if items else "Produkt", ref_entry=prod_entry))
     when = _advance(when)
     # Schritt 2: Warenkorb (Pageview → Funnel-Ziel /cart/)
     _send(mk(f"{base}/cart/", "Warenkorb"))

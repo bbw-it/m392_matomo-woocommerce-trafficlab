@@ -1,0 +1,41 @@
+<div style="padding:24px 28px;max-width:760px;font-family:inherit;">
+  <h2 style="margin:0 0 4px;">A/B-Test: Shop-Seite (M392)</h2>
+  <p style="color:#666;margin:0 0 22px;">Original (/shop/) vs. Shop-Variante (/shop-variante/) · {{ prettyDate }}</p>
+
+  {% if not configured %}
+    <p style="color:#c0392b;">Custom Dimension „AB-Variante" ist noch nicht konfiguriert.</p>
+  {% elseif rows is empty %}
+    <p style="color:#888;">Noch keine Daten im gewählten Zeitraum.</p>
+  {% else %}
+  <table style="border-collapse:collapse;width:100%;font-size:14px;">
+    <thead>
+      <tr style="text-align:left;border-bottom:2px solid #e0e0e0;">
+        <th style="padding:8px 10px;">Variante</th>
+        <th style="padding:8px 10px;text-align:right;">Besuche</th>
+        <th style="padding:8px 10px;text-align:right;">Bestellungen</th>
+        <th style="padding:8px 10px;text-align:right;">Conversion-Rate</th>
+        <th style="padding:8px 10px;text-align:right;">Umsatz</th>
+        <th style="padding:8px 10px;text-align:right;">Ø-Bestellwert</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for r in rows %}
+      <tr style="border-bottom:1px solid #eee;{% if r.cr == bestCr %}background:#eafaf1;{% endif %}">
+        <td style="padding:8px 10px;font-weight:600;">
+          {{ r.label }}{% if r.cr == bestCr %} <span style="color:#27ae60;">★ Gewinner</span>{% endif %}
+        </td>
+        <td style="padding:8px 10px;text-align:right;">{{ r.visits }}</td>
+        <td style="padding:8px 10px;text-align:right;">{{ r.orders }}</td>
+        <td style="padding:8px 10px;text-align:right;font-weight:700;">{{ r.cr }} %</td>
+        <td style="padding:8px 10px;text-align:right;">{{ r.revenue|round(2) }} €</td>
+        <td style="padding:8px 10px;text-align:right;">{{ r.aov }} €</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  <p style="color:#888;font-size:12px;margin-top:18px;">
+    Datenquelle: Custom Dimension „AB-Variante". Der Trichter je Variante:
+    Bericht „M392 Funnel" + Segment „AB-Variante == Shop-Variante".
+  </p>
+  {% endif %}
+</div>

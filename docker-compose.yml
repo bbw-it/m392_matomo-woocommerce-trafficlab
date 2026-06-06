@@ -39,6 +39,9 @@ services:
       # Gemeinsames Secret für den Order-API-Endpunkt (mu-plugin m392-order-api.php),
       # über den das Traffic Lab echte WooCommerce-Bestellungen anlegt.
       M392_ORDER_API_KEY: ${M392_ORDER_API_KEY:-m392-order-secret}
+      # A/B-Test der Shop-Seite (Variante "Shop-Variante" unter /shop-variante/)
+      M392_AB_TEST_ENABLED: ${M392_AB_TEST_ENABLED:-true}
+      M392_AB_SPLIT_B: ${M392_AB_SPLIT_B:-50}
     volumes:
       # Bind-Mount des kompletten WordPress-Docroots auf den Host. So lassen sich
       # Dateien von Hand importieren/bearbeiten (Plugins, Themes, Uploads, wp-config).
@@ -92,6 +95,9 @@ services:
       MATOMO_DATABASE_PASSWORD: ${MATOMO_DB_PASSWORD}
     volumes:
       - matomo_data:/var/www/html
+      # Nachgebaute M392-Plugins (A/B-Testing, Funnels) – Report-Seiten in Matomo.
+      - ./matomo/M392Funnels/plugin:/var/www/html/plugins/M392Funnels:ro
+      - ./matomo/M392ABTesting/plugin:/var/www/html/plugins/M392ABTesting:ro
 
   matomo-init:
     image: curlimages/curl:8.11.1

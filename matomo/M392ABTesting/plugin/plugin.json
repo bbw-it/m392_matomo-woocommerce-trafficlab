@@ -1,0 +1,9 @@
+{
+  "name": "M392ABTesting",
+  "description": "M392 Lehrumgebung: A/B-Test der Shop-Seite (Original vs. Shop-Variante) – kostenfreier Ersatz fuer das bezahlte A/B-Testing-Plugin.",
+  "version": "1.0.0",
+  "theme": false,
+  "require": {
+    "matomo": ">=5.0.0,<6.0.0"
+  }
+}

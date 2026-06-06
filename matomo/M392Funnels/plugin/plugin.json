@@ -1,0 +1,9 @@
+{
+  "name": "M392Funnels",
+  "description": "M392 Lehrumgebung: Conversion-Trichter (Funnel) aus den vier Funnel-Zielen – kostenfreier Ersatz fuer das bezahlte Funnels-Plugin.",
+  "version": "1.0.0",
+  "theme": false,
+  "require": {
+    "matomo": ">=5.0.0,<6.0.0"
+  }
+}

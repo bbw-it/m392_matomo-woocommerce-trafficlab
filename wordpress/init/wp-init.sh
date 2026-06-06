@@ -172,6 +172,19 @@ if ($form) {
 PHPEOF
   wp eval-file /tmp/m392-thankyou.php --allow-root || echo "[wp-init] WARN: Danke-Seite/Formular-Weiterleitung konnte nicht gesetzt werden."
 
+  # 8b2) Shop-Variante-Seite (A/B-Test): zeigt dieselben Produkte unter /shop-variante/
+  #      mit anderer Optik (Styling kommt aus dem mu-plugin m392-ab-test.php). Idempotent.
+  echo "[wp-init] Stelle Shop-Variante-Seite (/shop-variante/) sicher ..."
+  cat > /tmp/m392-shopvariant.php <<'PHPEOF'
+<?php
+$page = get_page_by_path('shop-variante');
+$content = '<!-- wp:shortcode -->[products limit="12" columns="2" orderby="popularity"]<!-- /wp:shortcode -->';
+$args = ['post_title'=>'Shop-Variante','post_name'=>'shop-variante','post_status'=>'publish','post_type'=>'page','post_content'=>$content];
+if ($page) { $args['ID'] = $page->ID; wp_update_post($args); } else { wp_insert_post($args); }
+echo "Shop-Variante-Seite bereit\n";
+PHPEOF
+  wp eval-file /tmp/m392-shopvariant.php --allow-root || echo "[wp-init] WARN: Shop-Variante-Seite konnte nicht angelegt werden."
+
   # 8c) Bestseller-Prior setzen: total_sales je Produkt aus catalog.json (popularity).
   #     Die Fixture ist bestellungsfrei (total_sales=0). Damit Bestellungen vom ersten
   #     Lab-Seed an KLAR gewichtete Bestseller zeigen – deckungsgleich mit der Matomo-
