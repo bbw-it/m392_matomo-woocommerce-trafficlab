@@ -203,7 +203,11 @@ def ready():
     parts = [s for s in (phase("history", "Historie"),
                          phase("orders", "Bestellungen")) if s]
     summary = " · ".join(parts) if parts else "bereit"
-    summary += f" · {t['visits']} Besuche"
+    # Während des Backfills die laufende Seed-Besuchszahl zeigen (klettert mit),
+    # sonst die Gesamtsumme. Ohne das stünde hier nur der Live-Tropf (~wenige).
+    seed_visits = prog.get("history", {}).get("visits", 0)
+    visits = max(seed_visits, t["visits"])
+    summary += f" · {visits} Besuche"
     body = summary + "\n"
     return (body, 200 if done else 202, {"Content-Type": "text/plain; charset=utf-8"})
 
@@ -288,9 +292,15 @@ def _maybe_auto_seed():
     _set_seed("history", "running")
 
     def _progress(done, total, running):
-        _set_progress("history", done, total)
-        _log(f"Auto-Seed … {done}/{total} Tage ({running['visits']} Besuche, "
-             f"{running['purchases']} Käufe)")
+        # Laufende Seed-Besuche mitführen, damit der „Besuche"-Zähler in /api/ready
+        # WÄHREND des Backfills klettert (die Summen werden erst am Ende verbucht).
+        with LOCK:
+            STATE["progress"]["history"] = {"done": int(done), "total": int(total),
+                                            "visits": int(running.get("visits", 0))}
+        # Log gedrosselt (~alle 30 Tage), damit das Log nicht überläuft.
+        if total <= 0 or done % 30 == 0 or done >= total:
+            _log(f"Auto-Seed … {done}/{total} Tage ({running['visits']} Besuche, "
+                 f"{running['purchases']} Käufe)")
 
     def seed():
         # Auf Matomo-Bereitschaft warten (installiert + gueltiger Token),

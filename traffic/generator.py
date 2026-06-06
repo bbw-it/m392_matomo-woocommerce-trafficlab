@@ -614,6 +614,6 @@ def backfill(days, base_per_day=14, conversion_rate=0.04, progress=None):
             total["visits"] += 1
             total["purchases"] += 1 if r["purchase"] else 0
             total["revenue"] = round(total["revenue"] + r["revenue"], 2)
-        if progress and (idx % 30 == 0 or idx == days):
+        if progress and (idx % 10 == 0 or idx == days):
             progress(idx, days, total)
     return total
