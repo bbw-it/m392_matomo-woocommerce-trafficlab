@@ -59,9 +59,10 @@ STATE = {
     # bestehenden WooCommerce-Kund:innen zugeordnet werden statt neuen.
     "returning_rate": float(os.environ.get("TRAFFIC_RETURNING_RATE", "0.08")),
     "drip_per_hour": _initial_drip_per_hour(),
-    "totals": {"visits": 0, "purchases": 0, "revenue": 0.0},
+    "totals": {"visits": 0, "purchases": 0, "revenue": 0.0, "returning": 0},
     "last_log": [],
-    "history": [],  # [{"t": epoch, "visits": kum, "purchases": kum}] für das Aktivitäts-Chart
+    # [{"t": epoch, "visits": kum, "purchases": kum, "returning": kum}] für das Aktivitäts-Chart
+    "history": [],
     # Startbefüllung: Status für reset.sh/„fertig?"-Abfrage. off|running|done|error
     "seed": {"history": "off", "orders": "off"},
     # Feiner Fortschritt je Phase (done/total) für die Live-Anzeige in reset.sh.
@@ -106,6 +107,7 @@ def _accumulate(summary):
         t["visits"] += summary.get("visits", 0)
         t["purchases"] += summary.get("purchases", 0)
         t["revenue"] = round(t["revenue"] + summary.get("revenue", 0.0), 2)
+        t["returning"] += summary.get("returning", 0)
 
 
 def _drip_worker():
@@ -127,6 +129,7 @@ def _drip_worker():
                 res = orders.create_orders(s["purchases"], days_back=0,
                                            returning_rate=STATE["returning_rate"] * 100)
                 if res["count"]:
+                    _accumulate({"returning": res.get("returning", 0)})
                     _log(f"{res['count']} Bestellung(en) im Shop angelegt (Live)")
         except Exception as exc:
             _log(f"Drip-Fehler: {exc}")
@@ -145,6 +148,7 @@ def _history_worker():
                 "t": time.time(),
                 "visits": STATE["totals"]["visits"],
                 "purchases": STATE["totals"]["purchases"],
+                "returning": STATE["totals"]["returning"],
             })
             STATE["history"] = STATE["history"][-740:]  # ~1 h bei 5s-Takt (für 1-Std-Chart)
         time.sleep(5)
@@ -228,6 +232,7 @@ def gen_orders():
     _accumulate({"purchases": s["purchases"], "revenue": s["revenue"]})
     res = orders.create_orders(count, days_back=0,                  # echte WooCommerce-Bestellungen
                                returning_rate=STATE["returning_rate"] * 100)
+    _accumulate({"returning": res.get("returning", 0)})
     made = res["count"]
     extra = f" · {made} Shop-Bestellungen" if made else ""
     _log(f"{count} Käufe erzwungen – EUR {s['revenue']:.2f}{extra}")

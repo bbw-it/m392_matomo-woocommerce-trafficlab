@@ -75,9 +75,18 @@
   .grid i{height:1px; background:var(--line2)}
   .bars{position:relative; height:100%; display:flex; align-items:flex-end; gap:5px}
   .slot{position:relative; flex:1 1 0; min-width:0; height:100%; display:flex; align-items:flex-end}
-  .slot .bar{width:100%; min-height:4px; background:var(--blue); border-radius:5px 5px 0 0; transition:height .4s cubic-bezier(.2,.7,.2,1)}
-  .slot .bar.zero{background:#e6e9f0}
-  .slot:hover .bar:not(.zero){background:var(--blue-d)}
+  /* drei Serien je Intervall: Besuche / Käufe / Wiederkehrend */
+  .grp{display:flex; align-items:flex-end; gap:2px; width:100%; height:100%}
+  .grp .b{flex:1 1 0; min-width:0; border-radius:4px 4px 0 0; transition:height .4s cubic-bezier(.2,.7,.2,1)}
+  .grp .b.v{background:var(--blue)}
+  .grp .b.p{background:var(--green)}
+  .grp .b.r{background:var(--orange)}
+  .grp .b.v.zero{background:#e6e9f0}
+  .slot:hover .b.v:not(.zero){background:var(--blue-d)}
+  /* Legende */
+  .legend{display:flex; gap:16px; margin-top:8px}
+  .legend .lg{display:inline-flex; align-items:center; gap:6px; font-size:12px; color:var(--gray)}
+  .legend .lg i{width:10px; height:10px; border-radius:3px; flex:none}
   .slot .ax{position:absolute; bottom:-22px; left:50%; transform:translateX(-50%); font-size:12px; color:var(--mut); white-space:nowrap}
   .slot .tip{position:absolute; bottom:100%; left:50%; transform:translate(-50%,-8px); background:var(--ink); color:#fff;
     padding:6px 10px; border-radius:8px; font-size:12px; white-space:nowrap; opacity:0; pointer-events:none; transition:opacity .12s; z-index:5}
@@ -102,14 +111,21 @@
   .prm-top{display:flex; align-items:center; justify-content:space-between; margin-bottom:11px; font-size:14px}
   .prm-top .k{color:var(--gray)}
   .prm-top .v{font-weight:700; font-variant-numeric:tabular-nums}
-  .prm-derived{margin-top:6px}
-  input[type=range]{-webkit-appearance:none; appearance:none; width:100%; height:6px; border-radius:3px; margin:0; cursor:pointer;
-    background:linear-gradient(90deg, var(--blue) 0%, var(--blue) var(--fill,50%), #e6e9f0 var(--fill,50%), #e6e9f0 100%)}
-  input[type=range].orange{background:linear-gradient(90deg, var(--orange) 0%, var(--orange) var(--fill,50%), #e6e9f0 var(--fill,50%), #e6e9f0 100%)}
-  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none; width:18px; height:18px; border-radius:50%; background:#fff;
-    border:1px solid #d4d8e0; box-shadow:0 1px 4px rgba(16,24,40,.2); cursor:pointer; transition:transform .12s}
-  input[type=range]::-webkit-slider-thumb:hover{transform:scale(1.1)}
-  input[type=range]::-moz-range-thumb{width:16px; height:16px; border-radius:50%; background:#fff; border:1px solid #d4d8e0; cursor:pointer}
+  /* Ergebnis-Gauge „Erwartete Käufe": optisch abgesetzt + nicht interaktiv */
+  .prm.result{margin-top:24px; padding-top:18px; border-top:1px solid var(--line2)}
+  /* ---- Spektrum-Slider: Gradient-Track (kühl→warm = niedrig→hoch),
+         weißer Thumb mit farbigem Glow passend zur Position (per JS gesetzt) ---- */
+  input[type=range]{-webkit-appearance:none; appearance:none; width:100%; height:6px; border-radius:99px; margin:0; cursor:pointer;
+    background:linear-gradient(90deg,#3b82f6 0%,#22b8cf 24%,#37c97a 46%,#f4c430 66%,#ff8a3d 84%,#f5523f 100%)}
+  input[type=range].readonly{pointer-events:none; cursor:default}
+  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none; width:20px; height:20px; border-radius:50%; background:#fff;
+    border:2px solid var(--glow,#3b82f6);
+    box-shadow:0 0 0 4px var(--ring,rgba(59,130,246,.20)), 0 1px 4px rgba(16,24,40,.22);
+    cursor:pointer; transition:transform .12s}
+  input[type=range]::-webkit-slider-thumb:hover{transform:scale(1.12)}
+  input[type=range].readonly::-webkit-slider-thumb{cursor:default}
+  input[type=range]::-moz-range-thumb{width:18px; height:18px; border-radius:50%; background:#fff;
+    border:2px solid var(--glow,#3b82f6); box-shadow:0 0 0 4px var(--ring,rgba(59,130,246,.20)); cursor:pointer}
 
   .switch{position:relative; width:42px; height:24px; flex:none}
   .switch input{opacity:0; width:0; height:0}
@@ -212,7 +228,14 @@
   <div class="main">
     <div class="card pad">
       <div class="ch-head">
-        <h2>Aktivität – Besuche pro Intervall</h2>
+        <div>
+          <h2>Aktivität pro Intervall</h2>
+          <div class="legend">
+            <span class="lg"><i style="background:var(--blue)"></i>Besuche</span>
+            <span class="lg"><i style="background:var(--green)"></i>Käufe</span>
+            <span class="lg"><i style="background:var(--orange)"></i>Wiederkehrende</span>
+          </div>
+        </div>
         <div class="seg" id="seg">
           <button data-min="5" class="on">5 Min</button>
           <button data-min="15">15 Min</button>
@@ -242,13 +265,16 @@
             </div>
             <div class="prm">
               <div class="prm-top"><span class="k">Conversion-Rate</span><span class="v" id="cr-val">1.5%</span></div>
-              <input type="range" id="s-cr" class="orange" min="0" max="100" step="1" value="15">
+              <input type="range" id="s-cr" min="0" max="100" step="1" value="15">
             </div>
             <div class="prm">
               <div class="prm-top"><span class="k">Wiederkehrende Kunden</span><span class="v" id="ret-val">10%</span></div>
               <input type="range" id="s-ret" min="0" max="100" step="1" value="10">
             </div>
-            <div class="rowm prm-derived"><span class="k">Erwartete Käufe</span><span class="v" id="pph">≈ 1.8 / Std</span></div>
+            <div class="prm result">
+              <div class="prm-top"><span class="k">Erwartete Käufe</span><span class="v" id="pph">≈ 1.8 / Std</span></div>
+              <input type="range" id="s-pph" class="readonly" min="0" max="120" value="2" tabindex="-1" aria-hidden="true">
+            </div>
           </div>
         </div>
 
@@ -288,7 +314,22 @@ let intervalMin=5, cleared=0;
 const prev={visits:0, purchases:0};
 const state={drip_per_hour:120, conversion_rate:0.015, returning_rate:0.10, live_drip:true};
 
-function setFill(el){ el.style.setProperty('--fill', ((el.value-el.min)/(el.max-el.min)*100)+'%'); }
+// ---- Spektrum-Farbe an Position frac (0..1); Stops = exakt die CSS-Track-Stops ----
+const SPECTRUM=[[0,[59,130,246]],[0.24,[34,184,207]],[0.46,[55,201,122]],[0.66,[244,196,48]],[0.84,[255,138,61]],[1,[245,82,63]]];
+function spectrum(frac){
+  frac=Math.max(0,Math.min(1,frac||0));
+  for(let i=1;i<SPECTRUM.length;i++){ if(frac<=SPECTRUM[i][0]){
+    const a=SPECTRUM[i-1], b=SPECTRUM[i], t=(frac-a[0])/((b[0]-a[0])||1);
+    return a[1].map((v,k)=>Math.round(v+(b[1][k]-v)*t)); } }
+  return SPECTRUM[SPECTRUM.length-1][1];
+}
+function fracOf(el){ return (el.value-el.min)/((el.max-el.min)||1); }
+function paintSlider(el, frac){           // setzt Thumb-Glow passend zur Position, gibt die Farbe zurück
+  const [r,g,b]=spectrum(frac);
+  el.style.setProperty('--glow', 'rgb('+r+','+g+','+b+')');
+  el.style.setProperty('--ring', 'rgba('+r+','+g+','+b+',.22)');
+  return 'rgb('+r+','+g+','+b+')';
+}
 
 async function post(url, data){ try{ await fetch(url,{method:'POST', body:new URLSearchParams(data||{})}); } finally{ refresh(); } }
 function pushDrip(){ post('/api/set-drip', {visitors_per_hour:state.drip_per_hour,
@@ -298,10 +339,10 @@ function pushDrip(){ post('/api/set-drip', {visitors_per_hour:state.drip_per_hou
 $('#drip-toggle').addEventListener('change', ()=> post('/api/toggle-drip'));
 
 // drei Parameter-Slider: Besucher/Stunde, Conversion-Rate, Wiederkehrende Kunden
-const sVph=$('#s-vph'), sCr=$('#s-cr'), sRet=$('#s-ret');
-sVph.addEventListener('input', ()=>{ state.drip_per_hour=+sVph.value;        setFill(sVph); renderDerived(); });
-sCr .addEventListener('input', ()=>{ state.conversion_rate=(+sCr.value)/1000; setFill(sCr);  renderDerived(); });
-sRet.addEventListener('input', ()=>{ state.returning_rate=(+sRet.value)/100;  setFill(sRet); renderDerived(); });
+const sVph=$('#s-vph'), sCr=$('#s-cr'), sRet=$('#s-ret'), sPph=$('#s-pph');
+sVph.addEventListener('input', ()=>{ state.drip_per_hour=+sVph.value;        renderDerived(); });
+sCr .addEventListener('input', ()=>{ state.conversion_rate=(+sCr.value)/1000; renderDerived(); });
+sRet.addEventListener('input', ()=>{ state.returning_rate=(+sRet.value)/100;  renderDerived(); });
 [sVph,sCr,sRet].forEach(s=>s.addEventListener('change', pushDrip));
 
 function renderDerived(){
@@ -310,13 +351,22 @@ function renderDerived(){
   $('#ret-val').textContent = Math.round(state.returning_rate*100)+'%';
   const pph = state.drip_per_hour * state.conversion_rate;
   $('#pph').textContent = '≈ '+pph.toFixed(1)+' / Std';
+  // Ergebnis-Gauge: sqrt-Skala, damit auch kleine Werte sichtbar wandern (Zahl bleibt exakt)
+  const pf = Math.sqrt(Math.min(1, pph/120));
+  sPph.value = Math.round(pf*120);
+  // Track-Thumb einfärben + Werte in der jeweiligen Positionsfarbe
+  $('#vph-val').style.color = paintSlider(sVph, fracOf(sVph));
+  $('#cr-val').style.color  = paintSlider(sCr,  fracOf(sCr));
+  $('#ret-val').style.color = paintSlider(sRet, fracOf(sRet));
+  $('#pph').style.color     = paintSlider(sPph, pf);
 }
 
 // Slider-Positionen aus dem Server-State übernehmen – aber nicht, während gezogen wird
 function syncSliders(){
-  if(document.activeElement!==sVph){ sVph.value=state.drip_per_hour;                 setFill(sVph); }
-  if(document.activeElement!==sCr ){ sCr.value =Math.round(state.conversion_rate*1000); setFill(sCr); }
-  if(document.activeElement!==sRet){ sRet.value=Math.round(state.returning_rate*100);  setFill(sRet); }
+  if(document.activeElement!==sVph) sVph.value=state.drip_per_hour;
+  if(document.activeElement!==sCr ) sCr.value =Math.round(state.conversion_rate*1000);
+  if(document.activeElement!==sRet) sRet.value=Math.round(state.returning_rate*100);
+  renderDerived();
 }
 
 // manual actions
@@ -344,18 +394,27 @@ function pad2(n){ return String(n).padStart(2,'0'); }
 function clock(t){ const d=new Date(t*1000); return pad2(d.getHours())+':'+pad2(d.getMinutes()); }
 function drawChart(hist){
   window._hist=hist;
-  const pts=[]; for(let i=1;i<hist.length;i++) pts.push({t:hist[i].t, v:Math.max(0,hist[i].visits-hist[i-1].visits)});
+  // pro Datenpunkt die Zuwächse je Serie (kumulierte Summen → Delta)
+  const pts=[]; for(let i=1;i<hist.length;i++) pts.push({
+    t:hist[i].t,
+    v:Math.max(0, hist[i].visits      - hist[i-1].visits),
+    p:Math.max(0,(hist[i].purchases||0)-(hist[i-1].purchases||0)),
+    r:Math.max(0,(hist[i].returning||0)-(hist[i-1].returning||0)),
+  });
   const now = pts.length? pts[pts.length-1].t : Date.now()/1000;
   const span = intervalMin*60, bw = span/N_BARS, start = now - span;
-  const buckets=[]; for(let b=0;b<N_BARS;b++) buckets.push({sum:0, t:start+(b+0.5)*bw});
-  pts.forEach(p=>{ if(p.t>=start){ const idx=Math.min(N_BARS-1, Math.floor((p.t-start)/bw)); buckets[idx].sum+=p.v; } });
-  const max=Math.max(1, ...buckets.map(b=>b.sum));
+  const buckets=[]; for(let b=0;b<N_BARS;b++) buckets.push({v:0,p:0,r:0, t:start+(b+0.5)*bw});
+  pts.forEach(pt=>{ if(pt.t>=start){ const idx=Math.min(N_BARS-1, Math.floor((pt.t-start)/bw));
+    buckets[idx].v+=pt.v; buckets[idx].p+=pt.p; buckets[idx].r+=pt.r; } });
+  const max=Math.max(1, ...buckets.map(b=>Math.max(b.v,b.p,b.r)));
+  const hgt=n=> Math.round(10+(n/max)*88);
+  // Besuche immer (0 = grauer Stummel); Käufe/Wiederkehrende nur sichtbar, wenn >0
+  const bar=(n,cls,stub)=>{ const h = n>0?hgt(n):(stub?3:0);
+    return '<div class="b '+cls+(n===0&&stub?' zero':'')+'" style="height:'+h+'%"></div>'; };
   $('#chart').innerHTML = buckets.map((b,i)=>{
-    const zero=b.sum===0, h=zero?3:Math.round(10+(b.sum/max)*88);
     const ax = (i%6===0 || i===N_BARS-1) ? '<span class="ax">'+clock(b.t)+'</span>' : '';
-    const noun=b.sum===1?'Besuch':'Besuche';
-    return '<div class="slot"><div class="bar'+(zero?' zero':'')+'" style="height:'+h+'%">'+
-      '<span class="tip"><b>'+b.sum+'</b> '+noun+'<em>'+clock(b.t)+'</em></span></div>'+ax+'</div>';
+    const tip='<span class="tip"><b>'+b.v+'</b> Besuche · <b>'+b.p+'</b> Käufe · <b>'+b.r+'</b> wiederk.<em>'+clock(b.t)+'</em></span>';
+    return '<div class="slot"><div class="grp">'+bar(b.v,'v',true)+bar(b.p,'p',false)+bar(b.r,'r',false)+'</div>'+tip+ax+'</div>';
   }).join('');
 }
 

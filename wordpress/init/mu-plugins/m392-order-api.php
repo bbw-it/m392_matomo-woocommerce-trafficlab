@@ -254,6 +254,7 @@ function m392_create_orders(WP_REST_Request $req) {
     $created = [];
     $details = [];                        // pro Umsatz-Bestellung: ts/revenue/items (Matomo-Spiegelung)
     $batch_revenue = 0.0;                 // Summe der „Umsatz"-Bestellungen dieses Batches
+    $returning_count = 0;                 // Anzahl Bestellungen von Bestandskund:innen (wiederkehrend)
     $revenue_statuses = m392_revenue_statuses();
     for ($i = 0; $i < $count; $i++) {
         // Herkunft ziehen (≈70% deutsch, ≈30% divers), Vor-/Nachname daraus.
@@ -269,12 +270,13 @@ function m392_create_orders(WP_REST_Request $req) {
         // Kund:in bestimmen: ~35% Bestandskund:in (falls vorhanden), sonst neu.
         // Neue Kund:innen werden als echte WooCommerce-Kund:innen (Rolle customer)
         // angelegt und der Bestellung zugeordnet → erscheinen unter „Kunden".
-        $customer_id = 0; $email = '';
+        $customer_id = 0; $email = ''; $is_returning = false;
         if ($customer_pool && random_int(1, 100) <= $returning_rate) {
             $cid = (int) $customer_pool[array_rand($customer_pool)];
             $cu = get_userdata($cid);
             if ($cu) {
                 $customer_id = $cid;
+                $is_returning = true;
                 $fn    = get_user_meta($cid, 'billing_first_name', true) ?: ($cu->first_name ?: $fn);
                 $ln    = get_user_meta($cid, 'billing_last_name', true)  ?: ($cu->last_name  ?: $ln);
                 $email = $cu->user_email;
@@ -410,13 +412,15 @@ function m392_create_orders(WP_REST_Request $req) {
             ];
         }
         $created[] = $order->get_id();
+        if ($is_returning) { $returning_count++; }
     }
 
     return new WP_REST_Response([
-        'count'   => count($created),
-        'created' => $created,
-        'revenue' => round($batch_revenue, 2),
-        'details' => $details,
+        'count'     => count($created),
+        'created'   => $created,
+        'revenue'   => round($batch_revenue, 2),
+        'returning' => $returning_count,
+        'details'   => $details,
     ], 201);
 }
 

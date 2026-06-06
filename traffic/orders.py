@@ -52,7 +52,7 @@ def create_orders(count, days_back=0, dates=None, returning_rate=None):
     in Abwicklung) – Grundlage für das Seeding nach Monatsumsatz-Richtwert.
     """
     if not ENABLED:
-        return {"count": 0, "revenue": 0.0, "details": []}
+        return {"count": 0, "revenue": 0.0, "returning": 0, "details": []}
     payload = {"days_back": int(days_back)}
     if dates:
         payload["dates"] = [int(t) for t in dates]
@@ -60,7 +60,7 @@ def create_orders(count, days_back=0, dates=None, returning_rate=None):
     else:
         payload["count"] = int(count)
     if payload["count"] <= 0:
-        return {"count": 0, "revenue": 0.0, "details": []}
+        return {"count": 0, "revenue": 0.0, "returning": 0, "details": []}
     if returning_rate is not None:
         payload["returning_rate"] = int(round(returning_rate))
     try:
@@ -73,6 +73,6 @@ def create_orders(count, days_back=0, dates=None, returning_rate=None):
         r.raise_for_status()
         j = r.json()
         return {"count": int(j.get("count", 0)), "revenue": float(j.get("revenue", 0.0)),
-                "details": j.get("details", []) or []}
+                "returning": int(j.get("returning", 0)), "details": j.get("details", []) or []}
     except (requests.RequestException, ValueError):
-        return {"count": 0, "revenue": 0.0, "details": []}
+        return {"count": 0, "revenue": 0.0, "returning": 0, "details": []}
