@@ -23,6 +23,32 @@ SHOP_BASE_DEFAULT = os.environ.get("SHOP_BASE_URL", "http://localhost:8090")
 # Interne WordPress-URL fuer den Produkt-Sync (Container-Netz).
 WP_INTERNAL_URL = os.environ.get("WORDPRESS_INTERNAL_URL", "http://wordpress").rstrip("/")
 
+
+# --- A/B-Test ---------------------------------------------------------------
+# Jeder Besuch wird einer Variante (A/B) zugewiesen und in der Matomo-Custom-
+# Dimension 1 ("AB-Variante") getrackt. Variante B konvertiert leicht besser
+# (AB_CONV_FACTOR_B) – so zeigt der A/B-Bericht einen echten Unterschied.
+def _ab_float(name, default):
+    raw = (os.environ.get(name) or "").split("#", 1)[0].strip()
+    try:
+        return float(raw)
+    except ValueError:
+        return default
+
+
+AB_ENABLED = (os.environ.get("M392_AB_TEST_ENABLED", "true").split("#", 1)[0].strip().lower()
+              == "true")
+AB_SPLIT_B = _ab_float("M392_AB_SPLIT_B", 50.0)          # Prozent der Besuche -> Variante B
+AB_CONV_FACTOR_B = _ab_float("M392_AB_CONV_FACTOR_B", 1.25)  # Conversion-Multiplikator Variante B
+AB_DIMENSION = 1                                          # Matomo Custom-Dimension-Index
+
+
+def _pick_variant():
+    """Variante A/B nach Split wählen (oder None, wenn A/B deaktiviert)."""
+    if not AB_ENABLED:
+        return None
+    return "B" if (random.random() * 100.0) < AB_SPLIT_B else "A"
+
 # Verbindungs-Pool: deutlich schneller beim 24-Monats-Backfill (zehntausende Requests).
 SESSION = requests.Session()
 
@@ -348,6 +374,10 @@ def simulate_visit(catalog, when=None, force_purchase=False, conversion_rate=0.0
         geo = _pick_geo()
     # Kanalabhaengige Conversion (Social konvertiert ueberdurchschnittlich).
     eff_cr = min(0.95, conversion_rate * channel["mult"])
+    # A/B-Variante zuweisen; Variante B konvertiert leicht besser.
+    variant = _pick_variant()
+    if variant == "B":
+        eff_cr = min(0.95, eff_cr * AB_CONV_FACTOR_B)
 
     pages = 0
     # Einstiegs-Referrer traegt nur die ERSTE Aktion des Besuchs (Matomo nutzt den
@@ -364,6 +394,8 @@ def simulate_visit(catalog, when=None, force_purchase=False, conversion_rate=0.0
         else:
             p = _base_params(catalog, visitor_id, ua, when, urlref=_entry["ref"], geo=geo)
         _entry["ref"] = ""
+        if variant:
+            p["dimension%d" % AB_DIMENSION] = variant
         return p
 
     # --- Optionaler Einstieg ueber eine On-Site-Suche (~30%) ----------------
@@ -412,54 +444,79 @@ def simulate_visit(catalog, when=None, force_purchase=False, conversion_rate=0.0
         pages += 1
         when = _advance(when)
 
-    # --- Kaufpfad -----------------------------------------------------------
-    # „Übriges Europa" kann NICHT bestellen (WooCommerce akzeptiert nur DE/CH/AT) –
-    # diese Besuche legen aber öfter in den Warenkorb (sichtbarer Abbruch).
+    # --- Funnel: Produkt → Warenkorb → Kasse → Kauf -------------------------
+    # Käufer:innen durchlaufen den ganzen Trichter; Nicht-Käufer brechen unterwegs
+    # ab. „Übriges Europa" kann NICHT bestellen (nur DE/CH/AT), legt aber öfter in
+    # den Korb – sichtbarer Abbruch. Die Schritte (/cart/, /checkout/, /order-
+    # received/) füllen die Funnel-Ziele in Matomo; die Conversion-Rate bleibt eff_cr.
     can_buy = geo.get("can_purchase", True)
     purchased = (force_purchase or (random.random() < eff_cr)) and can_buy
     revenue = 0.0
-    if purchased:
-        if viewed_products and random.random() < 0.7:
-            pool = viewed_products
+    if viewed_products:
+        if purchased:
+            reach_cart = reach_checkout = True
         else:
-            pool = products
-        cart = random.choices(pool, weights=[pr.get("popularity", 1) for pr in pool],
-                              k=random.randint(1, 3))
-        items, subtotal = [], 0.0
-        for pr in cart:
-            qty = random.randint(1, 2)
-            subtotal += pr["price"] * qty
-            items.append([pr["sku"], pr["name"], pr["category"], pr["price"], qty])
-        shipping = 0.0 if subtotal >= 50 else 4.90
-        revenue = round(subtotal + shipping, 2)
-        p = mkparams()
-        p["url"] = f"{base}/checkout/order-received/"
-        p["action_name"] = "Bestellbestätigung"
-        p["idgoal"] = 0
-        p["ec_id"] = uuid.uuid4().hex[:12]
-        p["revenue"] = revenue
-        p["ec_st"] = round(subtotal, 2)
-        p["ec_sh"] = shipping
-        p["ec_items"] = json.dumps(items, ensure_ascii=False)
-        _send(p)
-        pages += 1
-    elif viewed_products and random.random() < (0.70 if not can_buy else 0.20):
-        # Abgebrochener Warenkorb (Cart-Update ohne ec_id). „Übriges Europa" landet
-        # hier häufig: sieht Produkte, legt in den Korb – kann dann aber nicht bestellen.
-        cart = random.sample(viewed_products, min(random.randint(1, 2), len(viewed_products)))
-        items, subtotal = [], 0.0
-        for pr in cart:
-            qty = random.randint(1, 2)
-            subtotal += pr["price"] * qty
-            items.append([pr["sku"], pr["name"], pr["category"], pr["price"], qty])
-        p = mkparams()
-        p["url"] = f"{base}/cart/"
-        p["action_name"] = "Warenkorb"
-        p["idgoal"] = 0
-        p["ec_items"] = json.dumps(items, ensure_ascii=False)
-        p["revenue"] = round(subtotal, 2)
-        _send(p)
-        pages += 1
+            reach_cart = random.random() < (0.70 if not can_buy else 0.30)
+            reach_checkout = reach_cart and (random.random() < 0.45)
+
+        if reach_cart:
+            if purchased and random.random() < 0.7:
+                pool = viewed_products
+            else:
+                pool = viewed_products or products
+            cart = random.choices(pool, weights=[pr.get("popularity", 1) for pr in pool],
+                                  k=random.randint(1, 3))
+            items, subtotal = [], 0.0
+            for pr in cart:
+                qty = random.randint(1, 2)
+                subtotal += pr["price"] * qty
+                items.append([pr["sku"], pr["name"], pr["category"], pr["price"], qty])
+
+            # Schritt 2: Warenkorb als PAGEVIEW (damit das URL-Ziel /cart/ matcht;
+            # Matomo wertet URL-Ziele nur für Seitenaufrufe aus, nicht für E-Commerce).
+            p = mkparams()
+            p["url"] = f"{base}/cart/"
+            p["action_name"] = "Warenkorb"
+            _send(p)
+            pages += 1
+            when = _advance(when)
+            if not purchased:
+                # Zusätzlich Cart-Update (E-Commerce) → „abgebrochene Warenkörbe".
+                c = mkparams()
+                c["url"] = f"{base}/cart/"
+                c["idgoal"] = 0
+                c["ec_items"] = json.dumps(items, ensure_ascii=False)
+                c["revenue"] = round(subtotal, 2)
+                _send(c)
+
+            if reach_checkout:
+                # Schritt 3: Kasse (Pageview → Funnel-Ziel)
+                p = mkparams()
+                p["url"] = f"{base}/checkout/"
+                p["action_name"] = "Kasse"
+                p.update(_perf())
+                _send(p)
+                pages += 1
+                when = _advance(when)
+
+                if purchased:
+                    # Schritt 4: Kauf – Pageview (→ Funnel-Ziel) + separate E-Commerce-Bestellung
+                    shipping = 0.0 if subtotal >= 50 else 4.90
+                    revenue = round(subtotal + shipping, 2)
+                    p = mkparams()
+                    p["url"] = f"{base}/checkout/order-received/"
+                    p["action_name"] = "Bestellbestätigung"
+                    _send(p)
+                    pages += 1
+                    o = mkparams()
+                    o["url"] = f"{base}/checkout/order-received/"
+                    o["idgoal"] = 0
+                    o["ec_id"] = uuid.uuid4().hex[:12]
+                    o["revenue"] = revenue
+                    o["ec_st"] = round(subtotal, 2)
+                    o["ec_sh"] = shipping
+                    o["ec_items"] = json.dumps(items, ensure_ascii=False)
+                    _send(o)
 
     # --- Gelegentlicher PDF-Download (Blog: INCI-Leitfaden) -----------------
     # ~3,5 % der Besuche laden den Leitfaden herunter. Matomo verbucht das als
@@ -552,9 +609,10 @@ def track_ecommerce_order(ts, revenue, items, catalog=None):
                 damit Matomo-„Gesamteinnahmen" = WooCommerce-„Bruttoumsatz")
     `items`   = [[sku, name, kategorie, preis, menge], ...] (Matomo-ec_items-Format)
 
-    Erzeugt einen kurzen Besuch (Einstieg über einen Akquise-Kanal + Bestell-
-    bestätigung) und sendet die E-Commerce-Bestellung. So ist die Conversion einer
-    Quelle zugeordnet und taucht in *Akquise*/*E-Commerce* auf.
+    Erzeugt den vollständigen Trichter-Besuch (Produkt → Warenkorb → Kasse → Kauf),
+    trägt eine A/B-Variante und sendet die E-Commerce-Bestellung. So füllt jede
+    gespiegelte Bestellung dieselben Funnel-Schritte wie ein echter Kaufbesuch und
+    ist einer Quelle/Variante zugeordnet (*Akquise*/*E-Commerce*/*Ziele*).
     """
     if catalog is None:
         catalog = _load_catalog()
@@ -566,19 +624,38 @@ def track_ecommerce_order(ts, revenue, items, catalog=None):
         geo = _pick_geo()
     channel = _pick_channel()
     base = _base_url(catalog)
+    variant = _pick_variant()
+    # sku -> slug für realistische Produkt-URLs (sonst generisch /product/).
+    slug_by_sku = {p.get("sku"): p.get("slug") for p in catalog.get("products", [])}
 
-    # 1) Einstiegs-Pageview (Kanal/Referrer) – ordnet die Bestellung einer Quelle zu.
-    p = _base_params(catalog, visitor_id, ua, when=when,
-                     urlref=("" if channel["kind"] == "campaign" else channel["ref"]), geo=geo)
-    p["url"] = f"{base}/checkout/order-received/"
-    p["action_name"] = "Bestellbestätigung"
-    if channel["kind"] == "campaign" and channel["ref"]:
-        p["__campaign"] = channel["ref"]
-    _send(p)
+    first = {"ref": ("" if channel["kind"] == "campaign" else channel["ref"]),
+             "camp": channel["ref"] if channel["kind"] == "campaign" else ""}
 
-    # 2) Die E-Commerce-Bestellung (idgoal=0) mit exakt den Artikeln/Umsatz der Order.
-    q = _base_params(catalog, visitor_id, ua, when=_advance(when), urlref="", geo=geo)
-    q["url"] = f"{base}/checkout/order-received/"
+    def mk(url, action, ref_entry=False):
+        p = _base_params(catalog, visitor_id, ua, when=when,
+                         urlref=(first["ref"] if ref_entry else ""), geo=geo)
+        p["url"] = url
+        p["action_name"] = action
+        if ref_entry and first["camp"]:
+            p["__campaign"] = first["camp"]
+        if variant:
+            p["dimension%d" % AB_DIMENSION] = variant
+        return p
+
+    # Schritt 1: Produktansicht (Einstieg trägt Referrer/Kampagne)
+    sku0 = items[0][0] if items else None
+    slug0 = slug_by_sku.get(sku0) or "produkt"
+    _send(mk(f"{base}/product/{slug0}/", items[0][1] if items else "Produkt", ref_entry=True))
+    when = _advance(when)
+    # Schritt 2: Warenkorb (Pageview → Funnel-Ziel /cart/)
+    _send(mk(f"{base}/cart/", "Warenkorb"))
+    when = _advance(when)
+    # Schritt 3: Kasse (Pageview → Funnel-Ziel)
+    _send(mk(f"{base}/checkout/", "Kasse"))
+    when = _advance(when)
+    # Schritt 4: Kauf – Pageview (→ Funnel-Ziel) + separate E-Commerce-Bestellung
+    _send(mk(f"{base}/checkout/order-received/", "Bestellbestätigung"))
+    q = mk(f"{base}/checkout/order-received/", "Bestellbestätigung")
     q["idgoal"] = 0
     q["ec_id"] = uuid.uuid4().hex[:12]
     q["revenue"] = round(float(revenue), 2)

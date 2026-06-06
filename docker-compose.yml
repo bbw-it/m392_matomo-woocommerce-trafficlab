@@ -110,10 +110,10 @@ services:
       WORDPRESS_PORT: ${WORDPRESS_PORT}
     volumes:
       - matomo_data:/var/www/html
-      - ./matomo/matomo-init.sh:/matomo-init.sh:ro
+      - ./matomo:/matomo-src:ro          # init-Skript + M392-Plugin-Setups (A/B, Funnels)
       - matomo_token:/token
     user: "0:0"
-    entrypoint: ["sh", "/matomo-init.sh"]
+    entrypoint: ["sh", "/matomo-src/matomo-init.sh"]
     restart: "no"
 
   traffic:
@@ -150,6 +150,10 @@ services:
       # der Monatsumsatz der generierten Bestellungen etwa diesem Betrag entspricht.
       # Leer/0 → klassischer Anzahl-Modus.
       TRAFFIC_AVG_MONTHLY_REVENUE: ${TRAFFIC_AVG_MONTHLY_REVENUE:-}
+      # A/B-Test: Variante je Besuch + Conversion-Bias (Matomo Custom-Dimension 1)
+      M392_AB_TEST_ENABLED: ${M392_AB_TEST_ENABLED:-true}
+      M392_AB_SPLIT_B: ${M392_AB_SPLIT_B:-50}
+      M392_AB_CONV_FACTOR_B: ${M392_AB_CONV_FACTOR_B:-1.25}
     volumes:
       - ./seed/catalog.json:/seed/catalog.json:ro
       - matomo_token:/token:ro

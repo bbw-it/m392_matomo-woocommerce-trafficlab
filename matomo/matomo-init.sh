@@ -244,4 +244,16 @@ if [ -n "${TOKEN:-}" ]; then
   fi
 fi
 
+# --- M392-Plugins: A/B-Testing (Custom Dimension) + Funnels (Ziele) --------
+# Konfiguriert die Daten-Grundlage der nachgebauten Plugins. Die Setup-Skripte
+# liegen in matomo/M392ABTesting/ und matomo/M392Funnels/ (hier nach /matomo-src
+# gemountet). Idempotent.
+if [ -n "${TOKEN:-}" ]; then
+  for setup in /matomo-src/M392ABTesting/setup.sh /matomo-src/M392Funnels/setup.sh; do
+    if [ -f "$setup" ]; then
+      BASE="$BASE" TOKEN="$TOKEN" sh "$setup" || log "WARN: $setup fehlgeschlagen."
+    fi
+  done
+fi
+
 log "Fertig."
