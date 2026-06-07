@@ -241,7 +241,7 @@ def gen_orders():
 
 @app.route("/api/backfill", methods=["POST"])
 def backfill():
-    days = int(request.form.get("days", 180))
+    days = int(request.form.get("days", 90))
 
     def _progress(done, total, running):
         _log(f"Backfill … {done}/{total} Tage ({running['visits']} Besuche, "
@@ -306,13 +306,13 @@ def _maybe_auto_seed():
         # Fenster = Bestellfenster, damit Besuche und Bestellungen denselben Zeitraum
         # abdecken. Ø-Bestellwert nur grob geschätzt (skaliert nur die Besucherzahl,
         # nicht den Umsatz – der kommt exakt aus den Bestellungen).
-        days = int(_env_float("TRAFFIC_SEED_ORDERS_DAYS", _env_float("TRAFFIC_BACKFILL_DAYS", 180)))
+        days = int(_env_float("TRAFFIC_SEED_ORDERS_DAYS", _env_float("TRAFFIC_BACKFILL_DAYS", 90)))
         aov_est = 28.0   # Ø-Produktumsatz/Bestellung (ohne Versand); nur Besucher-Skalierung
         orders_per_day = (monthly / 30.0) / aov_est
         base_per_day = max(1, int(round(orders_per_day * (1.0 / cr - 1.0))))
         backfill_conv = 0.0
     else:
-        days = int(_env_float("TRAFFIC_BACKFILL_DAYS", 180))
+        days = int(_env_float("TRAFFIC_BACKFILL_DAYS", 90))
         base_per_day = 14
         backfill_conv = STATE["conversion_rate"]
     _set_seed("history", "running")
@@ -470,7 +470,7 @@ def _maybe_seed_orders():
     # Bestellfenster = Matomo-Backfill-Fenster, damit beide denselben Zeitraum
     # abdecken (separat überschreibbar via TRAFFIC_SEED_ORDERS_DAYS).
     days = int(_env_float("TRAFFIC_SEED_ORDERS_DAYS",
-                          _env_float("TRAFFIC_BACKFILL_DAYS", 180)))
+                          _env_float("TRAFFIC_BACKFILL_DAYS", 90)))
     monthly = _env_float("TRAFFIC_AVG_MONTHLY_REVENUE", 0.0)
     target_count = int(_env_float("TRAFFIC_SEED_ORDERS", 120))
     revenue_mode = monthly > 0

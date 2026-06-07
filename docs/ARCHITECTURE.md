@@ -312,11 +312,11 @@ nicht über Matomo, sondern über einen geschützten REST-Endpunkt im WordPress-
   Berichte** dieselben Zahlen.
 - **Kund:innen-Daten konsistent:** Anmelde- und Aktivdatum jeder Kund:in werden auf die
   Bestellhistorie zurückdatiert (`m392_fix_customer_dates`: `user_registered` + wc-Kunden-Lookup),
-  damit „Neu vs. wiederkehrend" und die Registrierungs-Zeitreihe über die ~6 Monate plausibel sind.
+  damit „Neu vs. wiederkehrend" und die Registrierungs-Zeitreihe über die ~3 Monate plausibel sind.
 - **Gutschein:** ~18 % der Bestellungen lösen den Rabattcode **`NATUR10`** (10 %) ein – der Coupon
   wird reproduzierbar aus `catalog.json` angelegt (`wp-init.sh` Schritt 8e).
 
-- **Wann:** ein Startseed – über **dasselbe ~6-Monats-Fenster wie die Matomo-Historie** verteilt,
+- **Wann:** ein Startseed – über **dasselbe ~3-Monats-Fenster wie die Matomo-Historie** verteilt,
   mit demselben Wachstums-Trend und Wochenrhythmus (Python liefert pro Bestellung einen Zeitstempel;
   PHP datiert die Order exakt darauf). So entspricht die Bestell-Historie zeitlich dem Matomo-Verlauf.
   Dazu laufend bei jedem Live-Drip-Kauf + beim manuellen „Käufe erzwingen".
@@ -354,7 +354,7 @@ nicht über Matomo, sondern über einen geschützten REST-Endpunkt im WordPress-
   transiente Demodaten. Die Fixture (`shop.sql.gz`) ist **bestellungs- und kund:innenfrei**;
   der Bestseller-Prior (`total_sales`) wird beim Restore aus `catalog.json` gesetzt (Schritt 8c
   in `wp-init.sh`). Der Startseed ist idempotent (füllt nur auf den Zielwert auf), bei
-  `down -v && up -d` entstehen Bestellungen + Kund:innen frisch über ~6 Monate.
+  `down -v && up -d` entstehen Bestellungen + Kund:innen frisch über ~3 Monate.
 
 > Hinweis: Im **Richtwert-Modus** sind die Bestellungen durch die Matomo-Kopplung **1:1 dieselben
 > Transaktionen** in Shop und Matomo (gleicher Umsatz/gleiche Bestellungen). Im **Anzahl-Modus**
@@ -367,7 +367,7 @@ Die wichtigsten Stellschrauben, mit denen das Traffic Lab die Matomo-Daten formt
 |---|---|---|
 | **Live-Tropf** (organisch, Poisson-Schübe) | laufend neue Besuche/Käufe in Echtzeit | `app.py · _drip_worker` |
 | **Manuell senden** | sofort X Besuche / Y Käufe | `app.py · /api/generate-*` |
-| **Backfill** (Standard 180 Tage) | **datierte Historie** (`cdt`) ⇒ gefüllte Zeitreihen über 6 Monate | `generator.py · backfill` |
+| **Backfill** (Standard 90 Tage) | **datierte Historie** (`cdt`) ⇒ gefüllte Zeitreihen über ~3 Monate | `generator.py · backfill` |
 | **Produkt-Popularität** (stark gespreizt) | klare **Bestseller** + langer Schwanz | `catalog.json · popularity` |
 | **Akquise-Kanäle** (`urlref`) | **Social** als stärkster Verkaufskanal; diverse Verweis-Domains (eine dominant); Newsletter als **Kampagne** (`pk_campaign`) | `generator.py · CHANNELS` |
 | **Conversion-Rate** (Regler) | Anteil Käufe; Schnitt bleibt erhalten (Kanal-Mult. normiert) | `app.py · STATE` / `generator.py` |
@@ -449,7 +449,7 @@ Reihenfolge. Die beiden `*-init`-Container laufen **einmal** und beenden sich.
      │                       erzeugt token_auth → Volume matomo_token → Exit 0
      │
      │  traffic  ─ wartet auf Matomo (installiert + Token) ─►
-     │              Auto-Seed: Backfill 180 Tage (~6 Monate)  ─►  Live-Tropf läuft
+     │              Auto-Seed: Backfill 90 Tage (~3 Monate)  ─►  Live-Tropf läuft
      ▼
 ```
 
@@ -475,7 +475,7 @@ Stand erzeugt:
 - Beim frischen Start (`down -v && up -d`) spielt `wp-init` die Fixture ein und installiert
   Theme/Plugins in **gepinnten** Versionen nach → identischer Shop.
 - Die **Matomo-Daten** sind bewusst **nicht** Teil der Fixture: sie werden beim Start vom
-  Traffic Lab neu erzeugt (6-Monats-Backfill). So ist die Historie immer „frisch datiert".
+  Traffic Lab neu erzeugt (~3-Monats-Backfill). So ist die Historie immer „frisch datiert".
 - Hinweis Bind-Mount: `down -v` löscht die Docker-Volumes (DB, Matomo), **nicht** den
   Host-Ordner `./wordpress/www`. `wp-init` spielt die Fixture sauber darüber.
 

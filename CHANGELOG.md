@@ -13,7 +13,7 @@ Format lose angelehnt an [Keep a Changelog](https://keepachangelog.com/de/).
   Richtwert (`TRAFFIC_AVG_MONTHLY_REVENUE`) bezieht sich ebenfalls auf den Produktumsatz ohne Versand. Der Backfill erzeugt
   in diesem Modus keine eigenen Käufe mehr, sondern nur noch nicht-kaufende Besuche – skaliert so, dass
   die Conversion-Rate realistisch bleibt. Besuche und Bestellungen decken denselben Zeitraum ab
-  (`TRAFFIC_BACKFILL_DAYS` = `TRAFFIC_SEED_ORDERS_DAYS`, Standard 180). Hinweis: mehr Besuche ⇒
+  (`TRAFFIC_BACKFILL_DAYS` = `TRAFFIC_SEED_ORDERS_DAYS`, Standard 90 Tage ≈ 3 Monate). Hinweis: mehr Besuche ⇒
   längere Installation (Stellschrauben: Fenster, `TRAFFIC_CONVERSION_RATE`, Richtwert).
 - **Umsatz-Richtwert für den Bestell-Seed (`TRAFFIC_AVG_MONTHLY_REVENUE`):** Statt einer festen
   Bestellanzahl kann nun ein durchschnittlicher Monatsumsatz (EUR) vorgegeben werden. Der Startseed
@@ -33,11 +33,16 @@ Format lose angelehnt an [Keep a Changelog](https://keepachangelog.com/de/).
   Bestellungen und Matomo-Archivierung fertig sind. Ersetzt das frühere `reset.sh`.
 
 ### Geändert
+- **Geringere Startlast:** Standard-Seed-Fenster von **180 → 90 Tage** (`TRAFFIC_BACKFILL_DAYS` /
+  `TRAFFIC_SEED_ORDERS_DAYS`). Halbiert Backfill-Besuche **und** echte Bestellungen (~11 000 / ~160
+  statt ~22 600 / ~322) → deutlich kürzere Installation, ohne Realismus-Verlust (3 statt 6 Monate
+  Historie). `.env.example` enthält jetzt kommentierte **Last-Profile** (Standard/Schnell/Minimal/Kein
+  Seed) inkl. der Stellschrauben (Tage, Monatsumsatz, Conversion-Rate).
 - **Alte WooCommerce-Berichte funktionieren wieder:** `wp-init.sh` aktiviert den
   **HPOS-Kompatibilitätsmodus** vor dem Bestell-Seed; jede Bestellung wird synchron nach
   `posts`/`postmeta` gespiegelt. HPOS-Analytics **und** Legacy-*Berichte* zeigen dieselben Zahlen.
 - **Konsistente Kund:innen-Daten:** Anmelde-/Aktivdatum jeder Kund:in wird auf die Bestellhistorie
-  zurückdatiert – „neu vs. wiederkehrend" und die Registrierungs-Zeitreihe sind über ~6 Monate
+  zurückdatiert – „neu vs. wiederkehrend" und die Registrierungs-Zeitreihe sind über das Seed-Fenster
   plausibel.
 - **Zahlart-Namen** ohne „(Test)"-Zusatz (Kauf auf Rechnung, Kreditkarte, TWINT).
 - **Checkout** der Test-Kreditkarte sauber ausgerichtet (Kartennummer / Ablauf / CVC).
@@ -70,7 +75,7 @@ Format lose angelehnt an [Keep a Changelog](https://keepachangelog.com/de/).
 - **Reproduzierbarkeit:** kompletter Shop als Fixture (DB-Dump + Uploads) eingefroren.
 - **Tracking:** Matomo-Snippet via mu-Plugin (Seitenaufrufe, E-Commerce, On-Site-Suche, Ereignisse,
   Inhalte, Leistung, Geografie DE/CH/AT, Ziele für PDF-Download und Kontaktanfrage).
-- **Traffic Lab:** datierter 6-Monats-Backfill + organischer Live-Tropf (Poisson-Schübe), echte
+- **Traffic Lab:** datierter Backfill (Standard ~3 Monate) + organischer Live-Tropf (Poisson-Schübe), echte
   WooCommerce-Bestellungen + Kund:innen, Bestseller-Gewichtung, Gutschein `NATUR10`,
   Wiederkehrer-Regler, Social Media als stärkster Verkaufskanal.
 - **Test-Zahlung:** Kauf auf Rechnung, Test-Kreditkarte `4242…`, simuliertes TWINT.

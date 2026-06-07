@@ -173,7 +173,7 @@ angelegt (Website-ID 1), E-Commerce aktiviert, Währung EUR. Die Lernenden logge
 arbeiten direkt mit den Berichten – ohne Setup-Hürden.
 
 Damit von der ersten Minute an aussagekräftige Berichte sichtbar sind, befüllt die Umgebung beim
-Start automatisch **rund 6 Monate Verlaufsdaten** (Besuche, Käufe, Umsatz) – mit leichtem
+Start automatisch **rund 3 Monate Verlaufsdaten** (Besuche, Käufe, Umsatz) – mit leichtem
 Wachstums-Trend und Wochen-Saisonalität, damit Zeitvergleiche (Monat/Jahr) etwas hergeben. Das
 Befüllen läuft im Hintergrund und dauert je nach Rechner einige Minuten; der Fortschritt ist im
 Dashboard-Log sichtbar.
@@ -226,7 +226,7 @@ Ein modernes Dashboard auf **http://localhost:8092** erzeugt realistischen Traff
   Communities) und werden als **echte WooCommerce-Kund:innen** angelegt (Rolle *customer*) und der
   Bestellung zugeordnet – so erscheinen sie unter *WooCommerce → Kunden* bzw. *Analytics → Kunden*
   (inkl. einiger **wiederkehrender** Kund:innen mit mehreren Bestellungen). Der Startseed verteilt
-  die Bestellungen über **denselben ~6-Monats-Zeitraum wie die Matomo-Historie** (gleicher
+  die Bestellungen über **denselben ~3-Monats-Zeitraum wie die Matomo-Historie** (gleicher
   Wachstums-Trend/Wochenrhythmus); Live-/Manuell-Käufe ergänzen sie laufend.
   Steuerbar über `TRAFFIC_CREATE_WC_ORDERS` / `TRAFFIC_SEED_ORDERS` / `TRAFFIC_RETURNING_RATE` in `.env`.
   Alternativ lässt sich die Bestellmenge über einen **Umsatz-Richtwert** steuern: Setzt man
@@ -317,13 +317,13 @@ Alles wird zentral über `.env` gesteuert (Kopie von `.env.example`). Wichtigste
 | `SHOP_CURRENCY` / `SHOP_COUNTRY` / `WP_LOCALE` | `EUR` / `DE` / `de_CH` | Shop-Währung, -Land, Sprachpaket |
 | `*_DB_*` / `MYSQL_ROOT_PASSWORD` | siehe Datei | Datenbank-Namen, -Benutzer, -Passwörter |
 | `TRAFFIC_AUTO_SEED` | `true` | Beim Start automatisch Historie befüllen |
-| `TRAFFIC_BACKFILL_DAYS` | `180` | Zeitraum der historischen Befüllung (Tage, ≈ 6 Monate) |
+| `TRAFFIC_BACKFILL_DAYS` | `90` | Zeitraum der historischen Befüllung (Tage, ≈ 3 Monate). Senkt die Startlast; höher = mehr Daten, längerer Install |
 | `TRAFFIC_LIVE_DRIP` | `true` | Live-Tropf beim Start aktiv (in der UI abschaltbar) |
 | `TRAFFIC_DRIP_VISITS_PER_HOUR` | `120` | Startwert: Besucher/Stunde des Live-Tropfs |
 | `TRAFFIC_CONVERSION_RATE` | `0.014` | Startwert: Anteil Besuche mit Kauf (0–1) |
 | `TRAFFIC_RETURNING_RATE` | `0.08` | Startwert: Anteil Bestellungen bestehender Kund:innen (wiederkehrende Käufer:innen) |
 | `TRAFFIC_CREATE_WC_ORDERS` | `true` | Echte WooCommerce-Bestellungen anlegen (Startseed + Live) |
-| `TRAFFIC_SEED_ORDERS` / `TRAFFIC_SEED_ORDERS_DAYS` | `120` / `180` | Startseed: Anzahl Bestellungen / verteilt über N Tage (Standard = Matomo-Historie) |
+| `TRAFFIC_SEED_ORDERS` / `TRAFFIC_SEED_ORDERS_DAYS` | `120` / `90` | Startseed: Anzahl Bestellungen / verteilt über N Tage (Standard = Matomo-Historie) |
 | `TRAFFIC_AVG_MONTHLY_REVENUE` | `1500` (leer/0 = aus) | **Richtwert** für den Ø-Bestell-Umsatz pro Monat (EUR). Wenn > 0, bestimmt dieser Wert die Bestellmenge so, dass der Monatsumsatz etwa diesem Betrag entspricht – **hat Vorrang** vor `TRAFFIC_SEED_ORDERS` |
 | `M392_ORDER_API_KEY` | `m392-order-secret` | Gemeinsames Secret für den Bestell-Endpunkt (WP ⇄ Traffic) |
 
@@ -346,7 +346,7 @@ docker compose up -d
 ```
 
 > **`install.sh` – komplette Einrichtung auf Knopfdruck.** Stoppt einen evtl. laufenden Stack, löscht
-> alle Volumes **und** leert `wordpress/www`, baut/startet neu und **wartet, bis die ~6-Monats-Historie
+> alle Volumes **und** leert `wordpress/www`, baut/startet neu und **wartet, bis die ~3-Monats-Historie
 > + Bestellungen befüllt sind, archiviert Matomo** und kehrt erst dann zurück – die Berichte stimmen
 > also **sofort** (kein Nachladen/„Reintröpfeln"). Mit `--no-wait` kehrt es schon nach dem Start zurück
 > (Befüllung läuft dann im Hintergrund), `-y` überspringt die Sicherheitsabfrage, `--help` zeigt die

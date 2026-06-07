@@ -62,9 +62,9 @@ TRAFFIC_PORT="$(read_env TRAFFIC_PORT)"; TRAFFIC_PORT="${TRAFFIC_PORT:-8092}"
 
 # Backfill-Fenster aus .env lesen, damit die Meldungen zum tatsaechlich
 # gesetzten Wert passen (statt fixem „6 Monate"). Robust gegen Inline-
-# Kommentare: nur die fuehrenden Ziffern behalten, sonst Fallback 180.
+# Kommentare: nur die fuehrenden Ziffern behalten, sonst Fallback 90.
 BACKFILL_DAYS="$(read_env TRAFFIC_BACKFILL_DAYS)"; BACKFILL_DAYS="${BACKFILL_DAYS%%[!0-9]*}"
-BACKFILL_DAYS="${BACKFILL_DAYS:-180}"
+BACKFILL_DAYS="${BACKFILL_DAYS:-90}"
 BACKFILL_MONTHS=$(( (BACKFILL_DAYS + 15) / 30 )); [ "$BACKFILL_MONTHS" -lt 1 ] && BACKFILL_MONTHS=1
 HIST_LABEL="~${BACKFILL_DAYS} Tage (~${BACKFILL_MONTHS} Monate) Historie"
 
