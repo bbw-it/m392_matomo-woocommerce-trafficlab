@@ -99,6 +99,13 @@ Einrichtungs-Container und eine Datenbank):
 - **Internetzugang beim ersten Start** – Images, Theme/Plugins und Demo-Bilder werden geladen.
 - ~3 GB freier Speicher, die Ports **8090–8092** frei (anpassbar in `.env`).
 
+> 🪟 **Windows:** `docker compose up -d` läuft auch in PowerShell. Das Komfort-Skript
+> **`./install.sh`** ist jedoch ein Bash-Skript und läuft **nicht** in cmd/PowerShell. Empfohlen:
+> **WSL2 + Docker Desktop** (WSL2-Backend) – Repo am besten **im WSL-Dateisystem** klonen und
+> `./install.sh` im WSL-Terminal ausführen. (Git Bash geht meist auch, kann aber beim internen
+> `docker run -v …`-Mount zicken.) Wichtig für Windows: Eine `.gitattributes` erzwingt **LF-Zeilenenden**,
+> damit die Container-Init-Skripte auch nach einem Windows-Klon funktionieren – nicht entfernen.
+
 ## Schnellstart
 
 ```bash

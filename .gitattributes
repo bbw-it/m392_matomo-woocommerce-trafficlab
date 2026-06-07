@@ -1,0 +1,34 @@
+# Zeilenenden konsistent als LF halten.
+# Wichtig: Viele Dateien dieses Repos laufen in LINUX-CONTAINERN (Init-Skripte,
+# docker-compose, .env*). Würde das Repo unter Windows mit autocrlf=true geklont,
+# bekämen sie CRLF (\r\n) und die Container-Skripte brechen ("bad interpreter",
+# "\r command not found"). Deshalb: Text = LF, egal auf welchem Host.
+* text=auto eol=lf
+
+# Skripte/Quellen explizit LF (laufen auf dem Host UND in den Containern)
+*.sh    text eol=lf
+*.bash  text eol=lf
+*.php   text eol=lf
+*.py    text eol=lf
+*.twig  text eol=lf
+*.sql   text eol=lf
+*.yml   text eol=lf
+*.yaml  text eol=lf
+*.json  text eol=lf
+*.html  text eol=lf
+*.css   text eol=lf
+*.js    text eol=lf
+*.md    text eol=lf
+.env*   text eol=lf
+
+# Binärdateien NIE anfassen (Fixture-Dump, Uploads-Archiv, Bilder)
+*.gz    binary
+*.tar   binary
+*.zip   binary
+*.png   binary
+*.jpg   binary
+*.jpeg  binary
+*.gif   binary
+*.webp  binary
+*.ico   binary
+*.pdf   binary
