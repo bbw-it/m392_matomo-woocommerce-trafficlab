@@ -1,11 +1,11 @@
 <?php
 /**
  * M392 A/B-Test – Übersicht (Report-Seite unter „A/B Tests").
- * Listet alle konfigurierten Tests; je Test eine Variations-Tabelle
- * (Besuche / eindeutige Besucher / Bestellungen / Conversion-Rate / Umsatz /
- * Ø-Bestellwert) inkl. Total-Zeile, Bayes-Wahrscheinlichkeit „besser als
- * Original" (Sofort-Näherung) und Gewinner-Markierung. Tests anlegen/löschen
- * läuft über den Controller.
+ *
+ * Auswertung KUMULIERT über die gesamte Laufzeit seit Teststart (nicht je Monat) –
+ * so ist der Gewinner stabil und der P-Wert springt nicht. Zusätzlich ein
+ * Monats-Verlauf der Conversion-Rate je Variante als Kontext. Tests anlegen/löschen
+ * inline (Formular) bzw. über den Controller.
  */
 namespace Piwik\Plugins\M392ABTesting\Widgets;
 
@@ -31,33 +31,34 @@ class GetAB extends Widget
     public function render()
     {
         $idSite = Common::getRequestVar('idSite', 1, 'int');
-        $period = Common::getRequestVar('period', 'month', 'string');
-        $date   = Common::getRequestVar('date', 'today', 'string');
         Piwik::checkUserHasViewAccess($idSite);
 
         $tests = [];
         foreach (Storage::getTests() as $def) {
-            $tests[] = self::computeTest($def, $idSite, $period, $date);
+            $tests[] = self::computeTest($def, $idSite);
         }
 
         $view = new View('@M392ABTesting/index');
         $view->tests = $tests;
-        $view->prettyDate = $period . ' / ' . $date;
         $view->idSite = $idSite;
-        $view->period = $period;
-        $view->date = $date;
+        // Datums-Kontext für Links (Controller braucht period/date für den Redirect zurück).
+        $view->period = Common::getRequestVar('period', 'month', 'string');
+        $view->date   = Common::getRequestVar('date', 'today', 'string');
         $view->deleteNonce = Nonce::getNonce('M392ABTesting.delete');
+        $view->saveNonce   = Nonce::getNonce('M392ABTesting.save');
         $view->defaultId = Storage::defaultTest()['id'];
         return $view->render();
     }
 
-    /** Kennzahlen + Bayes für einen Test aufbereiten. */
-    public static function computeTest(array $def, $idSite, $period, $date)
+    /** Kennzahlen (kumuliert seit Teststart) + Bayes + Monats-Verlauf für einen Test. */
+    public static function computeTest(array $def, $idSite)
     {
+        $range = Stats::testRange($def);
+
         $variants = [];
         $tot = ['visits' => 0, 'uniq' => 0, 'orders' => 0, 'revenue' => 0.0];
         foreach (($def['variants'] ?? []) as $v) {
-            $m = Stats::variantMetrics($idSite, $period, $date, $v['segment'] ?? '');
+            $m = Stats::variantMetrics($idSite, 'range', $range, $v['segment'] ?? '');
             $m['label']   = $v['label'] ?? '?';
             $m['segment'] = $v['segment'] ?? '';
             $variants[] = $m;
@@ -71,18 +72,12 @@ class GetAB extends Widget
         // Basis = erste Variante (Original). Bayes je weiterer Variante dagegen.
         $base = $variants[0] ?? null;
         foreach ($variants as $i => &$v) {
-            if ($i === 0 || !$base) {
-                $v['prob'] = null;          // Basis hat keine Vergleichswahrscheinlichkeit
-            } else {
-                $v['prob'] = Stats::probBetterNormal(
-                    $base['orders'], $base['visits'], $v['orders'], $v['visits']
-                );
-            }
+            $v['prob'] = ($i === 0 || !$base) ? null
+                : Stats::probBetterNormal($base['orders'], $base['visits'], $v['orders'], $v['visits']);
         }
         unset($v);
 
-        // Gewinner: höchste Conversion-Rate, aber nur bei echten Daten und klarem
-        // Vorsprung (keine „alle Gewinner" bei Gleichstand / 0 Bestellungen).
+        // Gewinner: höchste Conversion-Rate, nur bei echten Daten + klarem Vorsprung.
         $winner = -1; $bestCr = -1; $tie = false;
         foreach ($variants as $i => $v) {
             if ($v['visits'] <= 0) { continue; }
@@ -93,11 +88,28 @@ class GetAB extends Widget
         foreach ($variants as $i => &$v) { $v['is_winner'] = ($i === $winner); }
         unset($v);
 
+        // Monats-Verlauf der CR je Variante (Kontext). Gemeinsame Monatsachse.
+        $monthsSet = []; $rawSeries = [];
+        foreach (($def['variants'] ?? []) as $vi => $v) {
+            $s = Stats::variantSeriesCR($idSite, $v['segment'] ?? '', $range);
+            $byMonth = [];
+            foreach ($s as $pt) { $byMonth[$pt['month']] = $pt['cr']; $monthsSet[$pt['month']] = true; }
+            $rawSeries[$vi] = $byMonth;
+        }
+        $months = array_keys($monthsSet);
+        sort($months);
+        $evolution = [];
+        foreach (($def['variants'] ?? []) as $vi => $v) {
+            $crs = [];
+            foreach ($months as $mo) { $crs[] = round((($rawSeries[$vi][$mo] ?? 0.0)) * 100, 4); }
+            $evolution[] = ['label' => $v['label'] ?? '?', 'cr' => $crs];
+        }
+
         $created = (int) ($def['created'] ?? 0);
         if ($created > 0) {
             $days = max(0, (int) floor((time() - $created) / 86400));
             $running = 'läuft seit ' . $days . ' Tag' . ($days === 1 ? '' : 'en')
-                     . ' (seit ' . date('d.m.Y', $created) . ')';
+                     . ' (Start ' . date('d.m.Y', $created) . ')';
         } else {
             $running = 'läuft seit Beginn der Daten';
         }
@@ -112,6 +124,8 @@ class GetAB extends Widget
             'total'       => $tot,
             'has_winner'  => $winner >= 0,
             'has_data'    => $tot['visits'] > 0,
+            'months'      => array_values($months),
+            'evolution'   => $evolution,
         ];
     }
 }

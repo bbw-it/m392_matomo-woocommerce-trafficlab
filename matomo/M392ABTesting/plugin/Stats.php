@@ -15,6 +15,58 @@ use Piwik\API\Request;
 
 class Stats
 {
+    /**
+     * Datums-Range „seit Teststart bis heute" für die KUMULIERTE Auswertung.
+     * So springt der P-Wert nicht monatlich, sondern berücksichtigt die gesamte
+     * Laufzeit (Best Practice für A/B-Tests). `created==0` = „seit Beginn".
+     */
+    public static function testRange($test)
+    {
+        $created = (int) ($test['created'] ?? 0);
+        $startTs = $created > 0 ? $created : (time() - 730 * 86400);
+        return date('Y-m-d', $startTs) . ',' . date('Y-m-d');
+    }
+
+    /**
+     * Monatlicher Verlauf der Conversion-Rate je Variante (Kontext-Chart, NICHT
+     * die Gewinner-Basis). Liefert [['month'=>label,'cr'=>float,'visits','orders'], …].
+     */
+    public static function variantSeriesCR($idSite, $segment, $dateRange)
+    {
+        $out = [];
+        try {
+            $vs = Request::processRequest('VisitsSummary.get', [
+                'idSite' => $idSite, 'period' => 'month', 'date' => $dateRange,
+                'segment' => $segment, 'format' => 'original',
+            ]);
+            $g = Request::processRequest('Goals.get', [
+                'idSite' => $idSite, 'period' => 'month', 'date' => $dateRange,
+                'idGoal' => 'ecommerceOrder', 'segment' => $segment, 'format' => 'original',
+            ]);
+            if (!$vs || !method_exists($vs, 'getDataTables')) {
+                return $out;
+            }
+            $goalTables = ($g && method_exists($g, 'getDataTables')) ? $g->getDataTables() : [];
+            foreach ($vs->getDataTables() as $label => $vt) {
+                $vrow = $vt->getFirstRow();
+                $visits = $vrow ? (int) $vrow->getColumn('nb_visits') : 0;
+                $orders = 0;
+                if (isset($goalTables[$label]) && $goalTables[$label]->getFirstRow()) {
+                    $orders = (int) $goalTables[$label]->getFirstRow()->getColumn('nb_conversions');
+                }
+                $out[] = [
+                    'month'  => $label,
+                    'visits' => $visits,
+                    'orders' => $orders,
+                    'cr'     => $visits > 0 ? $orders / $visits : 0.0,
+                ];
+            }
+        } catch (\Exception $e) {
+            return [];
+        }
+        return $out;
+    }
+
     /** Besuche / eindeutige Besucher / Bestellungen / Umsatz je Segment. */
     public static function variantMetrics($idSite, $period, $date, $segment)
     {

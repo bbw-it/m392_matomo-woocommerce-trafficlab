@@ -89,9 +89,67 @@ class GetFunnel extends Widget
         }
         unset($s);
 
+        $sankey = self::buildSankey($steps);
+
         $view = new View('@M392Funnels/index');
         $view->steps = $steps;
+        $view->sankey = $sankey;
         $view->prettyDate = $period . ' / ' . $date;
         return $view->render();
+    }
+
+    /** SVG-Sankey-Geometrie: Knoten (Stufen) + Flüsse (weiter / Abbruch). */
+    private static function buildSankey(array $steps)
+    {
+        $W = 880; $H = 430; $padL = 30; $topPad = 34; $nodeW = 20; $usableH = 200;
+        $baseDrop = $topPad + $usableH + 64;          // y, wo die Abbruch-Bänder landen
+        $n = count($steps);
+        $maxCount = ($n > 0 && $steps[0]['count'] > 0) ? $steps[0]['count'] : 1;
+        $colStep = $n > 1 ? ($W - 2 * $padL - $nodeW) / ($n - 1) : 0;
+
+        $h = function ($c) use ($maxCount, $usableH) {
+            if ($c <= 0) { return 3.0; }
+            return max(6.0, ($c / $maxCount) * $usableH);
+        };
+
+        $nodes = [];
+        for ($i = 0; $i < $n; $i++) {
+            $x = $padL + $i * $colStep;
+            $nodes[] = [
+                'x' => round($x, 1), 'y' => $topPad, 'w' => $nodeW, 'h' => round($h($steps[$i]['count']), 1),
+                'cx' => round($x + $nodeW / 2, 1),
+                'label' => $steps[$i]['label'], 'count' => $steps[$i]['count'],
+                'pct_total' => $steps[$i]['pct_total'], 'page' => $steps[$i]['page'], 'path' => $steps[$i]['path'],
+            ];
+        }
+
+        $band = function ($x1, $t1, $b1, $x2, $t2, $b2) {
+            $cx = ($x1 + $x2) / 2;
+            return sprintf('M %.1f %.1f C %.1f %.1f, %.1f %.1f, %.1f %.1f L %.1f %.1f C %.1f %.1f, %.1f %.1f, %.1f %.1f Z',
+                $x1, $t1, $cx, $t1, $cx, $t2, $x2, $t2, $x2, $b2, $cx, $b2, $cx, $b1, $x1, $b1);
+        };
+
+        $go = []; $drop = [];
+        for ($i = 0; $i < $n - 1; $i++) {
+            $hi = $h($steps[$i]['count']); $hn = $h($steps[$i + 1]['count']);
+            $xr = $nodes[$i]['x'] + $nodeW; $xn = $nodes[$i + 1]['x'];
+            // „weiter"-Band: oben angesetzt, Dicke = nächster Schritt.
+            $go[] = [
+                'd' => $band($xr, $topPad, $topPad + $hn, $xn, $topPad, $topPad + $hn),
+                'count' => $steps[$i + 1]['count'], 'pct' => $steps[$i + 1]['pct_step'],
+            ];
+            // „Abbruch"-Band: unteres Reststück von Knoten i, fällt nach unten zu einem Chip.
+            if ($steps[$i + 1]['drop_abs'] > 0 && $hi - $hn > 0.5) {
+                $mx = $xr + $colStep * 0.5;
+                $chipH = max(8.0, min($hi - $hn, 34.0));
+                $drop[] = [
+                    'd' => $band($xr, $topPad + $hn, $topPad + $hi, $mx, $baseDrop, $baseDrop + $chipH),
+                    'count' => $steps[$i + 1]['drop_abs'], 'pct' => $steps[$i + 1]['dropoff'],
+                    'mx' => round($mx, 1), 'my' => round($baseDrop + $chipH + 14, 1),
+                ];
+            }
+        }
+
+        return ['w' => $W, 'h' => $H, 'nodes' => $nodes, 'go' => $go, 'drop' => $drop, 'topPad' => $topPad];
     }
 }

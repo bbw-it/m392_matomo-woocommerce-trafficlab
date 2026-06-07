@@ -1,7 +1,7 @@
 <div class="m392ab" style="padding:20px 24px;font-family:inherit;color:#2c2e3a;">
   <style>
     .m392ab h2{font-size:21px;font-weight:700;margin:0 0 2px;}
-    .m392ab .sub{color:#6b7280;font-size:12.5px;margin:0 0 14px;}
+    .m392ab .sub{color:#6b7280;font-size:12.5px;margin:0 0 16px;}
     .m392ab .card{background:#fff;border:1px solid #e6e8ee;border-radius:8px;margin:0 0 22px;overflow:hidden;}
     .m392ab .card-h{padding:16px 18px 12px;border-bottom:1px solid #eef0f4;}
     .m392ab .card-h .t{font-size:17px;font-weight:700;}
@@ -22,113 +22,249 @@
       font-size:11px;padding:3px 8px;cursor:pointer;color:#2f6bff;}
     .m392ab .exact:hover{background:#f3f6ff;}
     .m392ab .mc{display:block;color:#6b7280;font-size:11px;margin-top:2px;}
-    .m392ab .btn{display:inline-block;background:#2f6bff;color:#fff;text-decoration:none;font-weight:600;
-      font-size:13px;padding:8px 16px;border-radius:8px;}
+    .m392ab .winbar{margin:0;padding:11px 18px;background:#f0fbf4;border-bottom:1px solid #e1f3e8;
+      color:#166534;font-size:13px;font-weight:600;}
+    .m392ab .evo{padding:14px 18px 16px;border-top:1px solid #f1f3f7;}
+    .m392ab .evo .lbl{font-size:11px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:#8a93a3;margin:0 0 8px;}
+    .m392ab .evo .lg{display:inline-flex;align-items:center;font-size:12px;color:#475569;margin-right:14px;}
+    .m392ab .evo .lg i{width:10px;height:10px;border-radius:50%;margin-right:6px;display:inline-block;}
+    .m392ab .btn{display:inline-block;background:#2f6bff;color:#fff;border:0;text-decoration:none;font-weight:600;
+      font-size:13px;padding:9px 18px;border-radius:8px;cursor:pointer;}
     .m392ab .btn:hover{background:#2257e6;}
-    .m392ab .del{color:#b91c1c;font-size:12px;text-decoration:none;float:right;}
+    .m392ab .del{color:#b91c1c;font-size:12px;text-decoration:none;float:right;cursor:pointer;background:0;border:0;}
     .m392ab .del:hover{text-decoration:underline;}
     .m392ab .foot{color:#9aa1ad;font-size:12px;margin-top:18px;line-height:1.6;}
     .m392ab .nodata{color:#9aa1ad;font-size:13px;padding:14px 18px;}
+
+    /* ---- Create-Formular (Demo-Look: Feld links, Hilfe rechts) ---- */
+    .m392ab .cwrap{background:#fff;border:1px solid #e6e8ee;border-radius:8px;padding:30px 32px 28px;}
+    .m392ab .cwrap h2{font-size:24px;margin:0 0 8px;}
+    .m392ab .clead{color:#6b7280;font-size:13.5px;line-height:1.6;margin:0 0 30px;max-width:760px;}
+    .m392ab .frow{display:grid;grid-template-columns:1fr 330px;gap:34px;align-items:start;margin:0 0 30px;}
+    .m392ab .flabel{font-size:13px;color:#3a3f4b;font-weight:600;margin:0 0 9px;}
+    .m392ab .cwrap input[type=text],.m392ab .cwrap textarea{width:100%;box-sizing:border-box;border:0;
+      border-bottom:1px solid #cfd4dc;background:transparent;padding:9px 2px;font-size:15px;font-family:inherit;color:#2c2e3a;}
+    .m392ab .cwrap input[type=text]::placeholder,.m392ab .cwrap textarea::placeholder{color:#b6bcc6;}
+    .m392ab .cwrap input[type=text]:focus,.m392ab .cwrap textarea:focus{outline:none;border-bottom-color:#2f6bff;}
+    .m392ab .cwrap textarea{min-height:46px;resize:vertical;line-height:1.5;}
+    .m392ab .help{background:#f5f6f8;border-radius:5px;padding:14px 16px;color:#5a6473;font-size:12.5px;line-height:1.55;}
+    .m392ab .vrow{display:grid;grid-template-columns:1fr 1.4fr;gap:14px;margin:0 0 12px;}
+    .m392ab .vrow .vt{font-size:11px;color:#8a93a3;text-transform:uppercase;letter-spacing:.04em;margin:0 0 4px;}
+    .m392ab .addvar{margin-top:4px;background:0;border:1px dashed #c3c9d4;border-radius:7px;color:#475569;
+      font-size:12.5px;padding:7px 12px;cursor:pointer;}
+    .m392ab .addvar:hover{border-color:#2f6bff;color:#2f6bff;}
+    .m392ab .cactions{margin-top:14px;display:flex;gap:16px;align-items:center;}
+    .m392ab .cancel{color:#475569;font-size:13px;background:0;border:0;cursor:pointer;}
+    .m392ab .cancel:hover{text-decoration:underline;}
+    .m392ab .secline{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#8a93a3;
+      border-top:1px solid #eef0f4;padding-top:20px;margin:6px 0 4px;}
   </style>
 
-  <h2>A/B-Tests (M392)</h2>
-  <p class="sub">Beta-Binomial-Bayes je Test &middot; {{ prettyDate }}</p>
+  <!-- ===================== ÜBERSICHT ===================== -->
+  <div id="ab-ov">
+    <h2>A/B-Tests (M392)</h2>
+    <p class="sub">Auswertung <strong>kumuliert über die gesamte Laufzeit seit Teststart</strong> &middot;
+      Beta-Binomial-Bayes (unabhängig vom Datumsfilter oben)</p>
 
-  {% for t in tests %}
-    <div class="card">
-      <div class="card-h">
-        {% if t.id != defaultId %}
-          <a class="del" href="index.php?module=M392ABTesting&action=deleteTest&idSite={{ idSite }}&period={{ period }}&date={{ date }}&testId={{ t.id }}&nonce={{ deleteNonce }}"
-             onclick="return confirm('Test „{{ t.name }}“ wirklich löschen?');">Test löschen</a>
+    {% for t in tests %}
+      <div class="card">
+        <div class="card-h">
+          {% if t.id != defaultId %}
+            <a class="del" href="index.php?module=M392ABTesting&action=deleteTest&idSite={{ idSite }}&period={{ period }}&date={{ date }}&testId={{ t.id }}&nonce={{ deleteNonce }}"
+               onclick="return confirm('Test „{{ t.name }}“ wirklich löschen?');">Test löschen</a>
+          {% endif %}
+          <span class="t">{{ t.name }}</span><span class="run">{{ t.running }}</span>
+          {% if t.hypothesis %}<p class="hyp"><strong>Hypothese:</strong> {{ t.hypothesis }}</p>{% endif %}
+          {% if t.description %}<p class="hyp">{{ t.description }}</p>{% endif %}
+        </div>
+
+        {% if not t.has_data %}
+          <div class="nodata">Noch keine Besuche seit Teststart. Daten erzeugen (Traffic Lab) oder kurz warten.</div>
+        {% else %}
+          {% if t.has_winner %}
+            {% for v in t.variants %}{% if v.is_winner %}
+              <p class="winbar">&#9733; Gewinner: <strong>{{ v.label }}</strong>
+                — Conversion-Rate {{ (v.cr*100)|number_format(2, ',', '.') }} %
+                {% if v.prob is not null %}· P(besser als Original) {{ (v.prob*100)|number_format(1, ',', '.') }} %{% endif %}</p>
+            {% endif %}{% endfor %}
+          {% endif %}
+          <table>
+            <thead>
+              <tr>
+                <th class="l">Variante</th><th>Besuche</th><th>Eindeutige Besucher</th><th>Bestellungen</th>
+                <th>Conversion-Rate</th><th>Umsatz</th><th>Ø-Bestellwert</th><th>P(besser als Original)</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for v in t.variants %}
+                <tr class="{{ v.is_winner ? 'win' : '' }}">
+                  <td class="l"><strong>{{ v.label }}</strong>{% if v.is_winner %} <span class="star">&#9733;</span><span class="winlbl">Gewinner</span>{% endif %}</td>
+                  <td>{{ v.visits|number_format(0, ',', '.') }}</td>
+                  <td>{{ v.uniq|number_format(0, ',', '.') }}</td>
+                  <td>{{ v.orders|number_format(0, ',', '.') }}</td>
+                  <td><strong>{{ (v.cr*100)|number_format(2, ',', '.') }} %</strong></td>
+                  <td>{{ v.revenue|number_format(0, ',', '.') }} &euro;</td>
+                  <td>{{ v.aov|number_format(0, ',', '.') }} &euro;</td>
+                  <td class="prob">
+                    {% if v.prob is null %}<span style="color:#9aa1ad;">Basis</span>
+                    {% else %}
+                      <b id="prob-{{ t.id }}-{{ loop.index0 }}">{{ (v.prob*100)|number_format(1, ',', '.') }} %</b>
+                      <button class="exact" onclick="m392bayes('{{ t.id }}', {{ loop.index0 }}, this)">exakt</button>
+                      <span class="mc" id="mc-{{ t.id }}-{{ loop.index0 }}">Näherung</span>
+                    {% endif %}
+                  </td>
+                </tr>
+              {% endfor %}
+              <tr class="tot">
+                <td class="l">Total</td>
+                <td>{{ t.total.visits|number_format(0, ',', '.') }}</td>
+                <td>{{ t.total.uniq|number_format(0, ',', '.') }}</td>
+                <td>{{ t.total.orders|number_format(0, ',', '.') }}</td>
+                <td>{{ (t.total.cr*100)|number_format(2, ',', '.') }} %</td>
+                <td>{{ t.total.revenue|number_format(0, ',', '.') }} &euro;</td>
+                <td>&mdash;</td><td>&mdash;</td>
+              </tr>
+            </tbody>
+          </table>
+          {% if t.months|length > 1 %}
+            <div class="evo">
+              <p class="lbl">Verlauf: Conversion-Rate je Monat (Kontext &mdash; nicht die Gewinner-Basis)</p>
+              <svg id="evo-{{ t.id }}" width="100%" height="96" viewBox="0 0 560 96" preserveAspectRatio="none" style="display:block;max-width:560px;"></svg>
+              <div style="margin-top:6px;">
+                {% for v in t.variants %}<span class="lg"><i style="background:{{ ['#2f6bff','#f59e0b','#16a34a','#a855f7'][loop.index0] }}"></i>{{ v.label }}</span>{% endfor %}
+              </div>
+            </div>
+          {% endif %}
         {% endif %}
-        <span class="t">{{ t.name }}</span><span class="run">{{ t.running }}</span>
-        {% if t.hypothesis %}<p class="hyp"><strong>Hypothese:</strong> {{ t.hypothesis }}</p>{% endif %}
-        {% if t.description %}<p class="hyp">{{ t.description }}</p>{% endif %}
       </div>
+    {% endfor %}
 
-      {% if not t.has_data %}
-        <div class="nodata">Noch keine Besuche im gewählten Zeitraum. Zeitraum oben anpassen oder Daten erzeugen.</div>
-      {% else %}
-      <table>
-        <thead>
-          <tr>
-            <th class="l">Variante</th>
-            <th>Besuche</th>
-            <th>Eindeutige Besucher</th>
-            <th>Bestellungen</th>
-            <th>Conversion-Rate</th>
-            <th>Umsatz</th>
-            <th>Ø-Bestellwert</th>
-            <th>P(besser als Original)</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for v in t.variants %}
-            <tr class="{{ v.is_winner ? 'win' : '' }}">
-              <td class="l">
-                <strong>{{ v.label }}</strong>{% if v.is_winner %} <span class="star">&#9733;</span><span class="winlbl">Gewinner</span>{% endif %}
-              </td>
-              <td>{{ v.visits|number_format(0, ',', '.') }}</td>
-              <td>{{ v.uniq|number_format(0, ',', '.') }}</td>
-              <td>{{ v.orders|number_format(0, ',', '.') }}</td>
-              <td><strong>{{ (v.cr*100)|number_format(2, ',', '.') }} %</strong></td>
-              <td>{{ v.revenue|number_format(0, ',', '.') }} &euro;</td>
-              <td>{{ v.aov|number_format(0, ',', '.') }} &euro;</td>
-              <td class="prob">
-                {% if v.prob is null %}
-                  <span style="color:#9aa1ad;">Basis</span>
-                {% else %}
-                  <b id="prob-{{ t.id }}-{{ loop.index0 }}">{{ (v.prob*100)|number_format(1, ',', '.') }} %</b>
-                  <button class="exact" onclick="m392bayes('{{ t.id }}', {{ loop.index0 }}, this)">exakt</button>
-                  <span class="mc" id="mc-{{ t.id }}-{{ loop.index0 }}">Näherung</span>
-                {% endif %}
-              </td>
-            </tr>
-          {% endfor %}
-          <tr class="tot">
-            <td class="l">Total</td>
-            <td>{{ t.total.visits|number_format(0, ',', '.') }}</td>
-            <td>{{ t.total.uniq|number_format(0, ',', '.') }}</td>
-            <td>{{ t.total.orders|number_format(0, ',', '.') }}</td>
-            <td>{{ (t.total.cr*100)|number_format(2, ',', '.') }} %</td>
-            <td>{{ t.total.revenue|number_format(0, ',', '.') }} &euro;</td>
-            <td>&mdash;</td>
-            <td>&mdash;</td>
-          </tr>
-        </tbody>
-      </table>
-      {% endif %}
+    <button class="btn" onclick="abCreate(true)">+ Neuen A/B-Test anlegen</button>
+
+    <p class="foot">
+      <strong>Datenquelle:</strong> je Variante ein Matomo-<em>Segment</em> (Custom Dimension „AB-Variante"
+      bzw. Seiten-URL). Bestellungen/Umsatz = E-Commerce-Ziel.<br>
+      <strong>Bayes:</strong> Conversion-Rate je Variante als Beta-Posterior (Prior Beta(1,1)).
+      „P(besser als Original)" sofort als Normal-Näherung; „exakt" rechnet Monte-Carlo (100&thinsp;000
+      Stichproben) inkl. erwarteter Steigerung + 95&thinsp;%-Intervall.
+    </p>
+  </div>
+
+  <!-- ===================== NEUEN TEST ANLEGEN (inline) ===================== -->
+  <div id="ab-create" style="display:none;">
+    <div class="cwrap">
+      <h2>Neuen A/B-Test anlegen</h2>
+      <p class="clead">Ein A/B-Test vergleicht verschiedene Versionen einer Seite und zeigt, welche besser
+        konvertiert. Diese Felder sind nötig, um den Test anzulegen. Jede Variante wird über ein
+        Seiten-URL-Muster erkannt; die erste Variante gilt als <strong>Original</strong> (Basis).</p>
+
+      <form method="post" action="index.php?module=M392ABTesting&action=saveTest">
+        <input type="hidden" name="nonce" value="{{ saveNonce }}">
+        <input type="hidden" name="idSite" value="{{ idSite }}">
+        <input type="hidden" name="period" value="{{ period }}">
+        <input type="hidden" name="date" value="{{ date }}">
+
+        <div class="frow">
+          <div>
+            <div class="flabel">Name</div>
+            <input type="text" name="name" maxlength="50" placeholder="z. B. ProduktbildGross" required>
+          </div>
+          <div class="help">Eindeutiger Name dieses A/B-Tests. Nur Buchstaben/Zahlen, keine Leer- oder
+            Sonderzeichen. Max. 50 Zeichen.</div>
+        </div>
+
+        <div class="frow">
+          <div>
+            <div class="flabel">Hypothese</div>
+            <textarea name="hypothesis" placeholder="z. B. „Wenn das Produktbild grösser ist, dann verkaufen wir mehr, weil das Produkt attraktiver wirkt.“"></textarea>
+          </div>
+          <div class="help">Die Hypothese erklärt, <strong>was</strong> du erwartest und <strong>warum</strong>.
+            Schema: „<strong>Wenn</strong> … <strong>dann</strong> … <strong>weil</strong> …". Ein wichtiger
+            Schritt — nimm dir kurz Zeit dafür.</div>
+        </div>
+
+        <div class="frow">
+          <div>
+            <div class="flabel">Beschreibung</div>
+            <textarea name="description" placeholder="z. B. „Vergleich kleines vs. grosses Produktbild“"></textarea>
+          </div>
+          <div class="help">Beschreibt, welche Dinge verglichen werden, z. B. „Original-Produktseite vs.
+            Variante mit grossem Bild".</div>
+        </div>
+
+        <div class="secline">Varianten</div>
+        <div class="frow">
+          <div>
+            <div id="ab-vars">
+              <div class="vrow">
+                <div><div class="vt">Variante 1 (Original)</div><input type="text" name="variant_label[]" placeholder="Original" required></div>
+                <div><div class="vt">URL enthält</div><input type="text" name="variant_url[]" placeholder="/shop/" required></div>
+              </div>
+              <div class="vrow">
+                <div><div class="vt">Variante 2</div><input type="text" name="variant_label[]" placeholder="Variante B" required></div>
+                <div><div class="vt">URL enthält</div><input type="text" name="variant_url[]" placeholder="/shop-variante/" required></div>
+              </div>
+            </div>
+            <button type="button" class="addvar" onclick="abAddVar()">+ weitere Variante</button>
+          </div>
+          <div class="help">Eine Variante ist eine Version, die du gegen das Original testest. Lege je eine
+            Variante pro Version an (z. B. je eine pro Button-Farbe). Das <strong>URL-Muster</strong>
+            erkennt, welche Besuche zur Variante gehören (Seitenaufruf-URL „enthält …").</div>
+        </div>
+
+        <div class="cactions">
+          <button class="btn" type="submit">A/B-Test anlegen</button>
+          <button class="cancel" type="button" onclick="abCreate(false)">Abbrechen</button>
+        </div>
+      </form>
     </div>
-  {% endfor %}
-
-  <a class="btn" href="index.php?module=M392ABTesting&action=createTest&idSite={{ idSite }}&period={{ period }}&date={{ date }}">+ Neuen A/B-Test anlegen</a>
-
-  <p class="foot">
-    <strong>Datenquelle:</strong> je Variante ein Matomo-<em>Segment</em> (Custom Dimension „AB-Variante"
-    bzw. Seiten-URL). Bestellungen/Umsatz = E-Commerce-Ziel.<br>
-    <strong>Bayes:</strong> Conversion-Rate je Variante als Beta-Posterior (Prior Beta(1,1)).
-    „P(besser als Original)" ist sofort als Normal-Näherung angezeigt; „exakt" rechnet eine
-    Monte-Carlo-Simulation (100&thinsp;000 Stichproben) und zeigt zusätzlich die erwartete Steigerung
-    samt 95&thinsp;%-Intervall.
-  </p>
+  </div>
 
   <script>
+  function abCreate(show){
+    document.getElementById('ab-ov').style.display = show ? 'none' : '';
+    document.getElementById('ab-create').style.display = show ? '' : 'none';
+  }
+  var ABVARN = 2;
+  function abAddVar(){
+    ABVARN++;
+    var d=document.createElement('div'); d.className='vrow';
+    d.innerHTML='<div><div class="vt">Variante '+ABVARN+'</div><input type="text" name="variant_label[]" placeholder="Variante"></div>'
+              +'<div><div class="vt">URL enthält</div><input type="text" name="variant_url[]" placeholder="/seite/"></div>';
+    document.getElementById('ab-vars').appendChild(d);
+  }
   function m392bayes(testId, variant, btn){
-    var probEl = document.getElementById('prob-'+testId+'-'+variant);
-    var mcEl   = document.getElementById('mc-'+testId+'-'+variant);
-    btn.disabled = true; btn.textContent = 'rechnet …';
-    var u = 'index.php?module=M392ABTesting&action=bayesExact'
-          + '&idSite={{ idSite }}&period={{ period }}&date={{ date }}'
-          + '&testId='+encodeURIComponent(testId)+'&variant='+variant;
+    var probEl=document.getElementById('prob-'+testId+'-'+variant);
+    var mcEl=document.getElementById('mc-'+testId+'-'+variant);
+    btn.disabled=true; btn.textContent='rechnet …';
+    var u='index.php?module=M392ABTesting&action=bayesExact&idSite={{ idSite }}'
+        +'&testId='+encodeURIComponent(testId)+'&variant='+variant;
     fetch(u).then(function(r){return r.json();}).then(function(d){
-      btn.disabled = false; btn.textContent = 'exakt';
-      if(!d.ok){ mcEl.textContent = 'keine Daten'; return; }
-      probEl.textContent = (d.prob*100).toFixed(1).replace('.', ',') + ' %';
-      var up = (d.uplift*100).toFixed(1).replace('.', ',');
-      var lo = (d.ci_low*100).toFixed(2).replace('.', ',');
-      var hi = (d.ci_high*100).toFixed(2).replace('.', ',');
-      mcEl.textContent = 'Monte-Carlo · Steigerung ' + up + ' % (95 %: ' + lo + '…' + hi + ' Pp)';
+      btn.disabled=false; btn.textContent='exakt';
+      if(!d.ok){ mcEl.textContent='keine Daten'; return; }
+      probEl.textContent=(d.prob*100).toFixed(1).replace('.', ',')+' %';
+      var up=(d.uplift*100).toFixed(1).replace('.', ','), lo=(d.ci_low*100).toFixed(2).replace('.', ','), hi=(d.ci_high*100).toFixed(2).replace('.', ',');
+      mcEl.textContent='Monte-Carlo · Steigerung '+up+' % (95 %: '+lo+'…'+hi+' Pp)';
     }).catch(function(){ btn.disabled=false; btn.textContent='exakt'; mcEl.textContent='Fehler'; });
   }
+  // Verlaufs-Sparklines zeichnen
+  var EVO = { {% for t in tests %}{% if t.months|length > 1 %}'{{ t.id }}': {m: {{ t.months|json_encode|raw }}, v: {{ t.evolution|json_encode|raw }}}{{ loop.last ? '' : ',' }}{% endif %}{% endfor %} };
+  (function(){
+    var COL=['#2f6bff','#f59e0b','#16a34a','#a855f7'];
+    Object.keys(EVO).forEach(function(id){
+      var svg=document.getElementById('evo-'+id); if(!svg) return;
+      var d=EVO[id], W=560, H=96, pad=10, n=d.m.length;
+      var maxv=0.0001; d.v.forEach(function(s){ s.cr.forEach(function(c){ if(c>maxv) maxv=c; }); });
+      var x=function(i){ return n<2?W/2:pad+(i/(n-1))*(W-2*pad); };
+      var y=function(c){ return H-pad-(c/maxv)*(H-2*pad); };
+      var html='';
+      d.v.forEach(function(s,vi){
+        var p=''; s.cr.forEach(function(c,i){ p+=(i?'L':'M')+x(i).toFixed(1)+' '+y(c).toFixed(1)+' '; });
+        html+='<path d="'+p+'" fill="none" stroke="'+COL[vi%4]+'" stroke-width="2" stroke-linejoin="round"/>';
+        s.cr.forEach(function(c,i){ html+='<circle cx="'+x(i).toFixed(1)+'" cy="'+y(c).toFixed(1)+'" r="2.4" fill="'+COL[vi%4]+'"/>'; });
+      });
+      svg.innerHTML=html;
+    });
+  })();
   </script>
 </div>

@@ -12,7 +12,6 @@ use Piwik\Common;
 use Piwik\Nonce;
 use Piwik\Piwik;
 use Piwik\Url;
-use Piwik\View;
 
 class Controller extends \Piwik\Plugin\Controller
 {
@@ -26,21 +25,6 @@ class Controller extends \Piwik\Plugin\Controller
               . '&category=ProfessionalServices_PromoAbTesting&subcategory=M392ABTesting_Overview';
         return 'index.php?module=CoreHome&action=index&idSite=' . $idSite
              . '&period=' . $period . '&date=' . $date . '#' . $hash;
-    }
-
-    public function createTest()
-    {
-        $idSite = Common::getRequestVar('idSite', 1, 'int');
-        Piwik::checkUserHasViewAccess($idSite);
-
-        $view = new View('@M392ABTesting/create');
-        $view->nonce = Nonce::getNonce('M392ABTesting.save');
-        $view->idSite = $idSite;
-        $view->period = Common::getRequestVar('period', 'month', 'string');
-        $view->date   = Common::getRequestVar('date', 'today', 'string');
-        $view->overviewUrl = $this->overviewUrl();
-        $view->error = Common::getRequestVar('error', '', 'string');
-        return $view->render();
     }
 
     public function saveTest()
@@ -73,10 +57,8 @@ class Controller extends \Piwik\Plugin\Controller
         }
 
         if ($name === '' || count($variants) < 2) {
-            Url::redirectToUrl('index.php?module=M392ABTesting&action=createTest&idSite=' . $idSite
-                . '&period=' . Common::getRequestVar('period', 'month', 'string')
-                . '&date=' . Common::getRequestVar('date', 'today', 'string')
-                . '&error=' . urlencode('Bitte einen Namen und mindestens zwei Varianten (Label + URL) angeben.'));
+            // Pflichtfelder fehlen → zurück zur Übersicht (Client-Validierung greift normal vorher).
+            Url::redirectToUrl($this->overviewUrl());
             return;
         }
 
@@ -107,21 +89,23 @@ class Controller extends \Piwik\Plugin\Controller
         Url::redirectToUrl($this->overviewUrl());
     }
 
-    /** Exakte Bayes-Wahrscheinlichkeit (Monte-Carlo) für eine Variante vs. Original. */
+    /**
+     * Exakte Bayes-Wahrscheinlichkeit (Monte-Carlo) für eine Variante vs. Original –
+     * KUMULIERT über die gesamte Laufzeit seit Teststart (gleiche Range wie die Tabelle).
+     */
     public function bayesExact()
     {
         $idSite = Common::getRequestVar('idSite', 1, 'int');
         Piwik::checkUserHasViewAccess($idSite);
-        $period = Common::getRequestVar('period', 'month', 'string');
-        $date   = Common::getRequestVar('date', 'today', 'string');
         $testId = Common::getRequestVar('testId', '', 'string');
         $vIndex = Common::getRequestVar('variant', 1, 'int');
 
         $test = Storage::getTest($testId);
         $result = ['ok' => false];
         if ($test && isset($test['variants'][0], $test['variants'][$vIndex])) {
-            $a = Stats::variantMetrics($idSite, $period, $date, $test['variants'][0]['segment']);
-            $b = Stats::variantMetrics($idSite, $period, $date, $test['variants'][$vIndex]['segment']);
+            $range = Stats::testRange($test);
+            $a = Stats::variantMetrics($idSite, 'range', $range, $test['variants'][0]['segment']);
+            $b = Stats::variantMetrics($idSite, 'range', $range, $test['variants'][$vIndex]['segment']);
             $mc = Stats::bayesMonteCarlo($a['orders'], $a['visits'], $b['orders'], $b['visits']);
             $result = array_merge(['ok' => true], $mc);
         }

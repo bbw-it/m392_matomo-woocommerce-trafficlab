@@ -1,56 +1,74 @@
-<div class="m392fn" style="padding:24px 28px;max-width:860px;font-family:inherit;color:#2c2e3a;">
-  <h2 style="margin:0 0 4px;font-size:22px;font-weight:700;">Conversion-Trichter</h2>
-  <p style="color:#6b7280;margin:0 0 6px;">Klassischer E-Commerce-Funnel &middot; {{ prettyDate }}</p>
-  <p style="color:#9aa1ad;font-size:12.5px;margin:0 0 26px;">
-    Jeder Schritt ist eine konkrete Shop-Seite (URL-Ziel). Die <strong>Balkenbreite</strong> = Anteil
-    der Besuche am Start; je schmaler, desto mehr sind unterwegs abgesprungen.
-  </p>
+<div class="m392fn" style="padding:24px 28px;max-width:920px;font-family:inherit;color:#2c2e3a;">
+  <style>
+    .m392fn h2{margin:0 0 4px;font-size:22px;font-weight:700;}
+    .m392fn .sub{color:#6b7280;margin:0 0 4px;}
+    .m392fn .note{color:#9aa1ad;font-size:12.5px;margin:0 0 18px;}
+    .m392fn .sk{background:#fff;border:1px solid #e6e8ee;border-radius:10px;padding:8px 6px 4px;}
+    .m392fn svg text{font-family:inherit;}
+    .m392fn table{width:100%;border-collapse:collapse;font-size:13px;margin-top:20px;}
+    .m392fn th{text-align:right;color:#8a93a3;font-weight:600;font-size:11px;letter-spacing:.04em;
+      text-transform:uppercase;padding:9px 12px;border-bottom:1px solid #eef0f4;white-space:nowrap;}
+    .m392fn th.l,.m392fn td.l{text-align:left;}
+    .m392fn td{text-align:right;padding:10px 12px;border-bottom:1px solid #f1f3f7;font-variant-numeric:tabular-nums;}
+    .m392fn td code{background:#f1f3f7;color:#475569;padding:1px 6px;border-radius:5px;font-size:12px;}
+    .m392fn .num{flex:none;width:22px;height:22px;border-radius:50%;color:#fff;font-size:12px;font-weight:700;
+      display:inline-flex;align-items:center;justify-content:center;margin-right:8px;vertical-align:middle;}
+    .m392fn .drop{color:#e2574c;}
+    .m392fn .foot{color:#9aa1ad;font-size:12px;margin-top:18px;line-height:1.6;}
+  </style>
 
   {% set colors = ['#2f6bff', '#3a86c8', '#3aa0a8', '#f59e0b'] %}
 
-  {% for s in steps %}
-    {# Verbindung + Abbruch zum vorherigen Schritt #}
-    {% if not loop.first %}
-      <div style="display:flex;align-items:center;justify-content:center;gap:10px;margin:7px 0;">
-        <span style="color:#c4c9d4;">&darr;</span>
-        <span style="font-size:12.5px;color:#16a34a;font-weight:600;">{{ s.pct_step }} % weiter</span>
-        {% if s.drop_abs > 0 %}
-          <span style="font-size:12.5px;color:#e2574c;">&middot; {{ s.drop_abs }} Abbruch ({{ s.dropoff }} %)</span>
-        {% endif %}
-      </div>
-    {% endif %}
+  <h2>Conversion-Trichter (Sankey)</h2>
+  <p class="sub">Klassischer E-Commerce-Funnel &middot; {{ prettyDate }}</p>
+  <p class="note">Jeder Block ist eine konkrete Shop-Seite. Die <strong>Bandbreite</strong> zeigt den Fluss
+    der Besuche; bei jedem Schritt zweigt der <strong>Abbruch</strong> (rot) nach unten ab.</p>
 
-    {# Kopfzeile: Schritt-Nr + Name + konkrete WordPress-Seite + Zahlen #}
-    <div style="display:flex;align-items:center;justify-content:space-between;gap:14px;margin:0 0 7px;">
-      <div style="display:flex;align-items:center;gap:11px;min-width:0;">
-        <span style="flex:none;width:26px;height:26px;border-radius:50%;background:{{ colors[loop.index0] }};
-                     color:#fff;font-size:13px;font-weight:700;display:inline-flex;align-items:center;justify-content:center;">{{ loop.index }}</span>
-        <span style="font-weight:600;font-size:15px;">{{ s.label }}</span>
-        <span style="color:#9aa1ad;font-size:12.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
-          &rarr; {{ s.page }}
-          <code style="background:#f1f3f7;color:#475569;padding:1px 6px;border-radius:5px;font-size:12px;">{{ s.path }}</code>
-        </span>
-      </div>
-      <div style="white-space:nowrap;font-size:13px;color:#6b7280;flex:none;">
-        <b style="color:#2c2e3a;font-size:15px;">{{ s.count }}</b> Besuche
-        &middot; <span style="color:#9aa1ad;">{{ s.pct_total }} % vom Start</span>
-      </div>
-    </div>
+  <div class="sk">
+    <svg width="100%" viewBox="0 0 {{ sankey.w }} {{ sankey.h }}" preserveAspectRatio="xMidYMid meet" role="img">
+      <!-- Abbruch-Bänder (rot) -->
+      {% for f in sankey.drop %}
+        <path d="{{ f.d }}" fill="#ef4444" fill-opacity="0.28"><title>Abbruch: {{ f.count }} ({{ f.pct }} %)</title></path>
+        <text x="{{ f.mx }}" y="{{ f.my }}" text-anchor="middle" font-size="11.5" fill="#e2574c" font-weight="600">&#8595; {{ f.count|number_format(0, ',', '.') }}</text>
+        <text x="{{ f.mx }}" y="{{ f.my + 14 }}" text-anchor="middle" font-size="10.5" fill="#9aa1ad">Abbruch {{ f.pct }} %</text>
+      {% endfor %}
+      <!-- weiter-Bänder (blau) -->
+      {% for f in sankey.go %}
+        <path d="{{ f.d }}" fill="#2f6bff" fill-opacity="0.18"><title>weiter: {{ f.count }} ({{ f.pct }} %)</title></path>
+      {% endfor %}
+      <!-- Knoten (Stufen) -->
+      {% for nd in sankey.nodes %}
+        <rect x="{{ nd.x }}" y="{{ nd.y }}" width="{{ nd.w }}" height="{{ nd.h }}" rx="4" fill="{{ colors[loop.index0] }}">
+          <title>{{ loop.index }}. {{ nd.label }} — {{ nd.count }} ({{ nd.pct_total }} % vom Start)</title>
+        </rect>
+        <text x="{{ nd.cx }}" y="20" text-anchor="middle" font-size="12.5" font-weight="700" fill="#2c2e3a">{{ loop.index }}. {{ nd.label }}</text>
+        <text x="{{ nd.cx }}" y="{{ sankey.topPad + nd.h + 16 }}" text-anchor="middle" font-size="12" font-weight="700" fill="{{ colors[loop.index0] }}">{{ nd.count|number_format(0, ',', '.') }}</text>
+        <text x="{{ nd.cx }}" y="{{ sankey.topPad + nd.h + 30 }}" text-anchor="middle" font-size="10.5" fill="#9aa1ad">{{ nd.pct_total }} %</text>
+      {% endfor %}
+    </svg>
+  </div>
 
-    {# Zentrierter Funnel-Balken (Breite = Anteil am Start) #}
-    <div style="display:flex;justify-content:center;margin:0 0 4px;">
-      <div style="width:{{ s.pct_total < 7 ? 7 : s.pct_total }}%;height:48px;border-radius:10px;
-                  background:linear-gradient(180deg,{{ colors[loop.index0] }},{{ colors[loop.index0] }}cc);
-                  display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:15px;
-                  box-shadow:0 1px 3px rgba(16,24,40,.14);">
-        {% if s.pct_total >= 14 %}{{ s.pct_total }} %{% endif %}
-      </div>
-    </div>
-  {% endfor %}
+  <table>
+    <thead>
+      <tr><th class="l">Schritt</th><th class="l">WordPress-Seite</th><th>Besuche</th><th>% vom Start</th><th>weiter</th><th>Abbruch</th></tr>
+    </thead>
+    <tbody>
+      {% for s in steps %}
+        <tr>
+          <td class="l"><span class="num" style="background:{{ colors[loop.index0] }}">{{ loop.index }}</span><strong>{{ s.label }}</strong></td>
+          <td class="l">{{ s.page }} <code>{{ s.path }}</code></td>
+          <td>{{ s.count|number_format(0, ',', '.') }}</td>
+          <td>{{ s.pct_total }} %</td>
+          <td>{% if loop.first %}&mdash;{% else %}{{ s.pct_step }} %{% endif %}</td>
+          <td class="drop">{% if loop.first %}&mdash;{% else %}{{ s.drop_abs|number_format(0, ',', '.') }} ({{ s.dropoff }} %){% endif %}</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
 
-  <p style="color:#9aa1ad;font-size:12px;margin-top:26px;border-top:1px solid #eef0f4;padding-top:14px;line-height:1.6;">
-    <strong>Datenquelle:</strong> die vier URL-Ziele „Funnel-1 &hellip; 4" (Menü <em>Ziele</em>) &mdash;
-    je ein Seitenaufruf der oben genannten Shop-Seiten.<br>
+  <p class="foot">
+    <strong>Datenquelle:</strong> die vier URL-Ziele „Funnel-1 &hellip; 4" (Menü <em>Ziele</em>) &mdash; je ein
+    Seitenaufruf der oben genannten Shop-Seiten.<br>
     <strong>A/B-Vergleich:</strong> oben rechts das Segment „AB-Variante" (Original / Shop-Variante) hinzufügen.
   </p>
 </div>
