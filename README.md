@@ -105,6 +105,7 @@ Einrichtungs-Container und eine Datenbank):
 > `./install.sh` im WSL-Terminal ausführen. (Git Bash geht meist auch, kann aber beim internen
 > `docker run -v …`-Mount zicken.) Wichtig für Windows: Eine `.gitattributes` erzwingt **LF-Zeilenenden**,
 > damit die Container-Init-Skripte auch nach einem Windows-Klon funktionieren – nicht entfernen.
+> **Schritt-für-Schritt-Anleitung:** [`docs/WINDOWS.md`](docs/WINDOWS.md).
 
 ## Schnellstart
 
