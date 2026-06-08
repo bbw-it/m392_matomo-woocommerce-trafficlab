@@ -32,3 +32,19 @@ else
     --data-urlencode "format=json" \
     || log "WARN: Custom Dimension konnte nicht angelegt werden."
 fi
+
+# Absichern: Shop-Tracker (m392-ab-test.php) und Generator senden die A/B-Variante
+# hartcodiert in 'dimension1'. Prüfen, dass Matomo der Dimension "AB-Variante"
+# wirklich Index 1 zugewiesen hat – sonst landeten die A/B-Daten in der falschen
+# (oder keiner) Dimension. Auf frischem Matomo ist es die erste Visit-Dimension → 1.
+config="$(curl -s "${BASE}/index.php?module=API&method=CustomDimensions.getConfiguredCustomDimensions&idSite=1&format=json&token_auth=${TOKEN}" || true)"
+idx="$(printf '%s' "$config" | sed 's/.*"name":"AB-Variante"//' | grep -o '"index":"[0-9]*"' | head -1 | grep -o '[0-9]*' || true)"
+if [ -z "$idx" ]; then
+  log "WARN: Index von 'AB-Variante' nicht ermittelbar – dimension1 nicht verifiziert."
+elif [ "$idx" != "1" ]; then
+  log "FEHLER: 'AB-Variante' hat Index ${idx}, erwartet 1 – Tracker/Generator senden"
+  log "        aber hartcodiert 'dimension1'. A/B-Daten würden falsch zugeordnet. Abbruch."
+  exit 1
+else
+  log "Dimension 'AB-Variante' verifiziert (Index 1, passend zu 'dimension1')."
+fi

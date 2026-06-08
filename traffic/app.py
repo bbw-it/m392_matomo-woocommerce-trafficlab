@@ -465,7 +465,7 @@ def _seed_orders_by_revenue(status, days, monthly, ret_pct):
     cat = generator._load_catalog()      # einmal laden, für die Matomo-Spiegelung
     months = max(0.1, days / 30.0)
     total_target = monthly * months
-    existing_rev = float(status.get("revenue", 0.0))
+    existing_rev = orders.revenue_sum()
     remaining = total_target - existing_rev
     months_lbl = max(1, round(days / 30))
     if remaining <= 0.05 * total_target:

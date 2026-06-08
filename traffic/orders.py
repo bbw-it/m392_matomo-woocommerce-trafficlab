@@ -91,3 +91,14 @@ def create_orders(count, days_back=0, dates=None, returning_rate=None):
                 "error": None}
     except (requests.RequestException, ValueError) as exc:
         return {"count": 0, "revenue": 0.0, "returning": 0, "details": [], "error": str(exc)}
+
+
+def revenue_sum():
+    """Produktumsatz-Summe der „Umsatz"-Bestellungen (für die idempotente
+    Richtwert-Seed-Prüfung). Separater Endpunkt, damit der /ping-Readiness-Check
+    leichtgewichtig bleibt. 0.0 bei Fehler."""
+    try:
+        r = _session().get(f"{WP_URL}/wp-json/m392/v1/orders-revenue", timeout=30)
+        return float(r.json().get("revenue", 0.0)) if r.status_code == 200 else 0.0
+    except (requests.RequestException, ValueError):
+        return 0.0

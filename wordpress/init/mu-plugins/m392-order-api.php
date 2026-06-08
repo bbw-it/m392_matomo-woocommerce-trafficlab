@@ -12,7 +12,7 @@
  *                               oder { "dates": [<epoch>, ...] } für exakte
  *                               Bestelldaten (eine Bestellung je Zeitstempel),
  *                               damit die Bestell-Historie den Matomo-Zeitraum
- *                               (~24 Monate) widerspiegelt.
+ *                               (Backfill-Fenster) widerspiegelt.
  *                             Header: X-M392-Key: <gemeinsames Secret>
  *
  * Die Bestelldaten (Kund:innen, Adressen, Produkte, Zahlart, Status) werden hier
@@ -40,14 +40,21 @@ add_action('rest_api_init', function () {
                 'ready'    => $ready && count($products) > 0,
                 'products' => count($products),
                 'orders'   => count($orders),
-                // Summe der „Umsatz"-Bestellungen (für das Richtwert-Seeding nach
-                // Monatsumsatz: idempotentes Auffüllen bis zum Zielumsatz).
-                'revenue'  => $ready ? m392_orders_revenue_sum() : 0.0,
                 // „vollständig eingerichtet": Marker wird am ENDE von wp-init gesetzt
                 // (nach Kategorien/Gutschein/Verkaufsländern) – verhindert, dass der
                 // Bestell-Seed startet, bevor z. B. der Gutschein existiert.
                 'provisioned' => (bool) (get_option('m392_fixture_restored') || get_option('m392_shop_seeded')),
             ];
+        },
+    ]);
+
+    // Produktumsatz-Summe separat (NICHT im /ping-Readiness-Check, da O(n) über
+    // alle Bestellungen). Nur fürs idempotente Richtwert-Seeding (einmalige Prüfung).
+    register_rest_route('m392/v1', '/orders-revenue', [
+        'methods'             => 'GET',
+        'permission_callback' => '__return_true',
+        'callback'            => function () {
+            return ['revenue' => function_exists('wc_get_orders') ? m392_orders_revenue_sum() : 0.0];
         },
     ]);
 
@@ -132,8 +139,8 @@ function m392_create_orders(WP_REST_Request $req) {
     add_filter('pre_wp_mail', '__return_false', 99);
 
     // Explizite Bestelldaten (Epoch-Sekunden) haben Vorrang: eine Bestellung je
-    // Zeitstempel. So kann das Traffic Lab die Bestellungen exakt über die
-    // letzten ~24 Monate verteilen (passend zur Matomo-Historie).
+    // Zeitstempel. So kann das Traffic Lab die Bestellungen exakt über das
+    // Backfill-Fenster verteilen (passend zur Matomo-Historie).
     $dates = $req->get_param('dates');
     $dates = is_array($dates)
         ? array_values(array_filter(array_map('intval', $dates)))

@@ -80,20 +80,23 @@ echo "[wp-init] Fixture gefunden – pruefe Restore-Marker ..."
 
   # 4) Theme + Plugins in gepinnten Versionen installieren (Dateien auf Platte).
   echo "[wp-init] Installiere Botiga-Theme (2.4.5) ..."
-  wp theme install botiga --version=2.4.5 --force --allow-root || wp theme install botiga --force --allow-root
+  if ! wp theme install botiga --version=2.4.5 --force --allow-root; then
+    echo "[wp-init] FEHLER: Botiga-Theme 2.4.5 nicht installierbar (gepinnte Version)." >&2
+    echo "          Kein Fallback auf latest (Reproduzierbarkeit). Abbruch." >&2
+    exit 1
+  fi
   wp theme activate botiga --allow-root
 
   # Plugin-Slug + gepinnte Version, je Zeile. Bei nicht verfuegbarer Version:
-  # Fallback auf latest + Warnung (nicht den ganzen Run abbrechen).
+  # HART abbrechen (Reproduzierbarkeit) – kein stiller Fallback auf latest.
   install_plugin() {
     local slug="$1" ver="$2"
     echo "[wp-init] Installiere Plugin ${slug} (${ver}) ..."
-    if wp plugin install "$slug" --version="$ver" --force --activate --allow-root; then
-      return 0
+    if ! wp plugin install "$slug" --version="$ver" --force --activate --allow-root; then
+      echo "[wp-init] FEHLER: Plugin ${slug} ${ver} nicht installierbar (gepinnte Version)." >&2
+      echo "          Kein Fallback auf latest (Reproduzierbarkeit). Abbruch." >&2
+      exit 1
     fi
-    echo "[wp-init] WARNUNG: ${slug} ${ver} nicht verfuegbar – Fallback auf latest."
-    wp plugin install "$slug" --force --activate --allow-root \
-      || echo "[wp-init] WARNUNG: ${slug} konnte nicht installiert werden."
   }
 
   install_plugin woocommerce 9.5.1
