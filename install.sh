@@ -77,6 +77,69 @@ TRAFFIC_PORT="$(read_env TRAFFIC_PORT)"; TRAFFIC_PORT="${TRAFFIC_PORT:-8092}"
 
 # (Historienlänge/Umsatz/CR sind in der Fixture eingebacken – siehe tools/bake.conf.)
 
+# --- Fortschrittsanzeige -----------------------------------------------------
+# run_spin "Label" cmd args... : fuehrt cmd im Hintergrund aus und zeigt solange
+# einen Spinner mit mitlaufender Uhr, damit auch lange/stumme Schritte (DB-Import,
+# Archivierung) sichtbar „leben". Interaktiv (TTY) animiert per \r, sonst schlichte
+# Punkte (saubere Logs bei -y / Pipe). cmd-Ausgaben werden mitgeschnitten und nur
+# im Fehlerfall (eingerueckt) gezeigt – so bleibt die Spinner-Zeile sauber.
+# Rueckgabewert = Exitcode von cmd.
+SPIN_FRAMES=(⠋ ⠙ ⠹ ⠸ ⠼ ⠴ ⠦ ⠧ ⠇ ⠏)
+HAVE_TTY=0; [ -t 1 ] && HAVE_TTY=1
+fmt_elapsed() { printf '%d:%02d' $(( $1 / 60 )) $(( $1 % 60 )); }
+run_spin() {
+  local label="$1"; shift
+  local start="$SECONDS" i=0 rc=0 pid log mark
+  log="$(mktemp "${TMPDIR:-/tmp}/install_spin.XXXXXX")"
+  "$@" >"$log" 2>&1 &
+  pid=$!
+  if [ "$HAVE_TTY" -eq 1 ]; then
+    while kill -0 "$pid" 2>/dev/null; do
+      printf '\r   %s %s … (%s)\033[K' \
+        "${SPIN_FRAMES[i++ % ${#SPIN_FRAMES[@]}]}" "$label" "$(fmt_elapsed $(( SECONDS - start )))"
+      sleep 0.1
+    done
+    wait "$pid" || rc=$?
+    mark=✓; [ "$rc" -ne 0 ] && mark=✗
+    printf '\r   %s %s (%s)\033[K\n' "$mark" "$label" "$(fmt_elapsed $(( SECONDS - start )))"
+  else
+    printf '   %s … ' "$label"
+    while kill -0 "$pid" 2>/dev/null; do printf '.'; sleep 3; done
+    wait "$pid" || rc=$?
+    mark=✓; [ "$rc" -ne 0 ] && mark=✗
+    printf ' %s (%s)\n' "$mark" "$(fmt_elapsed $(( SECONDS - start )))"
+  fi
+  [ "$rc" -ne 0 ] && [ -s "$log" ] && sed 's/^/        /' "$log" >&2
+  rm -f "$log"
+  return "$rc"
+}
+
+# Stille Poll-Loops fuer run_spin (geben nur 0=ok / !=0=Fehler zurueck).
+http_ready() {  # $1=URL  -> wartet bis 200/30x antwortet (~6 min Timeout)
+  local i=0
+  until curl -s -o /dev/null -w '%{http_code}' "$1" 2>/dev/null | grep -qE '^(200|30[0-9])$'; do
+    i=$((i + 1)); [ "$i" -gt 120 ] && return 1
+    sleep 3
+  done
+}
+init_done() {  # $1=service -> wartet bis Init-Container mit Exit 0 beendet ist
+  local cid i=0
+  cid="$("${DC[@]}" ps -aq "$1" 2>/dev/null | head -1)"
+  [ -z "$cid" ] && { echo "kein Container gefunden." >&2; return 2; }
+  until [ "$(docker inspect -f '{{.State.Status}}' "$cid" 2>/dev/null)" = "exited" ]; do
+    i=$((i + 1)); [ "$i" -gt 200 ] && { echo "Timeout." >&2; return 1; }
+    sleep 3
+  done
+  [ "$(docker inspect -f '{{.State.ExitCode}}' "$cid" 2>/dev/null)" = "0" ] || { echo "Exit ungleich 0." >&2; return 1; }
+}
+matomo_config_ready() {  # wartet bis Matomo installiert ist (config.ini hat [PluginsInstalled])
+  local i=0
+  until "${DC[@]}" exec -T matomo sh -c 'grep -q "^\[PluginsInstalled\]" /var/www/html/config/config.ini.php' 2>/dev/null; do
+    i=$((i + 1)); [ "$i" -gt 60 ] && return 1
+    sleep 3
+  done
+}
+
 echo "============================================================"
 echo "  M392 Matomo Lab – INSTALLATION"
 echo "============================================================"
@@ -98,11 +161,11 @@ if [ "$ASSUME_YES" -ne 1 ]; then
 fi
 
 echo
-echo "[1/4] Stack stoppen + Volumes loeschen ..."
+echo "[1/5] Stack stoppen + Volumes loeschen ..."
 "${DC[@]}" down -v --remove-orphans
 
 echo
-echo "[2/4] WordPress-Bind-Mount (wordpress/www) leeren ..."
+echo "[2/5] WordPress-Bind-Mount (wordpress/www) leeren ..."
 # In einem Wegwerf-Container als root leeren – funktioniert plattformuebergreifend
 # (auch wenn die Dateien www-data/33 gehoeren). .htaccess & versteckte Dateien inkl.
 if [ -d "wordpress/www" ]; then
@@ -112,26 +175,14 @@ fi
 mkdir -p wordpress/www
 
 echo
-echo "[3/4] Stack neu bauen + starten ..."
+echo "[3/5] Stack neu bauen + starten ..."
 "${DC[@]}" up -d --build
 
 echo
-echo "[4/4] Warte auf Shop + Matomo (das kann ~1–2 Minuten dauern) ..."
-wait_http() {  # $1=URL  $2=Label
-  local i=0
-  until curl -s -o /dev/null -w '%{http_code}' "$1" 2>/dev/null | grep -qE '^(200|30[0-9])$'; do
-    i=$((i + 1))
-    if [ "$i" -gt 120 ]; then   # ~6 min
-      echo " — $2 nicht erreichbar (Timeout). Logs: ${DC[*]} logs"
-      return 1
-    fi
-    printf '.'; sleep 3
-  done
-  echo " — $2 erreichbar."
-}
+echo "[4/5] Warte auf Shop + Matomo (das kann ~1–2 Minuten dauern) ..."
 SETUP_OK=1
-printf '   Shop   '; wait_http "http://localhost:${WP_PORT}/"        "Shop"   || SETUP_OK=0
-printf '   Matomo '; wait_http "http://localhost:${MATOMO_PORT}/"    "Matomo" || SETUP_OK=0
+run_spin "Shop erreichbar"   http_ready "http://localhost:${WP_PORT}/"     || SETUP_OK=0
+run_spin "Matomo erreichbar" http_ready "http://localhost:${MATOMO_PORT}/" || SETUP_OK=0
 if [ "$SETUP_OK" -ne 1 ]; then
   echo >&2
   echo "FEHLER: Shop und/oder Matomo nicht erreichbar – Installation abgebrochen." >&2
@@ -145,10 +196,7 @@ fi
 # die Default-Plugins ersetzen und Matomo lahmlegen wuerde. Idempotent.
 echo
 echo "   M392-Report-Plugins aktivieren (A/B-Testing, Funnels) ..."
-i=0
-until "${DC[@]}" exec -T matomo sh -c 'grep -q "^\[PluginsInstalled\]" /var/www/html/config/config.ini.php' 2>/dev/null; do
-  i=$((i + 1)); [ "$i" -gt 60 ] && break; sleep 3   # ~3 min auf Matomo-Installation warten
-done
+run_spin "Matomo-Installation bereit" matomo_config_ready || true
 for P in M392ABTesting M392Funnels; do
   if "${DC[@]}" exec -T -u www-data matomo ./console plugin:activate "$P" >/dev/null 2>&1; then
     echo "      ✓ ${P} aktiviert"
@@ -171,31 +219,18 @@ MDB="$(read_env MATOMO_DB_NAME)"; MDB="${MDB:-matomo}"
 WDB="$(read_env WP_DB_NAME)";     WDB="${WDB:-wordpress}"
 RESTORE_OK=1; SHIFT_OK=1; ARCHIVE_OK=0
 
-wait_init() {  # $1=service -> 0, wenn Container sauber (Exit 0) beendet
-  local cid i=0
-  cid="$("${DC[@]}" ps -aq "$1" 2>/dev/null | head -1)"
-  [ -z "$cid" ] && { echo "      WARN $1: kein Container gefunden."; return 1; }
-  until [ "$(docker inspect -f '{{.State.Status}}' "$cid" 2>/dev/null)" = "exited" ]; do
-    i=$((i + 1)); [ "$i" -gt 200 ] && { echo "      WARN $1: Timeout."; return 1; }
-    sleep 3
-  done
-  if [ "$(docker inspect -f '{{.State.ExitCode}}' "$cid" 2>/dev/null)" = "0" ]; then
-    echo "      OK  $1 abgeschlossen."; return 0
-  fi
-  echo "      WARN $1: Exit ungleich 0."; return 1
+# Spielt beide Fixture-Dumps ein (Pipeline → eigene Funktion fuer run_spin).
+restore_fixture() {
+  gunzip -c "$FIX_DIR/matomo-history.sql.gz" | "${DC[@]}" exec -T db mariadb -u root -p"$RP" "$MDB" \
+    && gunzip -c "$FIX_DIR/wc-orders.sql.gz" | "${DC[@]}" exec -T db mariadb -u root -p"$RP" "$WDB"
 }
 echo "      Warte auf Init-/Restore-Container (wp-init, matomo-init) ..."
-wait_init wp-init     || RESTORE_OK=0
-wait_init matomo-init || RESTORE_OK=0
+run_spin "wp-init abgeschlossen"     init_done wp-init     || RESTORE_OK=0
+run_spin "matomo-init abgeschlossen" init_done matomo-init || RESTORE_OK=0
 
 if [ "$RESTORE_OK" -eq 1 ] && [ -f "$FIX_DIR/matomo-history.sql.gz" ] && [ -f "$FIX_DIR/wc-orders.sql.gz" ] && [ -f "$FIX_DIR/BASE" ]; then
-  echo "      Spiele Matomo-Historie + WooCommerce-Bestellungen ein ..."
-  if gunzip -c "$FIX_DIR/matomo-history.sql.gz" | "${DC[@]}" exec -T db mariadb -u root -p"$RP" "$MDB" \
-     && gunzip -c "$FIX_DIR/wc-orders.sql.gz"   | "${DC[@]}" exec -T db mariadb -u root -p"$RP" "$WDB"; then
-    echo "      Fixture eingespielt."
-  else
-    echo "      FEHLER: Fixture-Restore (DB-Import) fehlgeschlagen." >&2; RESTORE_OK=0
-  fi
+  run_spin "Fixture einspielen (Matomo-Historie + WC-Bestellungen)" restore_fixture \
+    || { echo "      FEHLER: Fixture-Restore (DB-Import) fehlgeschlagen." >&2; RESTORE_OK=0; }
 elif [ "$RESTORE_OK" -eq 1 ]; then
   echo "      FEHLER: Fixture-Artefakte fehlen in $FIX_DIR/ - erst backen: ./tools/bake-fixture.sh" >&2
   RESTORE_OK=0
@@ -207,8 +242,8 @@ if [ "$RESTORE_OK" -eq 1 ]; then
   if [ -n "$base" ]; then
     OFFSET=$(( ( $(date +%s) - base ) / 86400 ))
     [ "$(grep -E '^OFFSET_ROUNDING=' tools/bake.conf 2>/dev/null | cut -d= -f2 | tr -d ' ')" = "week" ] && OFFSET=$(( (OFFSET / 7) * 7 ))
-    echo "      Verschiebe alle Zeitstempel um ${OFFSET} Tage (Anker ${BASE_DATE} -> heute) ..."
-    ./tools/shift-dates.sh "$OFFSET" || SHIFT_OK=0
+    run_spin "Zeitstempel auf heute verschieben (+${OFFSET} Tage, Anker ${BASE_DATE})" \
+      ./tools/shift-dates.sh "$OFFSET" || SHIFT_OK=0
   else
     echo "      FEHLER: BASE-Datum unlesbar: '$BASE_DATE'." >&2; SHIFT_OK=0
   fi
@@ -223,16 +258,17 @@ if [ "$RESTORE_OK" -eq 1 ] && [ "$SHIFT_OK" -eq 1 ]; then
   if [ -n "$DMIN" ] && [ "$DMIN" != "NULL" ]; then
     "${DC[@]}" exec -T db mariadb -u root -p"$RP" -e \
       "UPDATE \`${MDB}\`.matomo_site SET ts_created='${DMIN} 00:00:00' WHERE idsite=1;" >/dev/null 2>&1 || true
-    "${DC[@]}" exec -T matomo php /var/www/html/console core:invalidate-report-data \
-      --sites=1 --dates="${DMIN},$(date +%F)" --periods=day --cascade >/dev/null 2>&1 || true
+    run_spin "Berichtsdaten invalidieren (${DMIN} … heute)" \
+      "${DC[@]}" exec -T matomo php /var/www/html/console core:invalidate-report-data \
+      --sites=1 --dates="${DMIN},$(date +%F)" --periods=day --cascade || true
   fi
 fi
 
 if [ "$RESTORE_OK" -eq 1 ] && [ "$SHIFT_OK" -eq 1 ] && [ "$ARCHIVE_WAIT" -eq 1 ]; then
-  echo "      Archiviere Matomo (gesamte Historie vorberechnen) ..."
-  if "${DC[@]}" exec -T matomo php /var/www/html/console core:archive \
-        --force-idsites=1 --url="http://localhost/" >/dev/null 2>&1; then
-    echo "      Archivierung abgeschlossen."; ARCHIVE_OK=1
+  if run_spin "Matomo archivieren (gesamte Historie vorberechnen)" \
+       "${DC[@]}" exec -T matomo php /var/www/html/console core:archive \
+       --force-idsites=1 --url="http://localhost/"; then
+    ARCHIVE_OK=1
   else
     echo "      (Archivierung fehlgeschlagen - beim ersten Bericht-Aufruf holt Matomo es nach.)"; ARCHIVE_OK=0
   fi
