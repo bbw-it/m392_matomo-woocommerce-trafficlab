@@ -348,7 +348,7 @@ def set_drip():
 
 
 def _maybe_auto_seed():
-    if os.environ.get("TRAFFIC_AUTO_SEED", "true").lower() != "true":
+    if os.environ.get("TRAFFIC_AUTO_SEED", "false").lower() != "true":
         return
     monthly = _env_float("TRAFFIC_AVG_MONTHLY_REVENUE", 0.0)
     cr = max(0.001, STATE["conversion_rate"])
@@ -522,6 +522,8 @@ def _maybe_seed_orders():
       • TRAFFIC_AVG_MONTHLY_REVENUE > 0 → Richtwert: Bestellmenge so wählen, dass
         der Monatsumsatz etwa dem Wert entspricht (hat Vorrang).
       • sonst → feste Anzahl Bestellungen (TRAFFIC_SEED_ORDERS, klassisch)."""
+    if os.environ.get("TRAFFIC_AUTO_SEED", "false").lower() != "true":
+        return  # historischer Order-Seed nur beim Backen; Normal-Install nutzt die Fixture
     if not orders.ENABLED:
         return
     # Bestellfenster = Matomo-Backfill-Fenster, damit beide denselben Zeitraum
