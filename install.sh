@@ -44,6 +44,21 @@ for arg in "$@"; do
   esac
 done
 
+# .env MUSS vorhanden sein. Fehlt sie, liefe der Stack mit leeren Variablen
+# (leere Passwoerter/DB-Namen/Ports) los, ohne dass es auffaellt – darum hier
+# hart abbrechen, bevor irgendetwas (Volumes!) angefasst wird.
+if [ ! -f .env ]; then
+  echo "FEHLER: Keine .env im Projektverzeichnis gefunden ($SCRIPT_DIR)." >&2
+  if [ -f .env.example ]; then
+    echo "        Lege sie aus der Vorlage an und starte erneut:" >&2
+    echo "            cp .env.example .env" >&2
+    echo "        (danach bei Bedarf Werte anpassen)." >&2
+  else
+    echo "        Auch .env.example fehlt – Repository unvollstaendig?" >&2
+  fi
+  exit 1
+fi
+
 # Docker Compose v2 (Plugin) bevorzugt, sonst docker-compose.
 if docker compose version >/dev/null 2>&1; then
   DC=(docker compose)
@@ -272,13 +287,17 @@ if [ "$WAIT_SEED" -eq 1 ]; then
   done
   rm -f /tmp/m392_ready.$$
 
-  echo
-  echo "      Archiviere Matomo (Berichte vorberechnen) ..."
-  if "${DC[@]}" exec -T matomo php /var/www/html/console core:archive \
-        --force-idsites=1 --url="http://localhost/" >/dev/null 2>&1; then
-    echo "      Archivierung abgeschlossen."; ARCHIVE_OK=1
+  if [ "$SEED_OK" -eq 1 ]; then
+    echo
+    echo "      Archiviere Matomo (Berichte vorberechnen) ..."
+    if "${DC[@]}" exec -T matomo php /var/www/html/console core:archive \
+          --force-idsites=1 --url="http://localhost/" >/dev/null 2>&1; then
+      echo "      Archivierung abgeschlossen."; ARCHIVE_OK=1
+    else
+      echo "      (Archivierung fehlgeschlagen – beim ersten Bericht-Aufruf holt Matomo es nach.)"; ARCHIVE_OK=0
+    fi
   else
-    echo "      (Archivierung fehlgeschlagen – beim ersten Bericht-Aufruf holt Matomo es nach.)"; ARCHIVE_OK=0
+    ARCHIVE_OK=0   # Seed fehlgeschlagen -> nicht archivieren (waere irrefuehrend)
   fi
 fi
 
