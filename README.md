@@ -10,6 +10,34 @@ eigene Hypothesen mit selbst erzeugten Daten überprüfen — alles lokal, ohne 
 
 ---
 
+## Schnellstart
+
+**In zwei Schritten startklar.** Du brauchst nur **Docker Desktop** (installiert **und gestartet**)
+und dieses Repository.
+
+```bash
+cp .env.example .env      # 1) Pflicht: Konfig-Vorlage kopieren (sonst bricht install.sh ab)
+./install.sh              # 2) Baut alles + spielt ~6 Monate Demo-Daten ein (~2–3 Min)
+```
+
+Sobald `install.sh` **„Der Stack laeuft"** meldet, im Browser öffnen:
+
+| Dienst | URL | Login |
+|---|---|---|
+| 🛒 **Shop** | <http://localhost:8090> | – |
+| 📊 **Matomo** | <http://localhost:8091> | `admin` / `matomo123` |
+| 🤖 **Traffic Lab** | <http://localhost:8092> | – |
+
+> 🪟 **Windows:** `install.sh` ist ein Bash-Skript und läuft **nicht** in cmd/PowerShell – nutze
+> **WSL2** (Docker Desktop mit WSL2-Backend, das Repo **im WSL-Dateisystem** klonen, dann `./install.sh`
+> im Ubuntu-Terminal). Komplette Schritt-für-Schritt-Anleitung: [`docs/WINDOWS.md`](docs/WINDOWS.md).
+
+> 💡 **Nur den Shop ohne Demo-Historie?** `docker compose up -d` genügt (schneller, aber die
+> Matomo-Berichte bleiben leer). Hintergründe weiter unten unter
+> [Zurücksetzen & Reproduzierbarkeit](#zurücksetzen--reproduzierbarkeit).
+
+---
+
 ## Inhalt
 
 - [Ziel & Idee](#ziel--idee)
@@ -109,31 +137,6 @@ Einrichtungs-Container und eine Datenbank):
 > `docker run -v …`-Mount zicken.) Wichtig für Windows: Eine `.gitattributes` erzwingt **LF-Zeilenenden**,
 > damit die Container-Init-Skripte auch nach einem Windows-Klon funktionieren – nicht entfernen.
 > **Schritt-für-Schritt-Anleitung:** [`docs/WINDOWS.md`](docs/WINDOWS.md).
-
-## Schnellstart
-
-```bash
-cp .env.example .env      # ERFORDERLICH: Vorlage kopieren & in .env umbenennen
-./install.sh              # baut alles + spielt die ~6-Monats-Demo-Historie ein (~2–3 Min)
-```
-
-> ⚠️ **Ohne `.env` geht es nicht.** Die echte `.env` ist absichtlich **nicht** im Repo
-> (nur die Vorlage `.env.example`). Führe **zuerst** `cp .env.example .env` aus – sonst bricht
-> `./install.sh` mit einer klaren Fehlermeldung ab und `docker compose` liefe mit leeren Werten.
-
-`./install.sh` zieht beim **ersten** Start die Images, baut den Stack, restauriert die vorgebackene
-Fixture (Shop + ~6-Monats-Matomo-Historie + Bestellungen), verschiebt alle Daten auf „heute" und
-archiviert Matomo – eine animierte Fortschrittsanzeige (Spinner + Uhr) zeigt die Schritte
-**[1/5]…[5/5]**. Danach stimmen die Berichte **sofort**.
-
-> **Nur den Shop ohne Historie?** `docker compose up -d` startet die Container und richtet Shop
-> (`wp-init`) sowie Matomo-Grundinstallation (`matomo-init`) ein – aber **ohne** die vorgebackene
-> Matomo-Historie und Bestell-Fixture. Für die vollständige Demo-Umgebung `./install.sh` verwenden.
-> Fortschritt der Init-Container: `docker compose logs -f wp-init matomo-init`.
-
-> ⚠️ **Passwörter:** Die Datenbank-Benutzer werden **einmalig** beim ersten Start angelegt (aus den
-> Werten in `.env`). Wer Passwörter **nachträglich** ändert, muss einmal zurücksetzen:
-> `docker compose down -v && docker compose up -d`.
 
 ## Zugänge
 
@@ -319,7 +322,10 @@ an Matomo gemeldet. Die Lernenden finden ihre eigenen Bestellungen unter *Matomo
 
 ## Konfiguration (`.env`)
 
-Alles wird zentral über `.env` gesteuert (Kopie von `.env.example`). Wichtigste Variablen:
+Die gesamte Konfiguration läuft über **eine** Datei: `.env` (Kopie von `.env.example`). Die echte
+`.env` ist absichtlich **nicht** im Repo – deshalb **zuerst** `cp .env.example .env` ausführen (sonst
+bricht `./install.sh` ab). **Jede Variable ist in `.env.example` direkt kommentiert**; für den normalen
+Kursbetrieb funktionieren die Standardwerte ohne Anpassung. Die wichtigsten Variablen:
 
 | Variable | Standard | Bedeutung |
 |---|---|---|
@@ -351,6 +357,10 @@ Alles wird zentral über `.env` gesteuert (Kopie von `.env.example`). Wichtigste
 > Land (DE) sind **in der Fixture eingebacken** (`shop.sql.gz` / `uploads.tar.gz`) und werden **nicht**
 > mehr über `.env` gesteuert. Zum Ändern die Werte in `tools/bake.conf` anpassen und neu backen
 > (`./tools/bake-fixture.sh`); Details in [`docs/HANDOFF.md`](docs/HANDOFF.md).
+>
+> ⚠️ **Passwörter nachträglich ändern:** Die Datenbank-Benutzer werden **einmalig** beim ersten Start
+> aus den `.env`-Werten angelegt. Wer DB-Passwörter **danach** ändert, muss einmal komplett
+> zurücksetzen: `docker compose down -v && docker compose up -d` (bzw. `./install.sh`).
 
 ## Zurücksetzen & Reproduzierbarkeit
 
