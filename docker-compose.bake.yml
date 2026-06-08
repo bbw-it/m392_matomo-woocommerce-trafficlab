@@ -1,0 +1,21 @@
+# Override NUR fürs Backen (tools/bake-fixture.sh).
+# Re-aktiviert die historische Generierung im traffic-Container (im Normal-Install
+# via .env-Cleanup deaktiviert) und signalisiert wp-init/matomo-init, den
+# Fixture-Restore zu ÜBERSPRINGEN (es wird frisch generiert, nicht restauriert).
+# Werte kommen aus tools/bake.conf (von bake-fixture.sh exportiert).
+services:
+  traffic:
+    environment:
+      M392_BAKE: "1"
+      TRAFFIC_AUTO_SEED: "true"
+      TRAFFIC_BACKFILL_DAYS: "${HISTORY_DAYS}"
+      TRAFFIC_SEED_ORDERS_DAYS: "${HISTORY_DAYS}"
+      TRAFFIC_AVG_MONTHLY_REVENUE: "${AVG_MONTHLY_REVENUE}"
+      TRAFFIC_CONVERSION_RATE: "${CONVERSION_RATE}"
+      TRAFFIC_RETURNING_RATE: "${RETURNING_RATE}"
+  wp-init:
+    environment:
+      M392_BAKE: "1"
+  matomo-init:
+    environment:
+      M392_BAKE: "1"
