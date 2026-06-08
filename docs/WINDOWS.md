@@ -66,10 +66,14 @@ Alles ab hier passiert im **Ubuntu-Terminal** (nicht in PowerShell).
    ```bash
    bash install.sh
    ```
-   Das lädt Images, baut alles auf und füllt Demo-Daten. Beim ersten Mal dauert es einige Minuten –
-   der Balken zeigt den Fortschritt. Warten, bis **„Installation abgeschlossen"** erscheint.
+   Das lädt Images, baut alles auf, spielt die vorgebackene ~6-Monats-Demo-Historie ein und verschiebt
+   sie auf „heute". Beim ersten Mal dauert es einige Minuten – ein animierter Spinner mit Uhr zeigt die
+   Schritte **[1/5]…[5/5]**. Warten, bis **„Der Stack laeuft"** erscheint.
 
-> Alternative ohne Skript: `docker compose up -d` (richtet alles ein, nur ohne Fortschrittsanzeige).
+> **Wichtig:** Nur `install.sh` spielt die Demo-Historie ein. Ein reines `docker compose up -d` startet
+> zwar Shop und Matomo, lässt aber die **Matomo-Historie und die Bestellungen weg** (keine
+> Datums-Verschiebung, keine Archivierung, keine M392-Report-Plugins) – die Matomo-Berichte bleiben
+> dann praktisch leer. Für die vollständige Umgebung immer `bash install.sh` verwenden.
 
 ---
 

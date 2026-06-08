@@ -276,6 +276,15 @@ Zusätzlich zum Matomo-Tracking legt das Traffic Lab **echte Bestellungen** an, 
 WP-Admin unter *WooCommerce → Bestellungen* erscheinen. Das ist ein **getrennter** Weg:
 nicht über Matomo, sondern über einen geschützten REST-Endpunkt im WordPress-Container.
 
+> **Wichtig (aktueller Stand, fixture-only Install):** Der hier beschriebene **Startseed**
+> (Mengen, Umsatz-Richtwert, Matomo-Kopplung) läuft **nur noch beim Backen** (`tools/bake-fixture.sh`,
+> Parameter aus `tools/bake.conf`). **Beim normalen Install** wird das gebackene Ergebnis nur
+> restauriert und per `tools/shift-dates.sh` auf „heute" verschoben – es entstehen keine neuen
+> Bestellungen. Im laufenden Betrieb ergänzt der **Live-Tropf** weitere echte Bestellungen. Die
+> früheren `.env`-Stellschrauben (`TRAFFIC_SEED_ORDERS`, `TRAFFIC_AVG_MONTHLY_REVENUE`,
+> `TRAFFIC_BACKFILL_DAYS`, `TRAFFIC_SEED_ORDERS_DAYS`) sind entfernt; ihre Bake-Pendants stehen in
+> `tools/bake.conf` (`HISTORY_DAYS=180`, `AVG_MONTHLY_REVENUE`, `CONVERSION_RATE`, `RETURNING_RATE`).
+
 ```
    traffic (app.py / orders.py)                         wordpress :8090
    ────────────────────────────                         ───────────────
@@ -312,22 +321,23 @@ nicht über Matomo, sondern über einen geschützten REST-Endpunkt im WordPress-
   Berichte** dieselben Zahlen.
 - **Kund:innen-Daten konsistent:** Anmelde- und Aktivdatum jeder Kund:in werden auf die
   Bestellhistorie zurückdatiert (`m392_fix_customer_dates`: `user_registered` + wc-Kunden-Lookup),
-  damit „Neu vs. wiederkehrend" und die Registrierungs-Zeitreihe über die ~3 Monate plausibel sind.
+  damit „Neu vs. wiederkehrend" und die Registrierungs-Zeitreihe über die ~6 Monate (180 Tage) plausibel sind.
 - **Gutschein:** ~18 % der Bestellungen lösen den Rabattcode **`NATUR10`** (10 %) ein – der Coupon
   wird reproduzierbar aus `catalog.json` angelegt (`wp-init.sh` Schritt 8e).
 
-- **Wann:** ein Startseed – über **dasselbe ~3-Monats-Fenster wie die Matomo-Historie** verteilt,
-  mit demselben Wachstums-Trend und Wochenrhythmus (Python liefert pro Bestellung einen Zeitstempel;
-  PHP datiert die Order exakt darauf). So entspricht die Bestell-Historie zeitlich dem Matomo-Verlauf.
-  Dazu laufend bei jedem Live-Drip-Kauf + beim manuellen „Käufe erzwingen".
-- **Wie viele:** zwei Modi (steuerbar in `.env`):
-  - **Umsatz-Richtwert** (`TRAFFIC_AVG_MONTHLY_REVENUE` > 0, hat Vorrang): der Seed legt so viele
+- **Wann:** der Startseed (beim Backen) verteilt die Bestellungen über **dasselbe ~6-Monats-Fenster
+  (180 Tage) wie die Matomo-Historie**, mit demselben Wachstums-Trend und Wochenrhythmus (Python liefert
+  pro Bestellung einen Zeitstempel; PHP datiert die Order exakt darauf). So entspricht die
+  Bestell-Historie zeitlich dem Matomo-Verlauf. Im Betrieb laufend bei jedem Live-Drip-Kauf + beim
+  manuellen „Käufe erzwingen".
+- **Wie viele:** zwei Modi (gebacken, gesteuert über `tools/bake.conf`):
+  - **Umsatz-Richtwert** (`AVG_MONTHLY_REVENUE` > 0, hat Vorrang): der Seed legt so viele
     Bestellungen an, dass der **Monatsumsatz** der generierten Bestellungen etwa dem Richtwert
     entspricht. Dazu **kalibriert** er zunächst eine kleine Charge, **misst** den realen
     Ø-Bestellwert (der Endpunkt meldet pro Batch den Umsatz zurück) und leitet die nötige Anzahl
     daraus ab – unabhängig von Preisen/Warenkorb-Logik. Idempotent über den **Ping-Umsatz**: bei
     `up -d` (ohne `-v`) wird nur bis zum Zielumsatz aufgefüllt.
-  - **Feste Anzahl** (`TRAFFIC_SEED_ORDERS`, Standard 120): klassischer Modus, wenn kein Richtwert
+  - **Feste Anzahl** (Bake-Variable, ohne Richtwert): klassischer Modus, wenn kein Richtwert
     gesetzt ist. Idempotent über die Bestellanzahl.
   „Umsatz" = **Produktumsatz ohne Versand** (`get_subtotal()` = WC-„Bruttoumsatz") der bezahlten/
   laufenden Bestellungen (Status `processing`/`completed`/`on-hold`; ohne storniert/erstattet/offen).
@@ -342,24 +352,25 @@ nicht über Matomo, sondern über einen geschützten REST-Endpunkt im WordPress-
   Backfill in diesem Modus **keine eigenen Käufe** mehr (die Conversions kommen aus den Bestellungen),
   sondern nur noch die **nicht-kaufenden Besuche** – und zwar so viele, dass
   `Besuche/Tag ≈ Bestellungen/Tag × (1/CR − 1)`. Besuche und Bestellungen decken **denselben Zeitraum**
-  ab (`TRAFFIC_BACKFILL_DAYS` = `TRAFFIC_SEED_ORDERS_DAYS`).
-  > Kosten: mehr Besuche ⇒ längere Installation. Stellschrauben: kleineres Fenster (Tage), höhere
-  > `TRAFFIC_CONVERSION_RATE` oder kleinerer Richtwert reduzieren die Besuchszahl.
+  ab (`HISTORY_DAYS` aus `tools/bake.conf`, 180 Tage).
+  > Kosten: mehr Besuche ⇒ längeres **Backen**. Stellschrauben in `tools/bake.conf`: kleineres
+  > `HISTORY_DAYS`, höhere `CONVERSION_RATE` oder kleinerer Richtwert reduzieren die Besuchszahl.
 - **Realismus liegt in PHP:** der Endpunkt hat vollen WooCommerce-Zugriff und baut die Order
   serverseitig (echte Produkte/Preise, Versand, Totalsummen, Status). E-Mails werden während
   der Erzeugung unterdrückt (kein SMTP in der Lehrumgebung).
 - **Auth:** gemeinsames Secret `M392_ORDER_API_KEY` (Header `X-M392-Key`); falscher/leerer
   Schlüssel → `401`.
-- **Nicht in der Fixture:** Bestellungen und Kund:innen sind – wie die Matomo-Daten –
-  transiente Demodaten. Die Fixture (`shop.sql.gz`) ist **bestellungs- und kund:innenfrei**;
-  der Bestseller-Prior (`total_sales`) wird beim Restore aus `catalog.json` gesetzt (Schritt 8c
-  in `wp-init.sh`). Der Startseed ist idempotent (füllt nur auf den Zielwert auf), bei
-  `down -v && up -d` entstehen Bestellungen + Kund:innen frisch über ~3 Monate.
+- **In der gebackenen Fixture, nicht in `shop.sql.gz`:** Die **Shop-Fixture `shop.sql.gz`** ist
+  **bestellungs- und kund:innenfrei**; Bestellungen + Kund:innen liegen separat in der gebackenen
+  Historie (`matomo/fixture/wc-orders.sql.gz`). Der Bestseller-Prior (`total_sales`) wird beim Restore
+  aus `catalog.json` gesetzt (Schritt 8c in `wp-init.sh`). Beim Install werden die Bestellungen +
+  Kund:innen **restauriert und per `tools/shift-dates.sh` auf „heute" verschoben** (nicht neu erzeugt).
 
-> Hinweis: Im **Richtwert-Modus** sind die Bestellungen durch die Matomo-Kopplung **1:1 dieselben
-> Transaktionen** in Shop und Matomo (gleicher Umsatz/gleiche Bestellungen). Im **Anzahl-Modus**
-> (`TRAFFIC_SEED_ORDERS`, ohne Richtwert) bleibt es beim alten Verhalten: ein **paralleler, in sich
-> stimmiger** Strom (gleiche Produkte/Bestseller), aber **nicht** 1:1 mit der Matomo-Historie.
+> Hinweis: Die ausgelieferte Fixture ist im **Richtwert-Modus** gebacken (`AVG_MONTHLY_REVENUE` in
+> `tools/bake.conf` > 0) – die Bestellungen sind durch die Matomo-Kopplung **1:1 dieselben
+> Transaktionen** in Shop und Matomo (gleicher Umsatz/gleiche Bestellungen). Würde ohne Richtwert
+> (reiner **Anzahl-Modus**) gebacken, entstünde ein **paralleler, in sich stimmiger** Strom (gleiche
+> Produkte/Bestseller), aber **nicht** 1:1 mit der Matomo-Historie.
 
 Die wichtigsten Stellschrauben, mit denen das Traffic Lab die Matomo-Daten formt:
 
@@ -367,12 +378,12 @@ Die wichtigsten Stellschrauben, mit denen das Traffic Lab die Matomo-Daten formt
 |---|---|---|
 | **Live-Tropf** (organisch, Poisson-Schübe) | laufend neue Besuche/Käufe in Echtzeit | `app.py · _drip_worker` |
 | **Manuell senden** | sofort X Besuche / Y Käufe | `app.py · /api/generate-*` |
-| **Backfill** (Standard 90 Tage) | **datierte Historie** (`cdt`) ⇒ gefüllte Zeitreihen über ~3 Monate | `generator.py · backfill` |
+| **Backfill** (beim Backen / manuell) | **datierte Historie** (`cdt`) ⇒ gefüllte Zeitreihen über 180 Tage (gebacken; Install restauriert nur) | `generator.py · backfill` |
 | **Produkt-Popularität** (stark gespreizt) | klare **Bestseller** + langer Schwanz | `catalog.json · popularity` |
 | **Akquise-Kanäle** (`urlref`) | **Social** als stärkster Verkaufskanal; diverse Verweis-Domains (eine dominant); Newsletter als **Kampagne** (`pk_campaign`) | `generator.py · CHANNELS` |
 | **Conversion-Rate** (Regler) | Anteil Käufe; Schnitt bleibt erhalten (Kanal-Mult. normiert) | `app.py · STATE` / `generator.py` |
 | **Echte Bestellungen** | sichtbar in *WooCommerce → Bestellungen* + *Statistiken* (Startseed + Live) | `orders.py` + `init/mu-plugins/m392-order-api.php` |
-| **Umsatz-Richtwert** (`TRAFFIC_AVG_MONTHLY_REVENUE`) | Bestellmenge so, dass **Ø-Monatsumsatz** ≈ Richtwert; Bestellungen **1:1 in Matomo gespiegelt** | `app.py · _seed_orders_by_revenue` + `generator.track_ecommerce_order` |
+| **Umsatz-Richtwert** (`AVG_MONTHLY_REVENUE` in `tools/bake.conf`) | Bestellmenge so, dass **Ø-Monatsumsatz** ≈ Richtwert; Bestellungen **1:1 in Matomo gespiegelt** (zur Bake-Zeit) | `app.py · _seed_orders_by_revenue` + `generator.track_ecommerce_order` |
 | **Wiederkehrende Kunden** (Regler) | Anteil Bestellungen bestehender Kund:innen (Gesamtausgaben pro Kund:in) | `app.py · returning_rate` → `m392-order-api.php` |
 | **Gutschein `NATUR10`** | ~18 % der Bestellungen mit Rabatt (*Marketing → Gutscheine*, Statistik) | `m392-order-api.php` + `catalog.json · coupon` |
 | **PDF-Downloads** | füllen das Ziel „PDF-Download: INCI" (*Verhalten → Downloads*) | `generator.py` (~3,5 %) + `catalog.json` |
@@ -448,15 +459,21 @@ Reihenfolge. Die beiden `*-init`-Container laufen **einmal** und beenden sich.
      │                       legt Website id=1 an (Währung EUR, E-Commerce + Suche an),
      │                       erzeugt token_auth → Volume matomo_token → Exit 0
      │
-     │  traffic  ─ wartet auf Matomo (installiert + Token) ─►
-     │              Auto-Seed: Backfill 90 Tage (~3 Monate)  ─►  Live-Tropf läuft
+     │  traffic  ─ wartet auf Matomo (installiert + Token) ─►  nur Live-Tropf läuft
+     │              (kein Auto-Seed mehr – Historie kommt aus der Fixture, s. u.)
      ▼
+
+   install.sh (separat, nach dem Container-Start):
+     [5/5] Fixture restaurieren (matomo/fixture/*.sql.gz) ─► shift-dates.sh (auf „heute")
+           ─► ts_created/Invalidate ─► core:archive  ⇒ Berichte stimmen sofort
 ```
 
 Reihenfolge-Garantien:
 - `wp-init`/`matomo-init` warten via `depends_on` auf `db` (healthy) bzw. den jeweiligen Dienst.
 - `traffic` pollt aktiv, bis Matomo **installiert** ist **und** ein gültiger Token vorliegt
   (`generator.wait_for_ready`) — sonst liefen die ersten Treffer ins Leere.
+- Die **180-Tage-Historie** wird **nicht** beim Container-Start erzeugt, sondern von `install.sh`
+  aus der gebackenen Fixture restauriert + auf „heute" verschoben (Schritt [5/5]).
 
 ---
 
@@ -465,26 +482,42 @@ Reihenfolge-Garantien:
 Der Demo-Shop ist als **Fixture** eingefroren, damit ein kompletter Reset wieder denselben
 Stand erzeugt:
 
+Es gibt **zwei** Fixture-Verzeichnisse: den eingefrorenen Shop und die gebackene Historie.
+
 ```
-   wordpress/init/fixture/
-     ├─ shop.sql.gz      ← kompletter WordPress-DB-Dump (Produkte, Bewertungen,
-     │                      Seiten, Blog, Einstellungen: Sprache/EUR/Berlin, total_sales …)
+   wordpress/init/fixture/            (Shop, von wp-init restauriert)
+     ├─ shop.sql.gz      ← WordPress-DB-Dump (Produkte, Bewertungen, Seiten, Blog,
+     │                      Einstellungen: Sprache/EUR/Standort, total_sales …) – OHNE Bestellungen
      └─ uploads.tar.gz   ← wp-content/uploads (Produkt-/Beitragsbilder)
+
+   matomo/fixture/                    (Historie, von install.sh [5/5] restauriert)
+     ├─ matomo-history.sql.gz  ← Matomo-Roh-Logs (180 Tage Besuche/E-Commerce)
+     ├─ wc-orders.sql.gz       ← WooCommerce-Bestellungen + Kund:innen
+     ├─ BASE                   ← Anker-Datum (2026-06-08) für den Offset-Shift
+     └─ BAKE-INFO              ← womit gebacken wurde (Parameter + Mengen)
 ```
 
-- Beim frischen Start (`down -v && up -d`) spielt `wp-init` die Fixture ein und installiert
+- Beim frischen Start (`docker compose up -d`) spielt `wp-init` die **Shop**-Fixture ein und installiert
   Theme/Plugins in **gepinnten** Versionen nach → identischer Shop.
-- Die **Matomo-Daten** sind bewusst **nicht** Teil der Fixture: sie werden beim Start vom
-  Traffic Lab neu erzeugt (~3-Monats-Backfill). So ist die Historie immer „frisch datiert".
+- Die **Matomo-Historie und die Bestellungen** sind jetzt **ebenfalls Teil der Fixture**
+  (`matomo/fixture/*.sql.gz`). `install.sh` restauriert sie und verschiebt alle Zeitstempel per
+  `tools/shift-dates.sh` auf „heute" (Offset = heute − `BASE`) – so ist die Historie „frisch datiert",
+  ohne neu generiert zu werden. (Ein reines `docker compose up -d` ohne `install.sh` spielt diese
+  Historie **nicht** ein.)
 - Hinweis Bind-Mount: `down -v` löscht die Docker-Volumes (DB, Matomo), **nicht** den
   Host-Ordner `./wordpress/www`. `wp-init` spielt die Fixture sauber darüber.
 
 ### `install.sh` — kompletter Neuaufbau auf Knopfdruck
 
 `./install.sh` kapselt den vollständigen Reset: laufenden Stack stoppen, **alle Volumes löschen**,
-`wordpress/www` leeren, neu **bauen + starten** (`up -d --build`), und dann **warten**, bis Historie
-+ Bestellungen befüllt und Matomo archiviert ist (Fortschritts-Anzeige mit Spinner/Uhr). `-y`
-überspringt die Rückfrage, `--no-wait` kehrt nach dem Start zurück, `--help` zeigt die Hilfe.
+`wordpress/www` leeren, neu **bauen + starten** (`up -d --build`), dann die vorgebackene Fixture
+**restaurieren**, per `tools/shift-dates.sh` **auf „heute" verschieben** und Matomo einmal
+**archivieren** – Schritte **[1/5]…[5/5]** mit animierter Fortschrittsanzeige (Spinner + Uhr; bei
+`-y`/Pipe Punkte-Fallback). `-y` überspringt die Rückfrage, `--no-wait` überspringt nur die
+Archivierung (Matomo holt sie beim ersten Bericht nach), `--help` zeigt die Hilfe.
+
+> Die Fixture selbst **backt** der Maintainer separat und selten mit `tools/bake-fixture.sh`
+> (Parameter in `tools/bake.conf`); `install.sh` erzeugt keine Historie, es restauriert nur.
 
 ### Wo „lebt" welche Anpassung? (Verankerungs-Modell)
 
@@ -494,14 +527,16 @@ bei jedem Lauf neu erzeugt.
 
 | Schicht | Was darin liegt | Greift über |
 |---|---|---|
-| **(a) Versionierter Code** | mu-Plugins (Zahlarten ohne „(Test)", Checkout-Felder, Kategorienfilter, Order-API, Kund:innen-Datum), `wp-init.sh`-Schritte (HPOS-Sync, Gutschein, erlaubte Länder), Traffic Lab (`generator.py`/`app.py`/`templates`), `install.sh` | Bind-Mount (mu-plugins, RO) bzw. Image-Rebuild (`--build`) |
-| **(b) Fixture `shop.sql.gz`** | eingefrorene DB-Konfiguration: Header-Schriftgrößen (`theme_mods`), Hauptmenü **ohne** „Startseite", Kontakt-Titel als **h1**, Sprache/EUR/Berlin, Bewertungen, Bestseller-Prior | `wp-init` Fixture-Restore |
-| **(c) Laufzeit (wp-init / Lab-Seed)** | Bestellungen, Kund:innen, Matomo-Historie, Matomo-Ziele/Site | bei jedem Start neu generiert |
+| **(a) Versionierter Code** | mu-Plugins (Zahlarten ohne „(Test)", Checkout-Felder, Kategorienfilter, A/B-Test, Order-API, Kund:innen-Datum), `wp-init.sh`-Schritte (HPOS-Sync, Gutschein, erlaubte Länder), Traffic Lab (`generator.py`/`app.py`/`templates`), `install.sh`, `tools/` (Bake/Shift) | Bind-Mount (mu-plugins, RO) bzw. Image-Rebuild (`--build`) |
+| **(b1) Shop-Fixture `shop.sql.gz`** | eingefrorene DB-Konfiguration: Header-Schriftgrößen (`theme_mods`), Hauptmenü **ohne** „Startseite", Kontakt-Titel als **h1**, Sprache/EUR/Standort, Bewertungen, Bestseller-Prior | `wp-init` Fixture-Restore |
+| **(b2) Historie-Fixture `matomo/fixture/*`** | Matomo-Historie (180 Tage), WC-Bestellungen + Kund:innen | `install.sh` [5/5]: Restore + `shift-dates.sh` |
+| **(c) Laufzeit** | Matomo-Ziele/Site (matomo-init), laufender Live-Tropf | matomo-init bzw. bei jedem Start neu |
 
-> Die **Fixture ist bestellungs- und kund:innenfrei** (nur Admin-User) – Testdaten aus dem laufenden
-> Betrieb landen nicht versehentlich darin. Konkrete Zufallsdaten (welche Bestellung/welcher Besuch)
-> unterscheiden sich nach jedem `install.sh` legitim; **Struktur, Features und Konfiguration sind
-> identisch**.
+> Die **Shop-Fixture `shop.sql.gz`** ist bestellungs- und kund:innenfrei (nur Admin-User) –
+> Testdaten aus dem laufenden Betrieb landen nicht versehentlich darin; Bestellungen/Kund:innen
+> liegen separat in der **gebackenen** Historie-Fixture. Nach `install.sh` sind **Struktur, Features,
+> Konfiguration und die gebackene Historie identisch** (deterministisch restauriert + datums-geshiftet);
+> nur der laufende Live-Tropf ergänzt danach frische „jetzt"-Daten.
 
 ---
 
@@ -510,7 +545,14 @@ bei jedem Lauf neu erzeugt.
 ```
 .
 ├─ docker-compose.yml              # Orchestrierung aller Container, Volumes, Ports
-├─ .env(.example)                  # zentrale Konfiguration (Ports, Versionen, Passwörter, Tropf)
+├─ docker-compose.bake.yml         # Override nur fürs Backen der Fixture
+├─ .env(.example)                  # Konfiguration (Ports, Versionen, Passwörter, Live-Tropf, A/B, Order-Key)
+├─ install.sh                      # Reset → Fixture-Restore → Datums-Shift → Archivierung ([1/5]…[5/5])
+│
+├─ tools/                          # Maintainer: Fixture backen + Datums-Shift
+│  ├─ bake.conf                    # Bake-Parameter (HISTORY_DAYS=180, Umsatz, CR, Returning, Offset)
+│  ├─ bake-fixture.sh              # erzeugt die Fixture einmalig (generieren → dumpen)
+│  └─ shift-dates.sh               # verschiebt beim Install alle Fixture-Daten auf „heute"
 │
 ├─ seed/catalog.json               # Produktkatalog des Traffic Lab (Spiegel des echten Shops)
 │
@@ -519,16 +561,20 @@ bei jedem Lauf neu erzeugt.
 ├─ wordpress/
 │  ├─ init/                        # Einrichtung + versioniertes Material (Bind-Mounts)
 │  │  ├─ wp-init.sh                # Fixture-Restore + Theme/Plugins + Permalinks
-│  │  ├─ fixture/                  # eingefrorener Shop (DB-Dump + Uploads)
+│  │  ├─ fixture/                  # eingefrorener Shop (shop.sql.gz + uploads.tar.gz)
 │  │  └─ mu-plugins/
 │  │     ├─ matomo-tracking.php    # ← Verbindung WP→Matomo (JS-Tracking, E-Commerce, Suche)
 │  │     ├─ m392-test-payments.php # Test-Zahlarten (Rechnung, Kreditkarte, TWINT)
 │  │     ├─ m392-german-shop.php   # deutsche Labels/Übersetzungen
 │  │     ├─ m392-shop-filters.php  # Produktfilter (Kategorie/Preis/Bewertung/Angebote) & Sortierung
+│  │     ├─ m392-ab-test.php       # Shop-A/B-Test (Variante A/B, Custom-Dimension „AB-Variante")
 │  │     └─ m392-order-api.php     # ← REST-Endpunkt: echte Bestellungen + HPOS-Sync + Kund:innen-Datum
 │  └─ www/                         # WordPress-Docroot (Bind-Mount, generiert; nicht versioniert)
 │
-├─ matomo/matomo-init.sh           # Matomo headless installieren, Site+Ziele, Token erzeugen
+├─ matomo/
+│  ├─ matomo-init.sh               # Matomo headless installieren, Site+Ziele, Token erzeugen
+│  ├─ fixture/                     # gebackene Historie: matomo-history.sql.gz, wc-orders.sql.gz, BASE, BAKE-INFO
+│  └─ M392ABTesting/ M392Funnels/  # native Matomo-5-Report-Plugins (auto-aktiviert in install.sh)
 │
 └─ traffic/                        # „Traffic Lab"
    ├─ app.py                       # Flask: Dashboard, Live-Tropf, Manuell, Backfill, Status

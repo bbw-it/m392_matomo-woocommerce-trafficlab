@@ -10,6 +10,34 @@ eigene Hypothesen mit selbst erzeugten Daten überprüfen — alles lokal, ohne 
 
 ---
 
+## Schnellstart
+
+**In zwei Schritten startklar.** Du brauchst nur **Docker Desktop** (installiert **und gestartet**)
+und dieses Repository.
+
+```bash
+cp .env.example .env      # 1) Pflicht: Konfig-Vorlage kopieren (sonst bricht install.sh ab)
+./install.sh              # 2) Baut alles + spielt ~6 Monate Demo-Daten ein (~2–3 Min)
+```
+
+Sobald `install.sh` **„Der Stack laeuft"** meldet, im Browser öffnen:
+
+| Dienst | URL | Login |
+|---|---|---|
+| 🛒 **Shop** | <http://localhost:8090> | – |
+| 📊 **Matomo** | <http://localhost:8091> | `admin` / `matomo123` |
+| 🤖 **Traffic Lab** | <http://localhost:8092> | – |
+
+> 🪟 **Windows:** `install.sh` ist ein Bash-Skript und läuft **nicht** in cmd/PowerShell – nutze
+> **WSL2** (Docker Desktop mit WSL2-Backend, das Repo **im WSL-Dateisystem** klonen, dann `./install.sh`
+> im Ubuntu-Terminal). Komplette Schritt-für-Schritt-Anleitung: [`docs/WINDOWS.md`](docs/WINDOWS.md).
+
+> 💡 **Nur den Shop ohne Demo-Historie?** `docker compose up -d` genügt (schneller, aber die
+> Matomo-Berichte bleiben leer). Hintergründe weiter unten unter
+> [Zurücksetzen & Reproduzierbarkeit](#zurücksetzen--reproduzierbarkeit).
+
+---
+
 ## Inhalt
 
 - [Ziel & Idee](#ziel--idee)
@@ -44,8 +72,10 @@ auf Knopfdruck nachvollziehbare, realistische Daten produziert.
 So nehmen die Lernenden Matomo selbst in Betrieb bzw. arbeiten damit, sehen wie Tracking-Daten
 entstehen, und werten Besuche, Käufe und Conversions aus — reproduzierbar und gefahrlos.
 
-Alles läuft in Docker-Containern und ist **turnkey**: `docker compose up` genügt, der Rest wird
-automatisch eingerichtet (Shop installiert, Matomo konfiguriert, Demo-Daten befüllt).
+Alles läuft in Docker-Containern und ist **turnkey**: Ein einziges **`./install.sh`** richtet alles
+ein (Shop installiert, Matomo konfiguriert, vorgebackene ~6-Monats-Demo-Historie eingespielt und auf
+„heute" verschoben). Wer nur den nackten Shop ohne historische Daten will, kommt mit `docker compose
+up -d` aus.
 
 ## Lernziele
 
@@ -62,7 +92,6 @@ Mit dieser Umgebung lassen sich u. a. folgende Kompetenzen aus Modul 392 abdecke
 > 📐 **Ausführliche Architektur-Doku** (Tracking-Wege, Datenfluss, Diagramme): siehe
 > [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
 > 📝 **Änderungsverlauf:** siehe [`docs/CHANGELOG.md`](docs/CHANGELOG.md).
-> 🛍️ **Produkte hinzufügen** (Workflow-Konzept, KI-Bilder): siehe [`docs/PRODUKTE-WORKFLOW.md`](docs/PRODUKTE-WORKFLOW.md).
 > 🤝 **Mitwirkende / Agenten** (Zustand, Architektur, offene Arbeit kompakt): siehe [`docs/HANDOFF.md`](docs/HANDOFF.md).
 > 🎓 **Lernpfad Modul 392 → Matomo:** siehe [`docs/LEARNING.md`](docs/LEARNING.md).
 
@@ -108,30 +137,6 @@ Einrichtungs-Container und eine Datenbank):
 > `docker run -v …`-Mount zicken.) Wichtig für Windows: Eine `.gitattributes` erzwingt **LF-Zeilenenden**,
 > damit die Container-Init-Skripte auch nach einem Windows-Klon funktionieren – nicht entfernen.
 > **Schritt-für-Schritt-Anleitung:** [`docs/WINDOWS.md`](docs/WINDOWS.md).
-
-## Schnellstart
-
-```bash
-cp .env.example .env      # ERFORDERLICH: Vorlage kopieren & in .env umbenennen
-docker compose up -d
-```
-
-> ⚠️ **Ohne `.env` geht es nicht.** Die echte `.env` ist absichtlich **nicht** im Repo
-> (nur die Vorlage `.env.example`). Führe **zuerst** `cp .env.example .env` aus – sonst bricht
-> `./install.sh` mit einer klaren Fehlermeldung ab und `docker compose` liefe mit leeren Werten.
-
-Beim **ersten** Start werden Images gezogen und alles automatisch eingerichtet
-(Shop, Matomo, Demo-Daten). Das dauert je nach Internet einige Minuten. Den Fortschritt verfolgen:
-
-```bash
-docker compose logs -f wp-init matomo-init
-```
-
-Sind `wp-init` und `matomo-init` mit `Exited (0)` beendet, ist alles bereit.
-
-> ⚠️ **Passwörter:** Die Datenbank-Benutzer werden **einmalig** beim ersten Start angelegt (aus den
-> Werten in `.env`). Wer Passwörter **nachträglich** ändert, muss einmal zurücksetzen:
-> `docker compose down -v && docker compose up -d`.
 
 ## Zugänge
 
@@ -188,11 +193,11 @@ Matomo ist **vorinstalliert und vorkonfiguriert**: Superuser-Login bereit, Websi
 angelegt (Website-ID 1), E-Commerce aktiviert, Währung EUR. Die Lernenden loggen sich ein und
 arbeiten direkt mit den Berichten – ohne Setup-Hürden.
 
-Damit von der ersten Minute an aussagekräftige Berichte sichtbar sind, befüllt die Umgebung beim
-Start automatisch **rund 3 Monate Verlaufsdaten** (Besuche, Käufe, Umsatz) – mit leichtem
-Wachstums-Trend und Wochen-Saisonalität, damit Zeitvergleiche (Monat/Jahr) etwas hergeben. Das
-Befüllen läuft im Hintergrund und dauert je nach Rechner einige Minuten; der Fortschritt ist im
-Dashboard-Log sichtbar.
+Damit von der ersten Minute an aussagekräftige Berichte sichtbar sind, liefert die Umgebung eine
+vorgebackene Historie von **rund 6 Monaten** (≈ 180 Tage Besuche, Käufe, Umsatz) – mit leichtem
+Wachstums-Trend und Wochen-Saisonalität, damit Zeitvergleiche (Monat/Jahr) etwas hergeben. Diese
+Fixture wird beim Start **restauriert, auf „heute" verschoben und einmal archiviert** – die Berichte
+stimmen also sofort, ohne Wartezeit (kein Live-Generieren mehr beim Install).
 
 Getrackt werden u. a.:
 
@@ -233,32 +238,26 @@ Ein modernes Dashboard auf **http://localhost:8092** erzeugt realistischen Traff
   - **Conversion-Rate (%)** – die erwarteten Käufe pro Stunde werden live berechnet und angezeigt.
   - **Wiederkehrende Kunden (%)** – wie oft eine Bestellung einer **bestehenden** WooCommerce-Kund:in
     zugeordnet wird (aus der DB gelesen) statt einer neuen. So entstehen wiederkehrende Käufer:innen.
-- **Manuell erzeugen:** sofort X Besuche oder Y Käufe auslösen, oder historische Daten (Tage)
-  nachfüllen (Backfill).
-- **Echte WooCommerce-Bestellungen:** zusätzlich zum Matomo-Tracking legt das Tool echte
-  Bestellungen an (sichtbar unter *WooCommerce → Bestellungen*) – mit realistischen Daten
-  (Kund:innen + Adressen, nach Bestseller gewichtete Artikel, Test-Zahlarten, realistischer
-  Status-Mix). Die Kund:innen sind passend zu Berlin **divers** (~70 % deutsche, ~30 % aus weiteren
-  Communities) und werden als **echte WooCommerce-Kund:innen** angelegt (Rolle *customer*) und der
-  Bestellung zugeordnet – so erscheinen sie unter *WooCommerce → Kunden* bzw. *Analytics → Kunden*
-  (inkl. einiger **wiederkehrender** Kund:innen mit mehreren Bestellungen). Der Startseed verteilt
-  die Bestellungen über **denselben ~3-Monats-Zeitraum wie die Matomo-Historie** (gleicher
-  Wachstums-Trend/Wochenrhythmus); Live-/Manuell-Käufe ergänzen sie laufend.
-  Steuerbar über `TRAFFIC_CREATE_WC_ORDERS` / `TRAFFIC_SEED_ORDERS` / `TRAFFIC_RETURNING_RATE` in `.env`.
-  Alternativ lässt sich die Bestellmenge über einen **Umsatz-Richtwert** steuern: Setzt man
-  `TRAFFIC_AVG_MONTHLY_REVENUE` (EUR/Monat), legt der Startseed so viele Bestellungen an, dass der
-  **Monatsumsatz der generierten Bestellungen etwa diesem Betrag entspricht** (statt einer festen
-  Anzahl). Dazu misst er beim Start kurz den durchschnittlichen Bestellwert (Kalibrierung) und leitet
-  die nötige Bestellzahl daraus ab – unabhängig von Preisen oder Warenkorb-Größe. Der Wert hat Vorrang
-  vor `TRAFFIC_SEED_ORDERS`; `0`/leer schaltet zurück auf den festen Anzahl-Modus.
-  Im Richtwert-Modus wird **jede Bestellung zusätzlich in Matomo gespiegelt** (gleiches Datum/Artikel,
-  **Produktumsatz ohne Versand**), sodass *Matomo → E-Commerce* „Gesamteinnahmen" und *WooCommerce →
-  Statistiken* „Bruttoumsatz" **dieselben Zahlen** zeigen. Versand/Gutscheine/Retouren bleiben bewusst
+- **Manuell erzeugen:** sofort X Besuche oder Y Käufe auslösen. (Die historische Tiefe der Charts
+  kommt aus der vorgebackenen Fixture, nicht aus einem Live-Backfill beim Install.)
+- **Echte WooCommerce-Bestellungen:** Die Fixture enthält echte Bestellungen (sichtbar unter
+  *WooCommerce → Bestellungen*) – mit realistischen Daten (Kund:innen + Adressen, nach Bestseller
+  gewichtete Artikel, Test-Zahlarten, realistischer Status-Mix). Die Kund:innen sind passend zu Berlin
+  **divers** (~70 % deutsche, ~30 % aus weiteren Communities) und werden als **echte
+  WooCommerce-Kund:innen** angelegt (Rolle *customer*) und der Bestellung zugeordnet – so erscheinen
+  sie unter *WooCommerce → Kunden* bzw. *Analytics → Kunden* (inkl. einiger **wiederkehrender**
+  Kund:innen mit mehreren Bestellungen). Die Bestellungen sind über **denselben ~6-Monats-Zeitraum
+  wie die Matomo-Historie** verteilt (gleicher Wachstums-Trend/Wochenrhythmus); im laufenden Betrieb
+  ergänzt der Live-Tropf weitere echte Bestellungen (steuerbar über `TRAFFIC_CREATE_WC_ORDERS` /
+  `TRAFFIC_RETURNING_RATE` in `.env`).
+  Menge, Historienlänge und Umsatzniveau der Fixture sind **zur Bake-Zeit** in `tools/bake.conf`
+  festgelegt (`HISTORY_DAYS`, `AVG_MONTHLY_REVENUE`, `CONVERSION_RATE`, `RETURNING_RATE`) – zum Ändern
+  dort anpassen und mit `./tools/bake-fixture.sh` neu backen (Details in [`docs/HANDOFF.md`](docs/HANDOFF.md)).
+  Jede Bestellung ist **zusätzlich in Matomo gespiegelt** (gleiches Datum/Artikel, **Produktumsatz
+  ohne Versand**), sodass *Matomo → E-Commerce* „Gesamteinnahmen" und *WooCommerce → Statistiken*
+  „Bruttoumsatz" **dieselben Zahlen** zeigen. Versand/Gutscheine/Retouren bleiben bewusst
   WooCommerce-exklusiv (Lerneffekt: Tools messen Unterschiedliches).
-  Damit die Conversion-Rate realistisch bleibt, skaliert dabei die Besucherzahl mit – mehr Umsatz/Tage
-  ⇒ **längere Installation** (reduzierbar über kleineres `TRAFFIC_BACKFILL_DAYS`/`TRAFFIC_SEED_ORDERS_DAYS`,
-  höhere `TRAFFIC_CONVERSION_RATE` oder kleineren Richtwert).
-  Jede Bestellung wird in **alle WooCommerce-Analytics-Tabellen** synchronisiert (Bestell-Statistik,
+  Jede Bestellung ist in **alle WooCommerce-Analytics-Tabellen** synchronisiert (Bestell-Statistik,
   Produkte, Gutscheine, Kund:innen) und mit `date_paid` versehen – dadurch stimmen *WooCommerce →
   Statistiken/Berichte* und die **Gesamtausgaben pro Kund:in** sofort. **Ab und zu** (~18 %) lösen
   Kund:innen den Rabattgutschein **`NATUR10`** (10 %) ein (sichtbar unter *Marketing → Gutscheine*).
@@ -307,7 +306,8 @@ an Matomo gemeldet. Die Lernenden finden ihre eigenen Bestellungen unter *Matomo
 1. **Eigene Klicks:** Browser → Shop (`:8090`) → Matomo-JS lädt → Matomo (`:8091`) zählt den Besuch.
 2. **Eigener Kauf:** Checkout abschließen → Danke-Seite meldet die Bestellung an Matomo (E-Commerce).
 3. **Generierter Traffic:** Datengenerierungstool (`:8092`) → Matomo-Tracking-API → Besuche,
-   Conversions, Umsatz. Inklusive historischem Backfill für gefüllte Charts.
+   Conversions, Umsatz im laufenden Betrieb. (Die historische Tiefe der Charts kommt aus der
+   vorgebackenen Fixture, die beim Install restauriert und auf „heute" verschoben wird.)
 
 ## Ideen für den Unterricht
 
@@ -322,25 +322,33 @@ an Matomo gemeldet. Die Lernenden finden ihre eigenen Bestellungen unter *Matomo
 
 ## Konfiguration (`.env`)
 
-Alles wird zentral über `.env` gesteuert (Kopie von `.env.example`). Wichtigste Variablen:
+Die gesamte Konfiguration läuft über **eine** Datei: `.env` (Kopie von `.env.example`). Die echte
+`.env` ist absichtlich **nicht** im Repo – deshalb **zuerst** `cp .env.example .env` ausführen (sonst
+bricht `./install.sh` ab). **Jede Variable ist in `.env.example` direkt kommentiert**; für den normalen
+Kursbetrieb funktionieren die Standardwerte ohne Anpassung. Die wichtigsten Variablen:
 
 | Variable | Standard | Bedeutung |
 |---|---|---|
 | `WORDPRESS_PORT` / `MATOMO_PORT` / `TRAFFIC_PORT` | `8090` / `8091` / `8092` | Host-Ports der drei Dienste |
-| `MARIADB_VERSION`, `WORDPRESS_VERSION`, `MATOMO_VERSION` | gepinnt | Image-Versionen (für reproduzierbare Kurse) |
+| `MARIADB_VERSION`, `WORDPRESS_VERSION`, `WORDPRESS_CLI_VERSION`, `MATOMO_VERSION` | gepinnt | Image-Versionen (für reproduzierbare Kurse) |
 | `WP_ADMIN_USER` / `WP_ADMIN_PASSWORD` / `WP_ADMIN_EMAIL` | `admin` / `wp123` / … | Shop-Admin |
 | `MATOMO_ADMIN_USER` / `MATOMO_ADMIN_PASSWORD` / `MATOMO_ADMIN_EMAIL` | `admin` / `matomo123` / … | Matomo-Superuser |
 | `*_DB_*` / `MYSQL_ROOT_PASSWORD` | siehe Datei | Datenbank-Namen, -Benutzer, -Passwörter |
-| `TRAFFIC_AUTO_SEED` | `true` | Beim Start automatisch Historie befüllen |
-| `TRAFFIC_BACKFILL_DAYS` | `90` | Zeitraum der historischen Befüllung (Tage, ≈ 3 Monate). Senkt die Startlast; höher = mehr Daten, längerer Install |
 | `TRAFFIC_LIVE_DRIP` | `true` | Live-Tropf beim Start aktiv (in der UI abschaltbar) |
 | `TRAFFIC_DRIP_VISITS_PER_HOUR` | `120` | Startwert: Besucher/Stunde des Live-Tropfs |
 | `TRAFFIC_CONVERSION_RATE` | `0.014` | Startwert: Anteil Besuche mit Kauf (0–1) |
 | `TRAFFIC_RETURNING_RATE` | `0.08` | Startwert: Anteil Bestellungen bestehender Kund:innen (wiederkehrende Käufer:innen) |
-| `TRAFFIC_CREATE_WC_ORDERS` | `true` | Echte WooCommerce-Bestellungen anlegen (Startseed + Live) |
-| `TRAFFIC_SEED_ORDERS` / `TRAFFIC_SEED_ORDERS_DAYS` | `120` / `90` | Startseed: Anzahl Bestellungen / verteilt über N Tage (Standard = Matomo-Historie) |
-| `TRAFFIC_AVG_MONTHLY_REVENUE` | `1500` (leer/0 = aus) | **Richtwert** für den Ø-Bestell-Umsatz pro Monat (EUR). Wenn > 0, bestimmt dieser Wert die Bestellmenge so, dass der Monatsumsatz etwa diesem Betrag entspricht – **hat Vorrang** vor `TRAFFIC_SEED_ORDERS` |
-| `M392_ORDER_API_KEY` | `m392-order-secret` | Gemeinsames Secret für den Bestell-Endpunkt (WP ⇄ Traffic) |
+| `TRAFFIC_CREATE_WC_ORDERS` | `true` | Echte WooCommerce-Bestellungen im Live-Betrieb anlegen |
+| `M392_ORDER_API_KEY` | `m392_lab_…` | Gemeinsames Secret für den Bestell-Endpunkt (WP ⇄ Traffic) |
+| `M392_AB_TEST_ENABLED` | `true` | Shop-A/B-Test aktiv (Variante A/B, getrackt als Matomo-Custom-Dimension „AB-Variante") |
+| `M392_AB_SPLIT_B` | `50` | Prozent der Besucher:innen in Variante B |
+| `M392_AB_CONV_FACTOR_B` | `1.25` | Faktor, um den Variante B besser konvertiert (Lerneffekt) |
+
+> **Historie/Umsatz der Fixture:** Historienlänge, Umsatzniveau und Conversion-/Returning-Rate der
+> **vorgebackenen Historie** stehen **nicht** in `.env`, sondern in `tools/bake.conf` (`HISTORY_DAYS`,
+> `AVG_MONTHLY_REVENUE`, `CONVERSION_RATE`, `RETURNING_RATE`). Die `TRAFFIC_*`-Werte oben steuern nur
+> den **laufenden Live-Tropf**. Fixture ändern ⇒ `tools/bake.conf` anpassen und neu backen
+> (`./tools/bake-fixture.sh`).
 
 > **Versionen anpassen:** Alle Versionen sind gepinnt. Vor jedem Semester eine Version testen und
 > festschreiben, damit der Kurs über die Zeit reproduzierbar bleibt.
@@ -349,6 +357,10 @@ Alles wird zentral über `.env` gesteuert (Kopie von `.env.example`). Wichtigste
 > Land (DE) sind **in der Fixture eingebacken** (`shop.sql.gz` / `uploads.tar.gz`) und werden **nicht**
 > mehr über `.env` gesteuert. Zum Ändern die Werte in `tools/bake.conf` anpassen und neu backen
 > (`./tools/bake-fixture.sh`); Details in [`docs/HANDOFF.md`](docs/HANDOFF.md).
+>
+> ⚠️ **Passwörter nachträglich ändern:** Die Datenbank-Benutzer werden **einmalig** beim ersten Start
+> aus den `.env`-Werten angelegt. Wer DB-Passwörter **danach** ändert, muss einmal komplett
+> zurücksetzen: `docker compose down -v && docker compose up -d` (bzw. `./install.sh`).
 
 ## Zurücksetzen & Reproduzierbarkeit
 
@@ -361,12 +373,18 @@ docker compose up -d
 ```
 
 > **`install.sh` – komplette Einrichtung auf Knopfdruck.** Stoppt einen evtl. laufenden Stack, löscht
-> alle Volumes **und** leert `wordpress/www`, baut/startet neu und **wartet, bis die ~3-Monats-Historie
-> + Bestellungen befüllt sind, archiviert Matomo** und kehrt erst dann zurück – die Berichte stimmen
-> also **sofort** (kein Nachladen/„Reintröpfeln"). Mit `--no-wait` kehrt es schon nach dem Start zurück
-> (Befüllung läuft dann im Hintergrund), `-y` überspringt die Sicherheitsabfrage, `--help` zeigt die
-> Hilfe. Hinweis: Eine bestehende Installation wird dabei zurückgesetzt. Manuelle Variante ohne Skript:
-> `docker compose down -v && docker compose up -d`.
+> alle Volumes **und** leert `wordpress/www`, baut/startet neu und **restauriert dann die vorgebackene
+> ~6-Monats-Fixture (Matomo-Historie + Bestellungen), verschiebt sie per `tools/shift-dates.sh` auf
+> „heute" und archiviert Matomo einmal** – und kehrt erst dann zurück, sodass die Berichte **sofort**
+> stimmen (kein Nachladen/„Reintröpfeln"). Eine animierte Fortschrittsanzeige (Spinner + Uhr) zeigt
+> die Schritte **[1/5]…[5/5]**. Mit `--no-wait` kehrt es schon vor der Archivierung zurück (Matomo holt
+> sie beim ersten Bericht-Aufruf nach), `-y` überspringt die Sicherheitsabfrage, `--help` zeigt die
+> Hilfe. Hinweis: Eine bestehende Installation wird dabei zurückgesetzt.
+>
+> ⚠️ **`install.sh` ist der einzige Weg zur vollständigen Demo-Historie.** Ein reines
+> `docker compose down -v && docker compose up -d` baut Shop + Matomo-Grundinstallation auf, spielt aber
+> die **Matomo-Historie und die Bestell-Fixture nicht** ein (kein Datums-Shift, keine Archivierung,
+> keine Aktivierung der M392-Report-Plugins) – die Matomo-Berichte bleiben dann praktisch leer.
 
 > **Hinweis Bind-Mount:** `down -v` entfernt die Docker-Volumes (Datenbank, Matomo), **nicht** aber
 > die WordPress-Dateien auf dem Host (`./wordpress/www/`). Beim nächsten Start spielt `wp-init` die
@@ -410,6 +428,7 @@ werden. Ein `down -v && up -d` liefert also wieder **exakt denselben Shop**.
 │  │     ├─ m392-test-payments.php  # Test-Zahlungsmethoden (Rechnung, Kreditkarte, TWINT)
 │  │     ├─ m392-german-shop.php # Deutsche Übersetzungen/Labels (z. B. „Angebot!", Trust-Badge)
 │  │     ├─ m392-shop-filters.php   # Moderne Produktfilter & Sortierung (Preis/Bewertung/Angebote)
+│  │     ├─ m392-ab-test.php     # Shop-A/B-Test (Variante A/B, Tracking via Matomo-Custom-Dimension)
 │  │     └─ m392-order-api.php   # REST-Endpunkt: Traffic Lab legt echte Bestellungen an
 │  └─ www/                       # WordPress-Docroot als Bind-Mount (Host) – wird generiert,
 │                                #   nicht versioniert; hier von Hand Dateien importieren
@@ -436,7 +455,6 @@ werden. Ein `down -v && up -d` liefert also wieder **exakt denselben Shop**.
    ├─ ARCHITECTURE.md            # Datenfluss, Tracking-Wege, Fixture/Shift
    ├─ CHANGELOG.md               # Änderungsverlauf
    ├─ LEARNING.md                # Modul-392-Lernpfad
-   ├─ PRODUKTE-WORKFLOW.md       # neue Produkte hinzufügen
    ├─ WINDOWS.md                 # Windows/WSL2-Setup
    └─ review/                    # Code-Review-Konversation (Historie)
 ```
@@ -453,8 +471,10 @@ werden. Ein `down -v && up -d` liefert also wieder **exakt denselben Shop**.
 - **404 auf Produkt-/Checkout-Seiten**
   Tritt auf, wenn der `.htaccess`-Rewrite-Block fehlt. `docker compose up wp-init` setzt ihn neu.
 - **Keine historischen Daten in Matomo**
-  Backfill älter als 24 h braucht einen API-Token. `docker compose logs matomo-init` prüfen
-  (Token wird dort erzeugt und im Volume `matomo_token` abgelegt).
+  Die ~6-Monats-Historie kommt aus der Fixture und wird **nur von `./install.sh`** eingespielt (nicht
+  von `docker compose up -d`). Fehlt sie, `./install.sh` ausführen. Schlägt die Restaurierung fehl,
+  zeigt der Schritt **[5/5]** ein `✗` samt Fehlerausgabe; meist fehlt der API-Token – `docker compose
+  logs matomo-init` prüfen (Token wird dort erzeugt und im Volume `matomo_token` abgelegt).
 - **Ports belegt**
   Ports in `.env` ändern (`WORDPRESS_PORT`, `MATOMO_PORT`, `TRAFFIC_PORT`). Hinweis: Der im Shop
   eingebettete Tracking-Code zeigt auf `localhost:8091`; bei geändertem `MATOMO_PORT` die Datei
