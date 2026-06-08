@@ -1,5 +1,7 @@
-# Lokale Konfiguration & Secrets
+# Lokale Konfiguration & Secrets: echte .env nie versionieren …
 .env
+# … die Vorlage .env.example dagegen MUSS mit ins Repo (explizit nicht ignorieren).
+!.env.example
 
 # WordPress-Docroot (Bind-Mount): wird beim Start generiert bzw. aus der Fixture
 # wiederhergestellt -> nicht versionieren. Eigene Importe landen hier lokal.
