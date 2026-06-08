@@ -515,7 +515,7 @@ def _seed_orders_by_revenue(status, days, monthly, ret_pct):
 
 def _maybe_seed_orders():
     """Startseed: echte WooCommerce-Bestellungen anlegen, die den ZEITRAUM der
-    Matomo-Historie widerspiegeln – verteilt über die letzten ~24 Monate mit
+    Matomo-Historie widerspiegeln – verteilt über das Backfill-Fenster mit
     demselben Wachstums-Trend/Wochenrhythmus wie der Backfill. Idempotent.
 
     Zwei Modi:

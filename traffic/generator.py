@@ -8,6 +8,7 @@ Kennt keine Web-Belange – wird von app.py aufgerufen.
 import json
 import os
 import random
+import threading
 import time
 import uuid
 from datetime import datetime, timedelta
@@ -76,8 +77,18 @@ def _shop_landing_path(variant):
     """Shop-Einstiegs-URL je Variante."""
     return "/shop-variante/" if variant == VARIANT_B else "/shop/"
 
-# Verbindungs-Pool: deutlich schneller beim 24-Monats-Backfill (zehntausende Requests).
-SESSION = requests.Session()
+# Verbindungs-Pool pro Thread: requests.Session ist NICHT thread-sicher, und
+# Backfill + Live-Tropf laufen in eigenen Threads. Thread-lokale Sessions behalten
+# den Pool-Vorteil (viele Requests beim Backfill) ohne geteilten Zustand.
+_THREAD_LOCAL = threading.local()
+
+
+def _session():
+    s = getattr(_THREAD_LOCAL, "session", None)
+    if s is None:
+        s = requests.Session()
+        _THREAD_LOCAL.session = s
+    return s
 
 # Live-Produkte des Shops (gecacht), damit Matomo-Daten und realer Shop
 # deckungsgleich bleiben und neu angelegte Produkte automatisch beruecksichtigt
@@ -93,7 +104,7 @@ def _fetch_live_products():
     if cached is not None and (now - _PRODUCT_CACHE["ts"]) < _PRODUCT_TTL:
         return cached
     try:
-        r = SESSION.get(f"{WP_INTERNAL_URL}/wp-json/m392/v1/products", timeout=10)
+        r = _session().get(f"{WP_INTERNAL_URL}/wp-json/m392/v1/products", timeout=10)
         if r.status_code == 200:
             prods = r.json().get("products", [])
             if prods:
@@ -285,7 +296,7 @@ def _read_token():
 def matomo_installed():
     """True, wenn Matomo erreichbar UND installiert ist (Tracker antwortet)."""
     try:
-        resp = SESSION.get(f"{MATOMO_URL}/matomo.php", timeout=10)
+        resp = _session().get(f"{MATOMO_URL}/matomo.php", timeout=10)
         return resp.status_code in (200, 204)
     except requests.RequestException:
         return False
@@ -344,7 +355,7 @@ def _send(params):
     last = None
     for attempt in range(3):
         try:
-            resp = SESSION.get(f"{MATOMO_URL}/matomo.php", params=params, timeout=20)
+            resp = _session().get(f"{MATOMO_URL}/matomo.php", params=params, timeout=20)
             resp.raise_for_status()
             return resp
         except requests.RequestException as exc:
@@ -727,7 +738,7 @@ def track_ecommerce_order(ts, revenue, items, catalog=None):
 def _trend_season(d, days, day):
     """Deterministischer Tagesfaktor: Wachstums-Trend × Wochen-Saisonalität.
 
-    `d` ist der Abstand zu heute (days..1), `day` das Datum. Über die 24 Monate
+    `d` ist der Abstand zu heute (days..1), `day` das Datum. Über das Backfill-Fenster
     wächst der Shop von ~40% auf ~130% des Basiswerts; Fr/Sa etwas mehr Traffic,
     So etwas weniger. Dieselbe Kurve formt sowohl die Matomo-Besuche als auch die
     zeitliche Verteilung der echten WooCommerce-Bestellungen.

@@ -6,6 +6,7 @@ nur das Auslösen. Fehler werden geschluckt (Bestellungen sind „nice to have",
 dürfen den Matomo-Traffic nie blockieren).
 """
 import os
+import threading
 import time
 
 import requests
@@ -14,13 +15,21 @@ WP_URL = os.environ.get("WORDPRESS_INTERNAL_URL", "http://wordpress").rstrip("/"
 API_KEY = os.environ.get("M392_ORDER_API_KEY", "m392-order-secret")
 ENABLED = os.environ.get("TRAFFIC_CREATE_WC_ORDERS", "true").lower() == "true"
 
-SESSION = requests.Session()
+_THREAD_LOCAL = threading.local()
+
+
+def _session():
+    s = getattr(_THREAD_LOCAL, "session", None)
+    if s is None:
+        s = requests.Session()
+        _THREAD_LOCAL.session = s
+    return s
 
 
 def ping():
     """Status des Order-Endpunkts (bereit?, Produkt-/Bestellanzahl) oder None."""
     try:
-        r = SESSION.get(f"{WP_URL}/wp-json/m392/v1/ping", timeout=10)
+        r = _session().get(f"{WP_URL}/wp-json/m392/v1/ping", timeout=10)
         return r.json() if r.status_code == 200 else None
     except (requests.RequestException, ValueError):
         return None
@@ -69,7 +78,7 @@ def create_orders(count, days_back=0, dates=None, returning_rate=None):
     if returning_rate is not None:
         payload["returning_rate"] = int(round(returning_rate))
     try:
-        r = SESSION.post(
+        r = _session().post(
             f"{WP_URL}/wp-json/m392/v1/orders",
             headers={"X-M392-Key": API_KEY},
             json=payload,
