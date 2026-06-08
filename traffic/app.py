@@ -81,6 +81,8 @@ STATE = {
     "returning_rate": float(os.environ.get("TRAFFIC_RETURNING_RATE", "0.08")),
     "drip_per_hour": _initial_drip_per_hour(),
     "totals": {"visits": 0, "purchases": 0, "revenue": 0.0, "returning": 0},
+    # Echte WooCommerce-Bestellungen (getrennt von Matomo-Traffic-Zahlen oben).
+    "wc": {"orders": 0, "revenue": 0.0, "errors": 0},
     "last_log": [],
     # [{"t": epoch, "visits": kum, "purchases": kum, "returning": kum}] für das Aktivitäts-Chart
     "history": [],
@@ -131,6 +133,18 @@ def _accumulate(summary):
         t["returning"] += summary.get("returning", 0)
 
 
+def _book_wc(res):
+    """Echte Shop-Bestellungen verbuchen + WC-Fehler sichtbar machen."""
+    if res.get("error"):
+        with LOCK:
+            STATE["wc"]["errors"] += 1
+        _log(f"Shop-Bestellung fehlgeschlagen: {res['error']}")
+        return
+    with LOCK:
+        STATE["wc"]["orders"] += res.get("count", 0)
+        STATE["wc"]["revenue"] = round(STATE["wc"]["revenue"] + res.get("revenue", 0.0), 2)
+
+
 def _drip_worker():
     # Erst lostropfen, wenn Matomo erreichbar/installiert ist; sonst laufen die
     # ersten Besuche ins Leere, bevor matomo-init fertig ist.
@@ -149,6 +163,7 @@ def _drip_worker():
             if s.get("purchases"):
                 res = orders.create_orders(s["purchases"], days_back=0,
                                            returning_rate=STATE["returning_rate"] * 100)
+                _book_wc(res)
                 if res["count"]:
                     _accumulate({"returning": res.get("returning", 0)})
                     _log(f"{res['count']} Bestellung(en) im Shop angelegt (Live)")
@@ -193,6 +208,7 @@ def status():
             "drip_bounds": {"min": DRIP_MIN_PER_HOUR, "max": DRIP_MAX_PER_HOUR},
             "returning_rate": STATE["returning_rate"],
             "totals": STATE["totals"],
+            "wc": STATE["wc"],
             "log": STATE["last_log"],
             "history": STATE["history"],
             "seed": STATE["seed"],
@@ -262,9 +278,10 @@ def gen_orders():
     if err:
         return jsonify({"error": err}), 400
     s = generator.generate_orders(count)
-    _accumulate({"purchases": s["purchases"], "revenue": s["revenue"]})
+    _accumulate({"visits": s["visits"], "purchases": s["purchases"], "revenue": s["revenue"]})
     res = orders.create_orders(count, days_back=0,                  # echte WooCommerce-Bestellungen
                                returning_rate=STATE["returning_rate"] * 100)
+    _book_wc(res)
     _accumulate({"returning": res.get("returning", 0)})
     made = res["count"]
     extra = f" · {made} Shop-Bestellungen" if made else ""

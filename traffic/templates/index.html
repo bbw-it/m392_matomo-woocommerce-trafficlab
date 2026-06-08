@@ -220,6 +220,8 @@
         <span class="kpi-ic"><svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg></span></div>
       <div class="kpi-val" id="k-rev">€ 0</div>
       <div class="kpi-sub">brutto</div>
+      <!-- Echte WooCommerce-Bestellungen (getrennt vom Matomo-Traffic oben). -->
+      <div class="kpi-sub" id="wc-line">Echte Shop-Bestellungen: 0 (EUR 0.00)</div>
     </div>
     <div class="card kpi">
       <div class="kpi-top"><span class="kpi-lbl">Conversion Rate</span>
@@ -507,6 +509,12 @@ async function refresh(){
   $('#k-cr').textContent = (s.conversion_rate*100).toFixed(1)+'%';
   const realCr = s.totals.visits ? (s.totals.purchases/s.totals.visits*100) : 0;
   $('#k-purch-sub').textContent = realCr.toFixed(1)+'% effektiv';
+
+  const wc = s.wc || {orders:0,revenue:0,errors:0};
+  const wcEl = document.getElementById('wc-line');
+  if(wcEl) wcEl.textContent =
+    `Echte Shop-Bestellungen: ${wc.orders} (EUR ${wc.revenue.toFixed(2)})`
+    + (wc.errors ? ` · ${wc.errors} Fehler` : '');
 
   syncSliders(); renderDerived();
 

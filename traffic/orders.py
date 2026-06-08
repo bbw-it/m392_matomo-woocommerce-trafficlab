@@ -73,6 +73,7 @@ def create_orders(count, days_back=0, dates=None, returning_rate=None):
         r.raise_for_status()
         j = r.json()
         return {"count": int(j.get("count", 0)), "revenue": float(j.get("revenue", 0.0)),
-                "returning": int(j.get("returning", 0)), "details": j.get("details", []) or []}
-    except (requests.RequestException, ValueError):
-        return {"count": 0, "revenue": 0.0, "returning": 0, "details": []}
+                "returning": int(j.get("returning", 0)), "details": j.get("details", []) or [],
+                "error": None}
+    except (requests.RequestException, ValueError) as exc:
+        return {"count": 0, "revenue": 0.0, "returning": 0, "details": [], "error": str(exc)}

@@ -638,11 +638,16 @@ def generate_visits(count, conversion_rate=0.04, when=None):
 
 
 def generate_orders(count, when=None):
-    """Erzwingt `count` Käufe (jeweils mit vorausgehendem Besuch)."""
+    """Erzwingt `count` Käufe (jeweils mit vorausgehendem Besuch).
+
+    Jeder erzwungene Kauf hat einen Besuch – daher zählt `visits` mit, damit das
+    Dashboard manuelle Käufe korrekt als Besuche verbucht (Conversion bleibt stimmig).
+    """
     catalog = _load_catalog()
-    summary = {"purchases": 0, "revenue": 0.0}
+    summary = {"visits": 0, "purchases": 0, "revenue": 0.0}
     for _ in range(count):
         r = simulate_visit(catalog, when=when, force_purchase=True)
+        summary["visits"] += 1
         summary["purchases"] += 1
         summary["revenue"] = round(summary["revenue"] + r["revenue"], 2)
     return summary
