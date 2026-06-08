@@ -120,8 +120,15 @@ wait_http() {  # $1=URL  $2=Label
   done
   echo " — $2 erreichbar."
 }
-printf '   Shop   '; wait_http "http://localhost:${WP_PORT}/"        "Shop"   || true
-printf '   Matomo '; wait_http "http://localhost:${MATOMO_PORT}/"    "Matomo" || true
+SETUP_OK=1
+printf '   Shop   '; wait_http "http://localhost:${WP_PORT}/"        "Shop"   || SETUP_OK=0
+printf '   Matomo '; wait_http "http://localhost:${MATOMO_PORT}/"    "Matomo" || SETUP_OK=0
+if [ "$SETUP_OK" -ne 1 ]; then
+  echo >&2
+  echo "FEHLER: Shop und/oder Matomo nicht erreichbar – Installation abgebrochen." >&2
+  echo "        Logs:  ${DC[*]} logs" >&2
+  exit 1
+fi
 
 # --- M392-Report-Plugins aktivieren (A/B-Testing, Funnels) ------------------
 # Sicher: `console plugin:activate` schreibt die VOLLSTAENDIGE Plugin-Liste
@@ -221,6 +228,7 @@ if [ "$WAIT_SEED" -eq 1 ]; then
   i=0
   drew=0
   ROWS=4                                      # Kopfzeile + 2 Phasen + Besuche-Zeile
+  SEED_OK=1
   while :; do
     code="$(curl -s -o /tmp/m392_ready.$$ -w '%{http_code}' "http://localhost:${TRAFFIC_PORT}/api/ready" 2>/dev/null || echo 000)"
     body="$(head -1 /tmp/m392_ready.$$ 2>/dev/null | tr -d '\r\n')"
@@ -247,9 +255,16 @@ if [ "$WAIT_SEED" -eq 1 ]; then
       printf '   %s%s Startbefuellung abgeschlossen%s   (%02d:%02d)\n' "$C_GREEN" "$CHECK" "$C_RESET" "$mm" "$ss"
       break
     fi
+    if [ "$code" = "500" ]; then
+      SEED_OK=0
+      printf '   %s%s Startbefuellung FEHLGESCHLAGEN%s   (%02d:%02d)\n' "$C_YELLOW" "$WARN" "$C_RESET" "$mm" "$ss"
+      printf '      %s\n' "$body"
+      break
+    fi
     i=$((i + 1))
     if [ "$i" -gt 600 ]; then   # ~20 min Sicherheits-Timeout (2s-Takt)
-      printf '\n      (Timeout – Befuellung laeuft im Hintergrund weiter:\n'
+      SEED_OK=0
+      printf '\n      (Timeout – Befuellung NICHT verifiziert, laeuft im Hintergrund weiter:\n'
       printf '       %s logs -f traffic)\n' "${DC[*]}"
       break
     fi
@@ -259,26 +274,35 @@ if [ "$WAIT_SEED" -eq 1 ]; then
 
   echo
   echo "      Archiviere Matomo (Berichte vorberechnen) ..."
-  "${DC[@]}" exec -T matomo php /var/www/html/console core:archive \
-      --force-idsites=1 --url="http://localhost/" >/dev/null 2>&1 \
-      && echo "      Archivierung abgeschlossen." \
-      || echo "      (Archivierung uebersprungen/fehlgeschlagen – beim ersten Bericht-Aufruf holt Matomo es nach.)"
+  if "${DC[@]}" exec -T matomo php /var/www/html/console core:archive \
+        --force-idsites=1 --url="http://localhost/" >/dev/null 2>&1; then
+    echo "      Archivierung abgeschlossen."; ARCHIVE_OK=1
+  else
+    echo "      (Archivierung fehlgeschlagen – beim ersten Bericht-Aufruf holt Matomo es nach.)"; ARCHIVE_OK=0
+  fi
 fi
 
 echo
 echo "============================================================"
-echo "  Installation abgeschlossen. Der Stack laeuft:"
+echo "  Der Stack laeuft:"
 echo "    • Shop        →  http://localhost:${WP_PORT}"
 echo "    • Matomo      →  http://localhost:${MATOMO_PORT}"
 echo "    • Traffic Lab →  http://localhost:${TRAFFIC_PORT}"
-if [ "$WAIT_SEED" -eq 1 ]; then
-  echo
-  echo "  Matomo ist vorbefuellt UND archiviert – Berichte stimmen sofort."
+echo
+FINAL_EXIT=0
+if [ "$WAIT_SEED" -ne 1 ]; then
+  echo "  Status: NICHT VERIFIZIERT (--no-wait) – Befuellung laeuft im Hintergrund."
+  echo "  Fortschritt:  ${DC[*]} logs -f traffic"
+elif [ "${SEED_OK:-0}" -eq 1 ] && [ "${ARCHIVE_OK:-0}" -eq 1 ]; then
+  echo "  Status: OK – Matomo ist vorbefuellt UND archiviert; Berichte stimmen sofort."
   echo "  (In Matomo ggf. Zeitraum auf die letzten ~${BACKFILL_MONTHS} Monate stellen.)"
+elif [ "${SEED_OK:-0}" -eq 1 ]; then
+  echo "  Status: TEILWEISE – Befuellung ok, Archivierung fehlte (Matomo holt es beim ersten Bericht nach)." >&2
+  FINAL_EXIT=2
 else
-  echo
-  echo "  Hinweis (--no-wait): Die ${HIST_LABEL} + Bestellungen werden"
-  echo "  im HINTERGRUND befuellt. Fortschritt:  ${DC[*]} logs -f traffic"
-  echo "  Berichte erscheinen erst nach Befuellung + Archivierung vollstaendig."
+  echo "  Status: FEHLGESCHLAGEN – Startbefuellung nicht erfolgreich." >&2
+  echo "  Logs:  ${DC[*]} logs -f traffic" >&2
+  FINAL_EXIT=1
 fi
 echo "============================================================"
+exit "$FINAL_EXIT"

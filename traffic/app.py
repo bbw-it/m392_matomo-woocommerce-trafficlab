@@ -189,7 +189,8 @@ def ready():
         seed = dict(STATE["seed"])
         prog = {k: dict(v) for k, v in STATE["progress"].items()}
         t = dict(STATE["totals"])
-    done = all(v in ("done", "off", "error") for v in seed.values())
+    failed = "error" in seed.values()
+    done = all(v in ("done", "off") for v in seed.values())
 
     def phase(key, label):
         st = seed[key]
@@ -212,8 +213,15 @@ def ready():
     seed_visits = prog.get("history", {}).get("visits", 0)
     visits = max(seed_visits, t["visits"])
     summary += f" · {visits} Besuche"
+    if failed:
+        summary = "FEHLER bei der Startbefuellung — " + summary
+        code = 500
+    elif done:
+        code = 200
+    else:
+        code = 202
     body = summary + "\n"
-    return (body, 200 if done else 202, {"Content-Type": "text/plain; charset=utf-8"})
+    return (body, code, {"Content-Type": "text/plain; charset=utf-8"})
 
 
 @app.route("/api/generate-visits", methods=["POST"])
