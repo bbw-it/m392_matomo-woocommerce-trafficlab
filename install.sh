@@ -8,13 +8,13 @@
 #    2. leert den WordPress-Bind-Mount (wordpress/www)  → frische Core-Dateien
 #    3. baut + startet den Stack (docker compose up -d --build)
 #    4. wartet, bis Shop + Matomo erreichbar sind
-#    5. wartet, bis die Historie (TRAFFIC_BACKFILL_DAYS Tage) + Bestellungen
-#       und archiviert Matomo → Berichte stimmen SOFORT (kein Nachladen)
+#    5. spielt die vorgebackene Fixture ein (Matomo-Historie + WC-Bestellungen),
+#       verschiebt alle Datumswerte auf „heute" (tools/shift-dates.sh) und
+#       archiviert Matomo → Berichte stimmen SOFORT (kein langes Generieren)
 #
-#  wp-init spielt die Fixture ein (sauberer Shop, OHNE Bestellungen),
-#  matomo-init richtet Matomo + Ziele ein, das Traffic Lab seedet Historie
-#  + echte Bestellungen/Kund:innen. Mit --no-wait kehrt das Skript schon nach
-#  Schritt 4 zurueck (Befuellung laeuft dann im Hintergrund weiter).
+#  wp-init spielt den Shop ein (shop.sql.gz), matomo-init installiert Matomo +
+#  Ziele/Dimension; install.sh restauriert dann matomo/fixture/* und shiftet die
+#  Daten. Mit --no-wait wird nur die Archivierung uebersprungen (Matomo holt sie nach).
 #
 #  ACHTUNG: Eine bereits vorhandene Installation wird vollstaendig ersetzt –
 #  alle bisherigen Demodaten (Bestellungen, Kund:innen, Matomo-Historie, von
@@ -75,13 +75,7 @@ WP_PORT="$(read_env WORDPRESS_PORT)"; WP_PORT="${WP_PORT:-8090}"
 MATOMO_PORT="$(read_env MATOMO_PORT)"; MATOMO_PORT="${MATOMO_PORT:-8091}"
 TRAFFIC_PORT="$(read_env TRAFFIC_PORT)"; TRAFFIC_PORT="${TRAFFIC_PORT:-8092}"
 
-# Backfill-Fenster aus .env lesen, damit die Meldungen zum tatsaechlich
-# gesetzten Wert passen (statt fixem „6 Monate"). Robust gegen Inline-
-# Kommentare: nur die fuehrenden Ziffern behalten, sonst Fallback 90.
-BACKFILL_DAYS="$(read_env TRAFFIC_BACKFILL_DAYS)"; BACKFILL_DAYS="${BACKFILL_DAYS%%[!0-9]*}"
-BACKFILL_DAYS="${BACKFILL_DAYS:-90}"
-BACKFILL_MONTHS=$(( (BACKFILL_DAYS + 15) / 30 )); [ "$BACKFILL_MONTHS" -lt 1 ] && BACKFILL_MONTHS=1
-HIST_LABEL="~${BACKFILL_DAYS} Tage (~${BACKFILL_MONTHS} Monate) Historie"
+# (Historienlänge/Umsatz/CR sind in der Fixture eingebacken – siehe tools/bake.conf.)
 
 echo "============================================================"
 echo "  M392 Matomo Lab – INSTALLATION"

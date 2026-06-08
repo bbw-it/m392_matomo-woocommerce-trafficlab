@@ -135,25 +135,16 @@ services:
       MATOMO_ID_SITE: "1"
       CATALOG_PATH: /seed/catalog.json
       MATOMO_TOKEN_FILE: /token/token_auth
-      TRAFFIC_AUTO_SEED: ${TRAFFIC_AUTO_SEED}
-      TRAFFIC_BACKFILL_DAYS: ${TRAFFIC_BACKFILL_DAYS:-90}
-      TRAFFIC_LIVE_DRIP: ${TRAFFIC_LIVE_DRIP}
-      TRAFFIC_CONVERSION_RATE: ${TRAFFIC_CONVERSION_RATE}
+      # Live-Tropf (laufende Besuche/Käufe). Die HISTORIE kommt aus der Fixture
+      # (Install: restore + shift), NICHT mehr aus einem Start-Seed. Backen: tools/bake.conf.
+      TRAFFIC_LIVE_DRIP: ${TRAFFIC_LIVE_DRIP:-true}
+      TRAFFIC_CONVERSION_RATE: ${TRAFFIC_CONVERSION_RATE:-0.014}
       TRAFFIC_RETURNING_RATE: ${TRAFFIC_RETURNING_RATE:-0.08}
       TRAFFIC_DRIP_VISITS_PER_HOUR: ${TRAFFIC_DRIP_VISITS_PER_HOUR:-120}
       # Echte WooCommerce-Bestellungen (über das Order-API-mu-plugin)
       WORDPRESS_INTERNAL_URL: http://wordpress
       M392_ORDER_API_KEY: ${M392_ORDER_API_KEY:-m392-order-secret}
       TRAFFIC_CREATE_WC_ORDERS: ${TRAFFIC_CREATE_WC_ORDERS:-true}
-      # Anzahl echter Bestellungen beim Init, verteilt über das Backfill-Fenster
-      # (Standard passend zum ~3-Monats-Backfill-Fenster).
-      TRAFFIC_SEED_ORDERS: ${TRAFFIC_SEED_ORDERS:-120}
-      TRAFFIC_SEED_ORDERS_DAYS: ${TRAFFIC_SEED_ORDERS_DAYS:-90}
-      # Richtwert: durchschnittlicher Bestell-Umsatz pro Monat (EUR). Wenn > 0,
-      # bestimmt dieser Wert die Bestellmenge (statt TRAFFIC_SEED_ORDERS) so, dass
-      # der Monatsumsatz der generierten Bestellungen etwa diesem Betrag entspricht.
-      # Leer/0 → klassischer Anzahl-Modus.
-      TRAFFIC_AVG_MONTHLY_REVENUE: ${TRAFFIC_AVG_MONTHLY_REVENUE:-}
       # A/B-Test: Variante je Besuch + Conversion-Bias (Matomo Custom-Dimension 1)
       M392_AB_TEST_ENABLED: ${M392_AB_TEST_ENABLED:-true}
       M392_AB_SPLIT_B: ${M392_AB_SPLIT_B:-50}
