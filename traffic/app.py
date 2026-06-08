@@ -1,4 +1,5 @@
 """Flask-Steuerpult für den Traffic-Generator (Modul 392)."""
+import math
 import os
 import random
 import threading
@@ -47,17 +48,20 @@ def _num_arg(name, default, lo, hi, cast=int):
     """Liest request.form[name] tolerant und clampt auf [lo, hi].
 
     Rückgabe: (wert, fehlertext). Fehlend/leer → (default, None).
-    Unparsebar → (None, "<klartext>"); der Aufrufer antwortet dann mit 400.
+    Unparsebar oder nicht-endlich (inf/nan) → (None, "<klartext>"); der Aufrufer
+    antwortet dann mit 400.
     """
     raw = request.form.get(name)
     if raw is None or raw == "":
         return default, None
     raw = raw.split("#", 1)[0].strip()
     try:
-        val = cast(float(raw))
+        num = float(raw)
     except (TypeError, ValueError):
         return None, f"'{name}' muss eine Zahl sein (war: {raw!r})"
-    return max(lo, min(hi, val)), None
+    if not math.isfinite(num):
+        return None, f"'{name}' muss eine endliche Zahl sein (war: {raw!r})"
+    return max(lo, min(hi, cast(num))), None
 
 
 def _initial_drip_per_hour():
