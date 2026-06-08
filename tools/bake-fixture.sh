@@ -56,7 +56,7 @@ echo "[bake] Seed fertig. Archiviere (für Konsistenz-Check) ..."
 mkdir -p "$FIX_DIR"
 
 echo "[bake] Dumpe Matomo-Roh-Logs (+ log_action, OHNE archive) ..."
-"${DC[@]}" exec -T db mariadb-dump --no-tablespaces --single-transaction \
+"${DC[@]}" exec -T db mariadb-dump -u root -p"$RP" --no-tablespaces --single-transaction \
   "$MDB" matomo_log_action matomo_log_visit matomo_log_link_visit_action \
          matomo_log_conversion matomo_log_conversion_item \
   | gzip > "$FIX_DIR/matomo-history.sql.gz"
@@ -68,15 +68,15 @@ ORDER_IDS="${ORDER_IDS:-0}"; CUST_IDS="${CUST_IDS:-0}"
 
 echo "[bake] Dumpe WooCommerce-Order-Tabellen + Teil-Dumps (posts/postmeta/users) ..."
 {
-  "${DC[@]}" exec -T db mariadb-dump --no-tablespaces --single-transaction --no-create-info \
+  "${DC[@]}" exec -T db mariadb-dump -u root -p"$RP" --no-tablespaces --single-transaction --no-create-info \
     "$WDB" wp_wc_orders wp_wc_orders_meta wp_wc_order_operational_data wp_wc_order_addresses \
            wp_wc_order_stats wp_wc_order_product_lookup wp_wc_order_coupon_lookup \
            wp_wc_order_tax_lookup wp_wc_customer_lookup
-  "${DC[@]}" exec -T db mariadb-dump --no-tablespaces --single-transaction --no-create-info \
+  "${DC[@]}" exec -T db mariadb-dump -u root -p"$RP" --no-tablespaces --single-transaction --no-create-info \
     "$WDB" wp_posts --where="post_type LIKE 'shop_order%'"
-  "${DC[@]}" exec -T db mariadb-dump --no-tablespaces --single-transaction --no-create-info \
+  "${DC[@]}" exec -T db mariadb-dump -u root -p"$RP" --no-tablespaces --single-transaction --no-create-info \
     "$WDB" wp_postmeta --where="post_id IN (${ORDER_IDS})"
-  "${DC[@]}" exec -T db mariadb-dump --no-tablespaces --single-transaction --no-create-info \
+  "${DC[@]}" exec -T db mariadb-dump -u root -p"$RP" --no-tablespaces --single-transaction --no-create-info \
     "$WDB" wp_users --where="ID IN (${CUST_IDS})"
 } | gzip > "$FIX_DIR/wc-orders.sql.gz"
 
