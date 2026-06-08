@@ -327,10 +327,9 @@ Alles wird zentral über `.env` gesteuert (Kopie von `.env.example`). Wichtigste
 | Variable | Standard | Bedeutung |
 |---|---|---|
 | `WORDPRESS_PORT` / `MATOMO_PORT` / `TRAFFIC_PORT` | `8090` / `8091` / `8092` | Host-Ports der drei Dienste |
-| `MARIADB_VERSION`, `WORDPRESS_VERSION`, `MATOMO_VERSION`, `WOOCOMMERCE_VERSION` | gepinnt | Image-/Software-Versionen (für reproduzierbare Kurse) |
+| `MARIADB_VERSION`, `WORDPRESS_VERSION`, `MATOMO_VERSION` | gepinnt | Image-Versionen (für reproduzierbare Kurse) |
 | `WP_ADMIN_USER` / `WP_ADMIN_PASSWORD` / `WP_ADMIN_EMAIL` | `admin` / `wp123` / … | Shop-Admin |
 | `MATOMO_ADMIN_USER` / `MATOMO_ADMIN_PASSWORD` / `MATOMO_ADMIN_EMAIL` | `admin` / `matomo123` / … | Matomo-Superuser |
-| `SHOP_CURRENCY` / `SHOP_COUNTRY` / `WP_LOCALE` | `EUR` / `DE` / `de_CH` | Shop-Währung, -Land, Sprachpaket |
 | `*_DB_*` / `MYSQL_ROOT_PASSWORD` | siehe Datei | Datenbank-Namen, -Benutzer, -Passwörter |
 | `TRAFFIC_AUTO_SEED` | `true` | Beim Start automatisch Historie befüllen |
 | `TRAFFIC_BACKFILL_DAYS` | `90` | Zeitraum der historischen Befüllung (Tage, ≈ 3 Monate). Senkt die Startlast; höher = mehr Daten, längerer Install |
@@ -346,10 +345,10 @@ Alles wird zentral über `.env` gesteuert (Kopie von `.env.example`). Wichtigste
 > **Versionen anpassen:** Alle Versionen sind gepinnt. Vor jedem Semester eine Version testen und
 > festschreiben, damit der Kurs über die Zeit reproduzierbar bleibt.
 >
-> **Sprache:** Der Shop ist durchgängig auf Deutsch lokalisiert. `WP_LOCALE` ist `de_CH` (Schweizer
-> Deutsch, identischer Wortschatz, ohne ß). Für reichsdeutsche Schreibweise (mit ß) auf `de_DE`
-> stellen und einmal zurücksetzen (`down -v && up -d`). Währung und Standort sind davon unabhängig
-> (`SHOP_CURRENCY`, `SHOP_COUNTRY`).
+> **Sprache/Währung/Standort:** Shop-Sprache (de_CH, Schweizer Deutsch ohne ß), Währung (EUR) und
+> Land (DE) sind **in der Fixture eingebacken** (`shop.sql.gz` / `uploads.tar.gz`) und werden **nicht**
+> mehr über `.env` gesteuert. Zum Ändern die Fixture anpassen bzw. neu backen (siehe `TODO.md` /
+> Fixture-Bake).
 
 ## Zurücksetzen & Reproduzierbarkeit
 
