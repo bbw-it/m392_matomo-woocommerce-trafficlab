@@ -4,8 +4,8 @@ set -euo pipefail
 FIXTURE_DB="/fixture/shop.sql.gz"
 FIXTURE_UPLOADS="/fixture/uploads.tar.gz"
 
-# .htaccess mit WordPress-Rewrite-Block sicherstellen (idempotent, von beiden
-# Modi genutzt). Noetig, weil 'wp rewrite flush' im CLI-Kontext mod_rewrite
+# .htaccess mit WordPress-Rewrite-Block sicherstellen (idempotent, im Fixture-
+# Restore genutzt). Noetig, weil 'wp rewrite flush' im CLI-Kontext mod_rewrite
 # nicht erkennt und daher KEINE Rewrite-Regeln in .htaccess schreibt -> sonst
 # 404 auf huebschen URLs. Der Apache des offiziellen WordPress-Images erlaubt
 # .htaccess-Overrides.
@@ -30,11 +30,10 @@ HTEOF
 }
 
 # ===========================================================================
-#  FIXTURE-MODUS: vorhandenes Demo-Shop-Abbild (DB-Dump + Uploads) einspielen.
-#  Aktiv, wenn der DB-Dump existiert UND der Marker noch nicht gesetzt ist.
-#  In diesem Modus ist WordPress nach dem Import vollstaendig -> KEIN
-#  core install / Katalog-Seeding (das uebernimmt der Legacy-Modus als
-#  Fallback, falls keine Fixture vorliegt).
+#  Fixture-Restore: das Demo-Shop-Abbild (DB-Dump + Uploads) einspielen.
+#  Die Fixture ist PFLICHT – fehlt sie, bricht das Init hart ab (kein Aufbau
+#  von Grund auf mehr). Nach dem Import ist WordPress vollstaendig (KEIN
+#  core install / Katalog-Seeding). Idempotent ueber den Restore-Marker.
 # ===========================================================================
 if [ ! -f "$FIXTURE_DB" ] || [ ! -f "$FIXTURE_UPLOADS" ]; then
   echo "[wp-init] FEHLER: Fixture fehlt – benoetigt:" >&2
