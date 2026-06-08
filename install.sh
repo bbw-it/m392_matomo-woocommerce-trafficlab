@@ -214,8 +214,22 @@ if [ "$RESTORE_OK" -eq 1 ]; then
   fi
 fi
 
+if [ "$RESTORE_OK" -eq 1 ] && [ "$SHIFT_OK" -eq 1 ]; then
+  # WICHTIG: Matomo archiviert NICHTS vor dem Site-Erstelldatum. Die restaurierte
+  # Historie liegt vor "heute" (Install-Tag) → ts_created auf den Datenanfang setzen,
+  # sonst bleiben alle Alt-Monate leer (nur "heute" würde archiviert).
+  DMIN="$("${DC[@]}" exec -T db mariadb -u root -p"$RP" -N -e \
+        "SELECT DATE(MIN(visit_first_action_time)) FROM \`${MDB}\`.matomo_log_visit;" 2>/dev/null | tr -d '\r')"
+  if [ -n "$DMIN" ] && [ "$DMIN" != "NULL" ]; then
+    "${DC[@]}" exec -T db mariadb -u root -p"$RP" -e \
+      "UPDATE \`${MDB}\`.matomo_site SET ts_created='${DMIN} 00:00:00' WHERE idsite=1;" >/dev/null 2>&1 || true
+    "${DC[@]}" exec -T matomo php /var/www/html/console core:invalidate-report-data \
+      --sites=1 --dates="${DMIN},$(date +%F)" --periods=day --cascade >/dev/null 2>&1 || true
+  fi
+fi
+
 if [ "$RESTORE_OK" -eq 1 ] && [ "$SHIFT_OK" -eq 1 ] && [ "$ARCHIVE_WAIT" -eq 1 ]; then
-  echo "      Archiviere Matomo (Berichte vorberechnen) ..."
+  echo "      Archiviere Matomo (gesamte Historie vorberechnen) ..."
   if "${DC[@]}" exec -T matomo php /var/www/html/console core:archive \
         --force-idsites=1 --url="http://localhost/" >/dev/null 2>&1; then
     echo "      Archivierung abgeschlossen."; ARCHIVE_OK=1

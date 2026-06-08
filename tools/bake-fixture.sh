@@ -61,21 +61,20 @@ echo "[bake] Dumpe Matomo-Roh-Logs (+ log_action, OHNE archive) ..."
          matomo_log_conversion matomo_log_conversion_item \
   | gzip > "$FIX_DIR/matomo-history.sql.gz"
 
-echo "[bake] Ermittle Order-/Kund:innen-IDs für die Teil-Dumps ..."
-ORDER_IDS="$(dbq "SELECT GROUP_CONCAT(ID) FROM ${WDB}.wp_posts WHERE post_type LIKE 'shop_order%';")"
+echo "[bake] Ermittle Kund:innen-IDs für den Teil-Dump ..."
 CUST_IDS="$(dbq "SELECT GROUP_CONCAT(DISTINCT customer_id) FROM ${WDB}.wp_wc_orders WHERE customer_id>0;")"
-ORDER_IDS="${ORDER_IDS:-0}"; CUST_IDS="${CUST_IDS:-0}"
+CUST_IDS="${CUST_IDS:-0}"
 
-echo "[bake] Dumpe WooCommerce-Order-Tabellen + Teil-Dumps (posts/postmeta/users) ..."
+# HPOS: Order-Daten liegen kanonisch in wp_wc_*. Die shop_order-Platzhalter-Posts
+# (wp_posts) + deren postmeta werden BEWUSST NICHT gedumpt – ihre IDs kollidieren
+# beim Restore mit bestehenden shop.sql.gz-Posts (HPOS vergibt die Post-ID aus der
+# wp_wc_orders-Sequenz). WC-Admin + wc-admin-Analytics lesen aus wp_wc_*.
+echo "[bake] Dumpe WooCommerce-Order-Tabellen (HPOS) + Kund:innen ..."
 {
   "${DC[@]}" exec -T db mariadb-dump -u root -p"$RP" --no-tablespaces --single-transaction --no-create-info \
     "$WDB" wp_wc_orders wp_wc_orders_meta wp_wc_order_operational_data wp_wc_order_addresses \
            wp_wc_order_stats wp_wc_order_product_lookup wp_wc_order_coupon_lookup \
            wp_wc_order_tax_lookup wp_wc_customer_lookup
-  "${DC[@]}" exec -T db mariadb-dump -u root -p"$RP" --no-tablespaces --single-transaction --no-create-info \
-    "$WDB" wp_posts --where="post_type LIKE 'shop_order%'"
-  "${DC[@]}" exec -T db mariadb-dump -u root -p"$RP" --no-tablespaces --single-transaction --no-create-info \
-    "$WDB" wp_postmeta --where="post_id IN (${ORDER_IDS})"
   "${DC[@]}" exec -T db mariadb-dump -u root -p"$RP" --no-tablespaces --single-transaction --no-create-info \
     "$WDB" wp_users --where="ID IN (${CUST_IDS})"
 } | gzip > "$FIX_DIR/wc-orders.sql.gz"
