@@ -3,7 +3,26 @@
 Notable Änderungen an der M392-Matomo-Lehrumgebung. Neueste zuerst.
 Format lose angelehnt an [Keep a Changelog](https://keepachangelog.com/de/).
 
-## [Unreleased] – Stand 2026-06-05
+## [Unreleased] – Stand 2026-06-08
+
+### Geändert
+- **Install ist jetzt fixture-only (180-Tage-Fixture):** Die Historie (Matomo-Logs + WC-Bestellungen,
+  180 Tage ≈ 6 Monate) wird **gebacken** (`tools/bake-fixture.sh` → `matomo/fixture/*.sql.gz`) und beim
+  Install nur noch **restauriert**, per `tools/shift-dates.sh` auf „heute" verschoben und **einmal
+  archiviert** (~2–3 Min statt 15–30). Kein Live-Generieren mehr beim Install. Bake-Parameter (Historie,
+  Umsatz, CR, Returning) liegen in `tools/bake.conf`; gebackene Mengen: 14921 Matomo-Besuche, 250
+  E-Commerce-Conversions, 288 WC-Bestellungen, 7595 EUR netto (`matomo/fixture/BAKE-INFO`).
+- **`install.sh` – animierte Fortschrittsanzeige:** Spinner + mitlaufende Uhr für alle langen/stummen
+  Schritte (Warten, Fixture-DB-Import, `core:archive`), einheitliche Schritt-Header **[1/5]…[5/5]**,
+  Fehlerausgabe nur im Fehlerfall; TTY-Erkennung (Punkte-Fallback bei `-y`/Pipe).
+
+### Entfernt
+- **`docs/PRODUKTE-WORKFLOW.md`** entfernt; Repo aufgeräumt – nur `README.md` im Root, alle weiteren
+  MD unter `docs/`.
+- **Install-Seed-Stellschrauben aus `.env.example`** entfernt (`TRAFFIC_AUTO_SEED`,
+  `TRAFFIC_BACKFILL_DAYS`, `TRAFFIC_SEED_ORDERS`, `TRAFFIC_SEED_ORDERS_DAYS`,
+  `TRAFFIC_AVG_MONTHLY_REVENUE`); Fixture-Parameter leben jetzt in `tools/bake.conf`. `.env.example`
+  steuert nur noch Live-Tropf + A/B-Test.
 
 ### Hinzugefügt
 - **Matomo-Report-Plugins „A/B Tests" + „Funnels" (nachgebaut, kostenfrei):** Zwei native Matomo-5-
@@ -33,9 +52,10 @@ Format lose angelehnt an [Keep a Changelog](https://keepachangelog.com/de/).
   Zahlen**. Versand/Gutscheine/Retouren bleiben bewusst WooCommerce-exklusiv (Lerneffekt). Der
   Richtwert (`TRAFFIC_AVG_MONTHLY_REVENUE`) bezieht sich ebenfalls auf den Produktumsatz ohne Versand. Der Backfill erzeugt
   in diesem Modus keine eigenen Käufe mehr, sondern nur noch nicht-kaufende Besuche – skaliert so, dass
-  die Conversion-Rate realistisch bleibt. Besuche und Bestellungen decken denselben Zeitraum ab
-  (`TRAFFIC_BACKFILL_DAYS` = `TRAFFIC_SEED_ORDERS_DAYS`, Standard 90 Tage ≈ 3 Monate). Hinweis: mehr Besuche ⇒
-  längere Installation (Stellschrauben: Fenster, `TRAFFIC_CONVERSION_RATE`, Richtwert).
+  die Conversion-Rate realistisch bleibt. Besuche und Bestellungen decken denselben Zeitraum ab.
+  **Hinweis (aktueller Stand):** Diese Kopplung passiert jetzt **beim Backen** (`tools/bake-fixture.sh`),
+  nicht mehr zur Install-Zeit; die Parameter stehen in `tools/bake.conf` (`HISTORY_DAYS=180`,
+  `AVG_MONTHLY_REVENUE`, `CONVERSION_RATE`, `RETURNING_RATE`), nicht mehr in `.env`.
 - **Umsatz-Richtwert für den Bestell-Seed (`TRAFFIC_AVG_MONTHLY_REVENUE`):** Statt einer festen
   Bestellanzahl kann nun ein durchschnittlicher Monatsumsatz (EUR) vorgegeben werden. Der Startseed
   legt so viele Bestellungen an, dass der Monatsumsatz der generierten Bestellungen etwa dem Richtwert
@@ -50,15 +70,16 @@ Format lose angelehnt an [Keep a Changelog](https://keepachangelog.com/de/).
   getrackt und erscheint unter *Akquise → Kampagnen*.
 - **Aktivitäts-Chart im Traffic Lab:** relative Zeitachse („jetzt", „−1:00" …) und ein
   **Hover-Tooltip** mit der Anzahl Besucher:innen pro Balken.
-- **`install.sh`:** Einrichtungs-Skript mit Fortschrittsanzeige (Spinner + Uhr); wartet bis Historie,
-  Bestellungen und Matomo-Archivierung fertig sind. Ersetzt das frühere `reset.sh`.
+- **`install.sh`:** Einrichtungs-Skript, das den Reset → Fixture-Restore → Datums-Shift →
+  Archivierung kapselt und erst zurückkehrt, wenn die Berichte stimmen. Ersetzt das frühere `reset.sh`.
+  (Die animierte Fortschrittsanzeige Spinner + Uhr / Schritte [1/5]…[5/5] siehe „Geändert" oben.)
 
 ### Geändert
-- **Geringere Startlast:** Standard-Seed-Fenster von **180 → 90 Tage** (`TRAFFIC_BACKFILL_DAYS` /
-  `TRAFFIC_SEED_ORDERS_DAYS`). Halbiert Backfill-Besuche **und** echte Bestellungen (~11 000 / ~160
-  statt ~22 600 / ~322) → deutlich kürzere Installation, ohne Realismus-Verlust (3 statt 6 Monate
-  Historie). `.env.example` enthält jetzt kommentierte **Last-Profile** (Standard/Schnell/Minimal/Kein
-  Seed) inkl. der Stellschrauben (Tage, Monatsumsatz, Conversion-Rate).
+- ~~**Geringere Startlast:** Standard-Seed-Fenster 180 → 90 Tage~~ – **überholt** durch die
+  Fixture-only-Migration (siehe oben): Die Historie ist wieder **180 Tage**, kommt aber nicht mehr aus
+  einem Install-Seed, sondern aus der gebackenen Fixture. Die kurze Installation (~2–3 Min) entsteht
+  jetzt durch Restore + Datums-Shift statt durch ein verkleinertes Seed-Fenster. Seed-Fenster-/
+  Last-Profil-Stellschrauben in `.env.example` sind entfernt.
 - **Alte WooCommerce-Berichte funktionieren wieder:** `wp-init.sh` aktiviert den
   **HPOS-Kompatibilitätsmodus** vor dem Bestell-Seed; jede Bestellung wird synchron nach
   `posts`/`postmeta` gespiegelt. HPOS-Analytics **und** Legacy-*Berichte* zeigen dieselben Zahlen.
@@ -96,7 +117,7 @@ Format lose angelehnt an [Keep a Changelog](https://keepachangelog.com/de/).
 - **Reproduzierbarkeit:** kompletter Shop als Fixture (DB-Dump + Uploads) eingefroren.
 - **Tracking:** Matomo-Snippet via mu-Plugin (Seitenaufrufe, E-Commerce, On-Site-Suche, Ereignisse,
   Inhalte, Leistung, Geografie DE/CH/AT, Ziele für PDF-Download und Kontaktanfrage).
-- **Traffic Lab:** datierter Backfill (Standard ~3 Monate) + organischer Live-Tropf (Poisson-Schübe), echte
+- **Traffic Lab:** datierter Backfill (gebackene Historie ~6 Monate) + organischer Live-Tropf (Poisson-Schübe), echte
   WooCommerce-Bestellungen + Kund:innen, Bestseller-Gewichtung, Gutschein `NATUR10`,
   Wiederkehrer-Regler, Social Media als stärkster Verkaufskanal.
 - **Test-Zahlung:** Kauf auf Rechnung, Test-Kreditkarte `4242…`, simuliertes TWINT.

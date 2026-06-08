@@ -64,7 +64,7 @@ matomo/
   fixture/                  # matomo-history.sql.gz + wc-orders.sql.gz + BASE + BAKE-INFO (gebackene Historie)
   M392ABTesting/ M392Funnels/   # die zwei nachgebauten Report-Plugins (plugin/ + setup.sh + README)
 traffic/                    # Flask Traffic Lab (app.py, generator.py, orders.py, index.html); läuft unter waitress
-docs/                       # HANDOFF, ARCHITECTURE, CHANGELOG, LEARNING, PRODUKTE-WORKFLOW, WINDOWS + review/
+docs/                       # HANDOFF, ARCHITECTURE, CHANGELOG, LEARNING, WINDOWS + review/
 ```
 
 ## 5. Architektur-Kern (Kurzfassung — Details in `docs/ARCHITECTURE.md`)
@@ -131,8 +131,9 @@ dem Matomo-Start und leert danach den Cache. Plugins sind per Bind-Mount im mato
 - **UI** (`templates/index.html`): Spektrum-Slider (Besucher/Stunde, Conversion-Rate, Wiederkehrende),
   „Erwartete Käufe"-Anzeige, **mehrseriges Aktivitätsdiagramm** (Besuche/Käufe/Wiederkehrende; Käufe &
   Wiederkehrende auf **eigener Skala**, sonst von Besuchs-Spikes erdrückt).
-- **Seed** in `app.py · _maybe_auto_seed` (siehe Formel oben); echte Bestellungen via
-  `orders.py` → mu-plugin `m392-order-api.php`; Matomo-Spiegelung via
+- **Seed** in `app.py · _maybe_auto_seed` (siehe Formel oben) läuft **nur beim Backen** (gegated
+  über `TRAFFIC_AUTO_SEED`, in `.env.example` nicht mehr gesetzt → beim normalen Install inaktiv);
+  echte Bestellungen via `orders.py` → mu-plugin `m392-order-api.php`; Matomo-Spiegelung via
   `generator.track_ecommerce_order`.
 
 ## 8. Verifikations-Methodik (wichtig – Umgebung hat Eigenheiten)
@@ -161,7 +162,8 @@ dem Matomo-Start und leert danach den Cache. Plugins sind per Bind-Mount im mato
 - **Bewusst so gelassen (Lehrumgebung):** schwache `.env`-Passwörter, deaktivierter Trusted-Host-Check,
   HTTP – **nicht** „fixen" ohne Auftrag.
 - `.gitattributes` (LF) **nicht entfernen** (sonst kaputte Container-Skripte nach Windows-Klon).
-- Seed-Standard ist **90 Tage** (Last-Reduktion); Profile in `.env.example`.
+- Historie ist eine gebackene **180-Tage-Fixture** (`tools/bake.conf`, `HISTORY_DAYS=180`); kein
+  Install-Seed mehr. `.env.example` steuert nur den Live-Tropf + A/B-Test.
 
 ## 10. Stand: erledigt
 
@@ -176,7 +178,8 @@ dem Matomo-Start und leert danach den Cache. Plugins sind per Bind-Mount im mato
 - **Fixture-Bake (fixture-only Install):** Historie (Matomo-Logs + WC-Bestellungen) wird gebacken
   (`tools/bake-fixture.sh` → `matomo/fixture/*.sql.gz`), beim Install restauriert + auf „heute"
   verschoben (`tools/shift-dates.sh`) + archiviert. E2E verifiziert: Install ~2-3 Min; Kopplung
-  Matomo == WooCommerce (~250 Orders / ~6.9k EUR); keine Zukunftsdaten; Shop-Filter intakt.
+  Matomo == WooCommerce. Gebackene Mengen (`matomo/fixture/BAKE-INFO`, 180 Tage): 14921 Matomo-Besuche,
+  250 E-Commerce-Conversions, **288 WC-Bestellungen / ~7.6k EUR netto**; keine Zukunftsdaten; Shop-Filter intakt.
 - **Doku/Struktur:** alle MD außer `README.md` unter `docs/`; `TODO.md` + Brainstorm-Specs entfernt
   (realisiert); Code-Review-Historie unter `docs/review/`.
 
@@ -205,6 +208,5 @@ dem Matomo-Start und leert danach den Cache. Plugins sind per Bind-Mount im mato
 
 `../README.md` (Überblick/Bedienung) · `ARCHITECTURE.md` (Datenfluss/Fixture/Shift) ·
 `LEARNING.md` (Modul-392-Lernpfad) · `WINDOWS.md` (Windows-Setup) ·
-`PRODUKTE-WORKFLOW.md` (neue Produkte effizient hinzufügen) ·
 `../matomo/M392ABTesting/README.md` & `../matomo/M392Funnels/README.md` (Plugin-Details) ·
 `review/01–06` (abgeschlossene Code-Review-Historie).

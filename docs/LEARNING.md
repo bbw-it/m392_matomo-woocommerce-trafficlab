@@ -121,7 +121,7 @@ Ziel der Stufe: Mit **Segmenten, Zielen, Funnels, E-Commerce und A/B-Tests** gez
 
 ### 3.3 Funnel-Analyse (Conversion-Trichter)
 - **Modul-Bezug:** HZ2 · K2.2 (Funnel-Analyse) · HZ4 · K4.3 (User Journey)
-- **Matomo-Funktion:** **M392-Funnel-Plugin** (Menü *Funnels → Trichter*): Sankey-Diagramm Produkt → Warenkorb → Kasse → Kauf mit Drop-off je Schritt und konkreter Seiten-Zuordnung.
+- **Matomo-Funktion:** **M392-Funnel-Plugin** (Menü *Funnels → Trichter (M392)*): Sankey-Diagramm Produkt → Warenkorb → Kasse → Kauf mit Drop-off je Schritt und konkreter Seiten-Zuordnung.
 - **Lernziel:** Die Lernenden lesen einen Conversion-Trichter, lokalisieren den grössten Absprung und leiten daraus eine Optimierungshypothese ab.
 
 ### 3.4 E-Commerce-Analyse
@@ -136,7 +136,7 @@ Ziel der Stufe: Mit **Segmenten, Zielen, Funnels, E-Commerce und A/B-Tests** gez
 
 ### 3.6 A/B-Tests: Varianten datenbasiert vergleichen
 - **Modul-Bezug:** HZ2 · K2.2, K2.4 · HZ4 · K4.1 (Optimierung), K4.4 (Priorisierung)
-- **Matomo-Funktion:** **M392-A/B-Test-Plugin** (Menü *A/B Tests → Vergleich*): Variantenvergleich (Original vs. Shop-Variante), Conversion-Rate je Variante, **Bayes-Wahrscheinlichkeit „besser als Original"**, kumulierte Auswertung seit Teststart.
+- **Matomo-Funktion:** **M392-A/B-Test-Plugin** (Menü *A/B Tests → Vergleich (M392)*): Variantenvergleich (Original vs. Shop-Variante), Conversion-Rate je Variante, **Bayes-Wahrscheinlichkeit „besser als Original"**, kumulierte Auswertung seit Teststart.
 - **Lernziel:** Die Lernenden interpretieren einen A/B-Test (Gewinner, Wahrscheinlichkeit, Unsicherheit) und verstehen, warum man kumuliert statt monatlich entscheidet.
 
 ---
