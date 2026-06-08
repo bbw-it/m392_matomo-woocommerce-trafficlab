@@ -149,7 +149,8 @@ dem Matomo-Start und leert danach den Cache. Plugins sind per Bind-Mount im mato
 ## 9. Konventionen
 
 - **Commits:** prägnante deutsche Messages, Footer `Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>`.
-  Auf `feat/m392-matomo-lab` arbeiten (nicht direkt auf default branch ohne Branch).
+  Trunk ist **`main`** (der frühere `feat/m392-matomo-lab` ist gemergt + gelöscht). Für größere
+  Features einen Topic-Branch von `main` nehmen statt lange direkt auf `main` zu häufen.
 - **Doku auf Deutsch** (Schweiz: DSG neben DSGVO).
 - **Bewusst so gelassen (Lehrumgebung):** schwache `.env`-Passwörter, deaktivierter Trusted-Host-Check,
   HTTP – **nicht** „fixen" ohne Auftrag.
