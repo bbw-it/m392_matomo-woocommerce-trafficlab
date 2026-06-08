@@ -98,14 +98,19 @@ OFFSET_ROUNDING=exact        # exact | week  (wird beim Backen in BAKE-INFO/Meta
 | `matomo_log_conversion` | `server_time` |
 | `matomo_log_conversion_item` | `server_time` |
 
-**WooCommerce/WordPress (Prefix `wp_`, WP-DB):**
-| Tabelle | Zeitspalten | Hinweis |
+**WooCommerce/WordPress (Prefix `wp_`, DB `wordpress`) — am laufenden Stand 2026-06 VERIFIZIERT:**
+| Tabelle | Zeitspalten | Typ / Hinweis |
 |---|---|---|
-| `wp_wc_orders` (HPOS) | `date_created_gmt`, `date_updated_gmt`, `date_paid_gmt` | HPOS aktiv |
-| `wp_wc_order_stats` | `date_created`, `date_paid` | wc-admin Analytics |
-| `wp_posts` (`shop_order*`) | `post_date`, `post_date_gmt`, `post_modified`, `post_modified_gmt` | Legacy-Spiegel |
-| `wp_postmeta` | Datums-Metas (`_paid_date`, `_completed_date`, …) | nach Backen identifizieren |
-| `wp_users` | `user_registered` | rückdatierte Kund:innen |
+| `wp_wc_orders` (HPOS) | `date_created_gmt`, `date_updated_gmt` | datetime — **kein** `date_paid_gmt` hier (Spec-Korrektur) |
+| `wp_wc_order_operational_data` | `date_paid_gmt`, `date_completed_gmt` | datetime — HPOS-Operativdaten (hier liegt das Bezahl-/Abschlussdatum) |
+| `wp_wc_order_stats` | `date_created`, `date_created_gmt`, `date_paid`, `date_completed` | datetime — wc-admin Analytics |
+| `wp_wc_order_product_lookup` | `date_created` | datetime — Analytics-Lookup |
+| `wp_wc_customer_lookup` | `date_registered`, `date_last_active` | timestamp — Analytics-Lookup |
+| `wp_posts` (`shop_order*`, ~230) | `post_date`, `post_date_gmt`, `post_modified`, `post_modified_gmt` | datetime — Legacy-Spiegel |
+| `wp_postmeta` (Order-Posts) | `_paid_date`, `_completed_date` **und** `_date_paid`, `_date_completed` | **GEMISCHT:** `_*_date` = datetime-String → `DATE_ADD`; `_date_*` = UNIX-Sekunden → `+ offset*86400` |
+| `wp_users` | `user_registered` | datetime — rückdatierte Kund:innen |
+
+> **Matomo-Seite vollständig** (information_schema-Scan): genau die 5 datetime-Spalten oben, keine weiteren `matomo_log*`-Datetimes.
 
 > **Vor dem Festzurren am echten Dump verifizieren** (Schema je Matomo-Version; exakte WC-Tabellenliste
 > inkl. HPOS + Legacy-Spiegel; ggf. `wp_wc_customer_lookup` / `wp_wc_order_product_lookup`).
