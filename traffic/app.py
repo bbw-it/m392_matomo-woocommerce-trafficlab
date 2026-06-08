@@ -43,6 +43,23 @@ def _env_float(name, default=0.0):
         return default
 
 
+def _num_arg(name, default, lo, hi, cast=int):
+    """Liest request.form[name] tolerant und clampt auf [lo, hi].
+
+    Rückgabe: (wert, fehlertext). Fehlend/leer → (default, None).
+    Unparsebar → (None, "<klartext>"); der Aufrufer antwortet dann mit 400.
+    """
+    raw = request.form.get(name)
+    if raw is None or raw == "":
+        return default, None
+    raw = raw.split("#", 1)[0].strip()
+    try:
+        val = cast(float(raw))
+    except (TypeError, ValueError):
+        return None, f"'{name}' muss eine Zahl sein (war: {raw!r})"
+    return max(lo, min(hi, val)), None
+
+
 def _initial_drip_per_hour():
     """Besucher/Stunde aus .env lesen (mit Rückwärtskompatibilität)."""
     if os.environ.get("TRAFFIC_DRIP_VISITS_PER_HOUR"):
@@ -226,7 +243,9 @@ def ready():
 
 @app.route("/api/generate-visits", methods=["POST"])
 def gen_visits():
-    count = int(request.form.get("count", 50))
+    count, err = _num_arg("count", 50, 1, 500)
+    if err:
+        return jsonify({"error": err}), 400
     s = generator.generate_visits(count, conversion_rate=STATE["conversion_rate"])
     _accumulate(s)
     _log(f"{count} Besuche erzeugt – {s['purchases']} Käufe, EUR {s['revenue']:.2f}")
@@ -235,7 +254,9 @@ def gen_visits():
 
 @app.route("/api/generate-orders", methods=["POST"])
 def gen_orders():
-    count = int(request.form.get("count", 10))
+    count, err = _num_arg("count", 10, 1, 500)
+    if err:
+        return jsonify({"error": err}), 400
     s = generator.generate_orders(count)
     _accumulate({"purchases": s["purchases"], "revenue": s["revenue"]})
     res = orders.create_orders(count, days_back=0,                  # echte WooCommerce-Bestellungen
@@ -249,7 +270,9 @@ def gen_orders():
 
 @app.route("/api/backfill", methods=["POST"])
 def backfill():
-    days = int(request.form.get("days", 90))
+    days, err = _num_arg("days", 90, 1, 400)
+    if err:
+        return jsonify({"error": err}), 400
 
     def _progress(done, total, running):
         _log(f"Backfill … {done}/{total} Tage ({running['visits']} Besuche, "
@@ -274,16 +297,21 @@ def toggle_drip():
 def set_drip():
     """Live-Tropf parametrisieren: Besucher/Stunde und/oder Conversion-Rate."""
     changed = []
+    vph, e1 = _num_arg("visitors_per_hour", None, DRIP_MIN_PER_HOUR, DRIP_MAX_PER_HOUR)
+    cr,  e2 = _num_arg("conversion_rate",   None, 0.0, 1.0, cast=float)
+    ret_in, e3 = _num_arg("returning_rate", None, 0.0, 1.0, cast=float)
+    for e in (e1, e2, e3):
+        if e:
+            return jsonify({"error": e}), 400
     with LOCK:
-        if request.form.get("visitors_per_hour") not in (None, ""):
-            v = int(float(request.form["visitors_per_hour"]))
-            STATE["drip_per_hour"] = max(DRIP_MIN_PER_HOUR, min(DRIP_MAX_PER_HOUR, v))
+        if vph is not None:
+            STATE["drip_per_hour"] = vph
             changed.append(f"{STATE['drip_per_hour']} Besucher/Std")
-        if request.form.get("conversion_rate") not in (None, ""):
-            STATE["conversion_rate"] = max(0.0, min(1.0, float(request.form["conversion_rate"])))
+        if cr is not None:
+            STATE["conversion_rate"] = cr
             changed.append(f"{STATE['conversion_rate'] * 100:.1f}% Conversion")
-        if request.form.get("returning_rate") not in (None, ""):
-            STATE["returning_rate"] = max(0.0, min(1.0, float(request.form["returning_rate"])))
+        if ret_in is not None:
+            STATE["returning_rate"] = ret_in
             changed.append(f"{STATE['returning_rate'] * 100:.0f}% Wiederkehrer")
         per_hour = STATE["drip_per_hour"]
         rate = STATE["conversion_rate"]

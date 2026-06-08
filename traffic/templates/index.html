@@ -155,6 +155,7 @@
     font-family:var(--font); font-size:14px; font-weight:600; cursor:pointer; transition:.15s; white-space:nowrap; flex:none}
   .btn:hover{background:var(--blue-d)}
   .btn.sent{background:#1c46c4; cursor:default}
+  button.err{ background:#fde7e9 !important; color:#b00020 !important; border-color:#b00020 !important; }
 
   /* desktop sidebar = 1 col; tablet (761-1180) = 2 col */
   @media(min-width:761px) and (max-width:1180px){
@@ -335,7 +336,13 @@ function paintSlider(el, frac){           // setzt Thumb-Glow passend zur Positi
   return 'rgb('+r+','+g+','+b+')';
 }
 
-async function post(url, data){ try{ await fetch(url,{method:'POST', body:new URLSearchParams(data||{})}); } finally{ refresh(); } }
+async function post(url, data){
+  let ok=false;
+  try{ const r=await fetch(url,{method:'POST', body:new URLSearchParams(data||{})}); ok=r.ok; }
+  catch(e){ ok=false; }
+  finally{ refresh(); }
+  return ok;
+}
 function pushDrip(){ post('/api/set-drip', {visitors_per_hour:state.drip_per_hour,
    conversion_rate:state.conversion_rate, returning_rate:state.returning_rate}); }
 
@@ -373,13 +380,16 @@ function syncSliders(){
 }
 
 // manual actions
-document.querySelectorAll('button[data-act]').forEach(b=>b.addEventListener('click',()=>{
+document.querySelectorAll('button[data-act]').forEach(b=>b.addEventListener('click', async ()=>{
   if(b.dataset.sent) return;
-  const a=b.dataset.act;
-  if(a==='visits') post('/api/generate-visits',{count:$('#m-visits').value});
-  if(a==='orders') post('/api/generate-orders',{count:$('#m-orders').value});
-  const lbl=b.textContent; b.dataset.sent='1'; b.textContent='Gesendet ✓'; b.classList.add('sent');
-  setTimeout(()=>{ b.textContent=lbl; b.classList.remove('sent'); delete b.dataset.sent; }, 1000);
+  const a=b.dataset.act; const lbl=b.textContent;
+  b.dataset.sent='1'; b.textContent='…';
+  let ok=true;
+  if(a==='visits') ok=await post('/api/generate-visits',{count:$('#m-visits').value});
+  if(a==='orders') ok=await post('/api/generate-orders',{count:$('#m-orders').value});
+  b.textContent = ok ? 'Gesendet ✓' : 'Fehler ✗';
+  b.classList.add(ok ? 'sent' : 'err');
+  setTimeout(()=>{ b.textContent=lbl; b.classList.remove('sent','err'); delete b.dataset.sent; }, ok ? 1000 : 2200);
 }));
 
 // interval toggle
