@@ -56,10 +56,12 @@ Alles ab hier passiert im **Ubuntu-Terminal** (nicht in PowerShell).
 
 ## Schritt 4 – Starten
 
-1. Konfiguration anlegen (einmalig):
+1. Konfiguration anlegen (**einmalig, erforderlich**) – die Vorlage `.env.example`
+   kopieren und die Kopie in `.env` umbenennen:
    ```bash
    cp .env.example .env
    ```
+   > Ohne `.env` bricht `install.sh` mit einer Fehlermeldung ab.
 2. Lab einrichten und starten:
    ```bash
    bash install.sh

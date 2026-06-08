@@ -50,9 +50,9 @@ done
 if [ ! -f .env ]; then
   echo "FEHLER: Keine .env im Projektverzeichnis gefunden ($SCRIPT_DIR)." >&2
   if [ -f .env.example ]; then
-    echo "        Lege sie aus der Vorlage an und starte erneut:" >&2
+    echo "        Kopiere die Vorlage .env.example und benenne die Kopie in .env um:" >&2
     echo "            cp .env.example .env" >&2
-    echo "        (danach bei Bedarf Werte anpassen)." >&2
+    echo "        (Werte bei Bedarf anpassen) und starte install.sh erneut." >&2
   else
     echo "        Auch .env.example fehlt – Repository unvollstaendig?" >&2
   fi

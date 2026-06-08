@@ -112,9 +112,13 @@ Einrichtungs-Container und eine Datenbank):
 ## Schnellstart
 
 ```bash
-cp .env.example .env      # einmalig – Passwörter bei Bedarf anpassen (siehe Hinweis unten)
+cp .env.example .env      # ERFORDERLICH: Vorlage kopieren & in .env umbenennen
 docker compose up -d
 ```
+
+> ⚠️ **Ohne `.env` geht es nicht.** Die echte `.env` ist absichtlich **nicht** im Repo
+> (nur die Vorlage `.env.example`). Führe **zuerst** `cp .env.example .env` aus – sonst bricht
+> `./install.sh` mit einer klaren Fehlermeldung ab und `docker compose` liefe mit leeren Werten.
 
 Beim **ersten** Start werden Images gezogen und alles automatisch eingerichtet
 (Shop, Matomo, Demo-Daten). Das dauert je nach Internet einige Minuten. Den Fortschritt verfolgen:
