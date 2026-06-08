@@ -71,29 +71,35 @@
     color:var(--gray); padding:6px 13px; border-radius:7px; cursor:pointer; transition:.15s}
   .seg button.on{background:var(--card); color:var(--ink); box-shadow:0 1px 2px rgba(16,24,40,.08); font-weight:600}
   .plot{position:relative; height:300px; padding-bottom:26px}
-  .grid{position:absolute; left:0; right:0; top:0; bottom:26px; display:flex; flex-direction:column; justify-content:space-between; pointer-events:none}
-  .grid i{height:1px; background:var(--line2)}
-  .bars{position:relative; height:100%; display:flex; align-items:flex-end; gap:5px}
-  .slot{position:relative; flex:1 1 0; min-width:0; height:100%; display:flex; align-items:flex-end}
-  /* drei Serien je Intervall: Besuche / Käufe / Wiederkehrend */
-  .grp{display:flex; align-items:flex-end; gap:2px; width:100%; height:100%}
-  .grp .b{flex:1 1 0; min-width:0; border-radius:4px 4px 0 0; transition:height .4s cubic-bezier(.2,.7,.2,1)}
-  .grp .b.v{background:var(--blue)}
-  .grp .b.p{background:var(--green)}
-  .grp .b.r{background:var(--orange)}
-  .grp .b.v.zero{background:#e6e9f0}
-  .slot:hover .b.v:not(.zero){background:var(--blue-d)}
-  /* Legende */
-  .legend{display:flex; gap:16px; margin-top:8px}
-  .legend .lg{display:inline-flex; align-items:center; gap:6px; font-size:12px; color:var(--gray)}
-  .legend .lg i{width:10px; height:10px; border-radius:3px; flex:none}
-  .slot .ax{position:absolute; bottom:-22px; left:50%; transform:translateX(-50%); font-size:12px; color:var(--mut); white-space:nowrap}
-  .slot .tip{position:absolute; bottom:100%; left:50%; transform:translate(-50%,-8px); background:var(--ink); color:#fff;
-    padding:6px 10px; border-radius:8px; font-size:12px; white-space:nowrap; opacity:0; pointer-events:none; transition:opacity .12s; z-index:5}
-  .slot .tip b{font-weight:700}
-  .slot .tip em{display:block; font-style:normal; opacity:.7; font-size:11px}
-  .slot .tip::after{content:''; position:absolute; top:100%; left:50%; transform:translateX(-50%); border:5px solid transparent; border-top-color:var(--ink)}
-  .slot:hover .tip{opacity:1}
+  .grid{position:absolute; left:40px; right:0; top:0; bottom:26px; display:flex; flex-direction:column; justify-content:space-between; pointer-events:none}
+  .grid .gl{position:relative; height:1px; background:var(--line2)}
+  .grid .gl span{position:absolute; right:100%; margin-right:9px; top:50%; transform:translateY(-50%);
+    font-size:11px; color:var(--mut); font-variant-numeric:tabular-nums; white-space:nowrap}
+  /* Liniendiagramm: SVG-Linien + transparente Hover-Bänder darüber */
+  .lc{position:absolute; left:40px; right:0; top:0; bottom:26px}
+  .lc svg{position:absolute; inset:0; width:100%; height:100%; overflow:visible}
+  .lc svg polyline{fill:none; stroke-width:2; stroke-linejoin:round; stroke-linecap:round}
+  .hov{position:absolute; inset:0}
+  .hb{position:absolute; top:0; bottom:0; transform:translateX(-50%)}
+  .hb::before{content:''; position:absolute; top:0; bottom:0; left:50%; width:1px; background:var(--line);
+    opacity:0; transform:translateX(-50%); transition:opacity .1s}
+  .hb:hover::before{opacity:1}
+  .hb .ax{position:absolute; bottom:-22px; left:50%; transform:translateX(-50%); font-size:12px; color:var(--mut); white-space:nowrap}
+  .tip{position:absolute; top:4px; left:50%; transform:translateX(-50%); background:var(--ink); color:#fff;
+    padding:6px 10px; border-radius:8px; font-size:12px; white-space:nowrap; opacity:0; pointer-events:none; transition:opacity .12s; z-index:6}
+  .hb:hover .tip{opacity:1}
+  .tip b{font-weight:700}
+  .tip em{display:block; font-style:normal; opacity:.7; font-size:11px; margin-top:2px}
+  .tip i{display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:3px; vertical-align:middle}
+  .tip s{text-decoration:none; opacity:.4}
+  /* Legende = Serien-Umschalter (klickbar) */
+  .legend{display:flex; flex-wrap:wrap; gap:14px; margin-top:8px; align-items:center}
+  .legend .lg{display:inline-flex; align-items:center; gap:6px; font-size:12px; color:var(--gray);
+    background:0; border:0; padding:2px 0; font-family:var(--font); cursor:pointer}
+  .legend .lg i.ln{width:14px; height:3px; border-radius:2px; flex:none}
+  .legend .lg.off{opacity:.45; text-decoration:line-through}
+  .legend .lg.off i.ln{background:var(--mut)!important}
+  .legend .hint{font-size:12px; color:var(--mut)}
 
   /* ---------- aktionen ---------- */
   .akt h2{font-size:17px; font-weight:600; margin:0 0 18px}
@@ -228,11 +234,11 @@
       <div class="ch-head">
         <div>
           <h2>Aktivität pro Intervall</h2>
-          <div class="legend">
-            <span class="lg"><i style="background:var(--blue)"></i>Besuche</span>
-            <span class="lg"><i style="background:var(--green)"></i>Käufe</span>
-            <span class="lg"><i style="background:var(--orange)"></i>Wiederkehrende</span>
-            <span class="lg" style="color:var(--mut)">· Käufe/Wiederkehrende: eigene Skala</span>
+          <div class="legend" id="legend">
+            <button class="lg" data-s="v" type="button"><i class="ln" style="background:var(--blue)"></i>Besuche</button>
+            <button class="lg" data-s="p" type="button"><i class="ln" style="background:var(--green)"></i>Käufe</button>
+            <button class="lg" data-s="r" type="button"><i class="ln" style="background:var(--orange)"></i>Wiederkehrende</button>
+            <span class="hint">· Klick blendet Serien ein/aus · Achse skaliert auf sichtbare</span>
           </div>
         </div>
         <div class="seg" id="seg">
@@ -242,8 +248,8 @@
         </div>
       </div>
       <div class="plot">
-        <div class="grid"><i></i><i></i><i></i><i></i><i></i></div>
-        <div class="bars" id="chart"></div>
+        <div class="grid" id="grid"></div>
+        <div class="lc" id="chart"></div>
       </div>
     </div>
 
@@ -381,6 +387,16 @@ $('#seg').addEventListener('click', e=>{ const b=e.target.closest('button'); if(
   $('#seg').querySelectorAll('button').forEach(x=>x.classList.toggle('on', x===b));
   intervalMin=+b.dataset.min; if(window._hist) drawChart(window._hist); });
 
+// Serien ein-/ausblenden (Klick auf die Legende) – mind. eine Serie bleibt sichtbar
+$('#legend').addEventListener('click', e=>{
+  const b=e.target.closest('.lg'); if(!b||!b.dataset.s) return;
+  const k=b.dataset.s;
+  if(seriesOn[k] && Object.values(seriesOn).filter(Boolean).length===1) return;
+  seriesOn[k]=!seriesOn[k];
+  b.classList.toggle('off', !seriesOn[k]);
+  if(window._hist) drawChart(window._hist);
+});
+
 // log clear (client-seitig)
 $('#clear').addEventListener('click', ()=>{ cleared=Date.now()/1000; $('#log').innerHTML=''; });
 
@@ -389,9 +405,21 @@ function flash(id){ const c=$(id).closest('.kpi'); c.classList.remove('flash'); 
 const N_BARS=24;
 function pad2(n){ return String(n).padStart(2,'0'); }
 function clock(t){ const d=new Date(t*1000); return pad2(d.getHours())+':'+pad2(d.getMinutes()); }
+const seriesOn = {v:true, p:true, r:true};   // Sichtbarkeit je Serie (Legende schaltet)
+const SERIES = [
+  {k:'v', col:'var(--blue)',   lab:'Besuche'},
+  {k:'p', col:'var(--green)',  lab:'Käufe'},
+  {k:'r', col:'var(--orange)', lab:'Wiederk.'},
+];
+function axisMax(x){             // schönes Achsen-Max; kleine Zählungen ganzzahlig
+  if(x<=6) return Math.max(1, Math.ceil(x));
+  const p=Math.pow(10,Math.floor(Math.log10(x))), f=x/p;
+  const n = f<=2?2 : f<=2.5?2.5 : f<=3?3 : f<=4?4 : f<=5?5 : f<=6?6 : f<=8?8 : 10;
+  return Math.ceil(n*p);
+}
 function drawChart(hist){
   window._hist=hist;
-  // pro Datenpunkt die Zuwächse je Serie (kumulierte Summen → Delta)
+  // pro Datenpunkt die Zuwächse je Serie (kumulierte Summen -> Delta)
   const pts=[]; for(let i=1;i<hist.length;i++) pts.push({
     t:hist[i].t,
     v:Math.max(0, hist[i].visits      - hist[i-1].visits),
@@ -403,28 +431,44 @@ function drawChart(hist){
   const buckets=[]; for(let b=0;b<N_BARS;b++) buckets.push({v:0,p:0,r:0, t:start+(b+0.5)*bw});
   pts.forEach(pt=>{ if(pt.t>=start){ const idx=Math.min(N_BARS-1, Math.floor((pt.t-start)/bw));
     buckets[idx].v+=pt.v; buckets[idx].p+=pt.p; buckets[idx].r+=pt.r; } });
-  // Besuche und Käufe/Wiederkehrende haben sehr unterschiedliche Größenordnungen
-  // (z. B. 200 Besuche vs. 1 Kauf). Auf EINER Skala würde ein einzelner Besuchs-
-  // Spike die Käufe unsichtbar machen → eigene Skala: Besuche relativ zum Besuchs-
-  // Max, Käufe + Wiederkehrende relativ zu IHREM Max (gemeinsam, damit untereinander
-  // vergleichbar). Exakte Zahlen stehen im Tooltip.
-  const vMax  = Math.max(1, ...buckets.map(b=>b.v));
-  const prMax = Math.max(1, ...buckets.map(b=>Math.max(b.p,b.r)));
-  const hV  = n=> n>0 ? Math.round(8  + (n/vMax)  * 90) : 3;   // 0 = grauer Stummel
-  const hPR = n=> n>0 ? Math.round(34 + (n/prMax) * 64) : 0;   // ab 1 klar sichtbar
-  const bar=(n,cls,h,stub)=>
-    '<div class="b '+cls+(n===0&&stub?' zero':'')+'" style="height:'+h+'%"></div>';
-  $('#chart').innerHTML = buckets.map((b,i)=>{
-    const ax = (i%6===0 || i===N_BARS-1) ? '<span class="ax">'+clock(b.t)+'</span>' : '';
-    const tip='<span class="tip"><b>'+b.v+'</b> Besuche · <b>'+b.p+'</b> Käufe · <b>'+b.r+'</b> wiederk.<em>'+clock(b.t)+'</em></span>';
-    return '<div class="slot"><div class="grp">'
-      + bar(b.v,'v',hV(b.v),true)
-      + bar(b.p,'p',hPR(b.p),false)
-      + bar(b.r,'r',hPR(b.r),false)
-      + '</div>'+tip+ax+'</div>';
-  }).join('');
-}
 
+  // EINE Skala, die sich auf die SICHTBAREN Serien einstellt: Käufe/Wiederkehrende sind
+  // viel seltener als Besuche -> blendet man Besuche aus, zoomt die Achse auf sie. So
+  // bleibt es ehrlich (keine verdeckte zweite Skala) und trotzdem ablesbar.
+  const visKeys = SERIES.filter(s=>seriesOn[s.k]).map(s=>s.k);
+  let dataMax=1; buckets.forEach(b=> visKeys.forEach(k=>{ if(b[k]>dataMax) dataMax=b[k]; }));
+  const max = axisMax(dataMax);
+
+  // Y-Achse: bei kleinem Max ganzzahlige Linien, sonst 5 Linien (oben max ... unten 0)
+  const ticks = max<=6 ? Array.from({length:max+1},(_,k)=>max-k)
+                       : [0,1,2,3,4].map(k=>Math.round(max*(4-k)/4));
+  $('#grid').innerHTML = ticks.map(v=>'<div class="gl"><span>'+nf.format(v)+'</span></div>').join('');
+
+  // Pixelmaße des Plot-Bereichs -> scharfe SVG-Linien/Punkte (1:1-viewBox)
+  const host=$('#chart'), W=host.clientWidth||600, H=host.clientHeight||240;
+  const X=i=> (N_BARS<2?0:i/(N_BARS-1))*W;
+  const Y=n=> H - (n/max)*H;
+
+  const lines = SERIES.filter(s=>seriesOn[s.k]).map(s=>
+      '<polyline points="'+buckets.map((b,i)=>X(i).toFixed(1)+','+Y(b[s.k]).toFixed(1)).join(' ')+'" style="stroke:'+s.col+'"/>'
+    + buckets.map((b,i)=>'<circle cx="'+X(i).toFixed(1)+'" cy="'+Y(b[s.k]).toFixed(1)+'" r="2.3" style="fill:'+s.col+'"/>').join('')
+  ).join('');
+
+  const bands = buckets.map((b,i)=>{
+    const ax=(i%6===0||i===N_BARS-1)?'<span class="ax">'+clock(b.t)+'</span>':'';
+    const items = SERIES.map(s=>{
+      const t='<i style="background:'+s.col+'"></i><b>'+nf.format(b[s.k])+'</b> '+s.lab;
+      return seriesOn[s.k] ? t : '<s>'+t+'</s>';
+    }).join(' · ');
+    const left=((N_BARS<2?0:i/(N_BARS-1))*100).toFixed(2), w=(100/(N_BARS-1)).toFixed(3);
+    return '<span class="hb" style="left:'+left+'%; width:'+w+'%">'
+         + '<span class="tip">'+items+'<em>'+clock(b.t)+'</em></span>'+ax+'</span>';
+  }).join('');
+
+  host.innerHTML = '<svg preserveAspectRatio="none" viewBox="0 0 '+W+' '+H+'">'+lines+'</svg>'
+                 + '<div class="hov">'+bands+'</div>';
+}
+window.addEventListener('resize', ()=>{ if(window._hist) drawChart(window._hist); });
 function drawSpark(hist){
   const pts=[]; for(let i=1;i<hist.length;i++) pts.push(Math.max(0,hist[i].visits-hist[i-1].visits));
   const s=pts.slice(-16); if(s.length<2){ $('#spark').innerHTML=''; return; }
