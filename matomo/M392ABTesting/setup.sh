@@ -44,7 +44,7 @@ if [ -z "$idx" ]; then
 elif [ "$idx" != "1" ]; then
   log "FEHLER: 'AB-Variante' hat Index ${idx}, erwartet 1 – Tracker/Generator senden"
   log "        aber hartcodiert 'dimension1'. A/B-Daten würden falsch zugeordnet. Abbruch."
-  exit 1
+  exit 9   # distinkter Fatal-Code: matomo-init.sh bricht NUR hierbei ab (sonst WARN)
 else
   log "Dimension 'AB-Variante' verifiziert (Index 1, passend zu 'dimension1')."
 fi

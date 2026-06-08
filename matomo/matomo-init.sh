@@ -254,7 +254,13 @@ fi
 if [ -n "${TOKEN:-}" ]; then
   for setup in /matomo-src/M392ABTesting/setup.sh /matomo-src/M392Funnels/setup.sh; do
     if [ -f "$setup" ]; then
-      BASE="$BASE" TOKEN="$TOKEN" sh "$setup" || log "WARN: $setup fehlgeschlagen."
+      rc=0; BASE="$BASE" TOKEN="$TOKEN" sh "$setup" || rc=$?
+      if [ "$rc" -eq 9 ]; then
+        log "FEHLER: $setup meldet ungültige Konfiguration (rc=9) – Abbruch."
+        exit 1
+      elif [ "$rc" -ne 0 ]; then
+        log "WARN: $setup fehlgeschlagen (rc=$rc)."
+      fi
     fi
   done
 fi
