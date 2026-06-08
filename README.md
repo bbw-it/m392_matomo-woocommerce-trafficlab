@@ -61,10 +61,10 @@ Mit dieser Umgebung lassen sich u. a. folgende Kompetenzen aus Modul 392 abdecke
 
 > 📐 **Ausführliche Architektur-Doku** (Tracking-Wege, Datenfluss, Diagramme): siehe
 > [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
-> 📝 **Änderungsverlauf:** siehe [`CHANGELOG.md`](CHANGELOG.md).
+> 📝 **Änderungsverlauf:** siehe [`docs/CHANGELOG.md`](docs/CHANGELOG.md).
 > 🛍️ **Produkte hinzufügen** (Workflow-Konzept, KI-Bilder): siehe [`docs/PRODUKTE-WORKFLOW.md`](docs/PRODUKTE-WORKFLOW.md).
-> 🤝 **Mitwirkende / Agenten** (Zustand, Architektur, offene Arbeit kompakt): siehe [`HANDOFF.md`](HANDOFF.md).
-> 🎓 **Lernpfad Modul 392 → Matomo:** siehe [`LEARNING.md`](LEARNING.md).
+> 🤝 **Mitwirkende / Agenten** (Zustand, Architektur, offene Arbeit kompakt): siehe [`docs/HANDOFF.md`](docs/HANDOFF.md).
+> 🎓 **Lernpfad Modul 392 → Matomo:** siehe [`docs/LEARNING.md`](docs/LEARNING.md).
 
 Ein `docker compose` startet sechs Container (drei dauerhafte Web-Dienste, zwei einmalige
 Einrichtungs-Container und eine Datenbank):
@@ -347,8 +347,8 @@ Alles wird zentral über `.env` gesteuert (Kopie von `.env.example`). Wichtigste
 >
 > **Sprache/Währung/Standort:** Shop-Sprache (de_CH, Schweizer Deutsch ohne ß), Währung (EUR) und
 > Land (DE) sind **in der Fixture eingebacken** (`shop.sql.gz` / `uploads.tar.gz`) und werden **nicht**
-> mehr über `.env` gesteuert. Zum Ändern die Fixture anpassen bzw. neu backen (siehe `TODO.md` /
-> Fixture-Bake).
+> mehr über `.env` gesteuert. Zum Ändern die Werte in `tools/bake.conf` anpassen und neu backen
+> (`./tools/bake-fixture.sh`); Details in [`docs/HANDOFF.md`](docs/HANDOFF.md).
 
 ## Zurücksetzen & Reproduzierbarkeit
 
@@ -386,8 +386,12 @@ werden. Ein `down -v && up -d` liefert also wieder **exakt denselben Shop**.
 .
 ├─ docker-compose.yml            # Orchestrierung aller Container
 ├─ .env.example                  # Vorlage für die Konfiguration
-├─ install.sh                    # Kompletter Neuaufbau auf Knopfdruck (Reset + Befüllung)
-├─ CHANGELOG.md                  # Änderungsverlauf
+├─ install.sh                    # Neuaufbau: Reset → Fixture-Restore → Datums-Shift → Archivierung
+│
+├─ tools/                        # Fixture backen + Datums-Shift (Maintainer)
+│  ├─ bake.conf                  # Bake-Parameter (Historienlänge, Umsatz, CR, Offset-Rundung)
+│  ├─ bake-fixture.sh            # erzeugt die Fixture einmalig (generieren → dumpen)
+│  └─ shift-dates.sh             # verschiebt beim Install alle Fixture-Daten auf „heute"
 │
 ├─ seed/
 │  └─ catalog.json               # Gemeinsamer Produktkatalog (Shop + Traffic-Generator)
@@ -411,7 +415,13 @@ werden. Ein `down -v && up -d` liefert also wieder **exakt denselben Shop**.
 │                                #   nicht versioniert; hier von Hand Dateien importieren
 │
 ├─ matomo/
-│  └─ matomo-init.sh             # Installiert & konfiguriert Matomo headless, erzeugt API-Token
+│  ├─ matomo-init.sh             # Installiert & konfiguriert Matomo headless, erzeugt API-Token
+│  ├─ fixture/                   # Vorgebackene Historie (Install: restaurieren + auf heute shiften)
+│  │  ├─ matomo-history.sql.gz   #   Matomo-Roh-Logs
+│  │  ├─ wc-orders.sql.gz        #   WooCommerce-Bestellungen + Kund:innen
+│  │  ├─ BASE                    #   Anker-Datum für den Offset-Shift
+│  │  └─ BAKE-INFO               #   womit gebacken wurde
+│  └─ M392ABTesting/ M392Funnels/   # native Matomo-5-Report-Plugins (A/B, Funnels)
 │
 ├─ traffic/                      # Datengenerierungstool (Python/Flask)
 │  ├─ Dockerfile
@@ -421,7 +431,14 @@ werden. Ein `down -v && up -d` liefert also wieder **exakt denselben Shop**.
 │  ├─ requirements.txt
 │  └─ templates/index.html       # Dashboard-Oberfläche
 │
-└─ docs/                         # Architektur-Doku + Produkt-Workflow
+└─ docs/                         # Doku (README bleibt im Root, alles Weitere hier)
+   ├─ HANDOFF.md                 # Projektübergabe (Zustand, Architektur, Gotchas)
+   ├─ ARCHITECTURE.md            # Datenfluss, Tracking-Wege, Fixture/Shift
+   ├─ CHANGELOG.md               # Änderungsverlauf
+   ├─ LEARNING.md                # Modul-392-Lernpfad
+   ├─ PRODUKTE-WORKFLOW.md       # neue Produkte hinzufügen
+   ├─ WINDOWS.md                 # Windows/WSL2-Setup
+   └─ review/                    # Code-Review-Konversation (Historie)
 ```
 
 ## Troubleshooting

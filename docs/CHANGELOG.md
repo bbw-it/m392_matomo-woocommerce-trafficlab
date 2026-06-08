@@ -83,7 +83,7 @@ Format lose angelehnt an [Keep a Changelog](https://keepachangelog.com/de/).
 ### Verankerung
 - Alle Anpassungen liegen in genau einer von drei dauerhaften Schichten – **(a)** versionierter Code
   (mu-Plugins, `wp-init.sh`, Traffic Lab), **(b)** Fixture `shop.sql.gz`, **(c)** Laufzeit-Seed –
-  und überleben damit `install.sh`. Details: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) § 8.
+  und überleben damit `install.sh`. Details: [`ARCHITECTURE.md`](ARCHITECTURE.md) § 8.
 
 ---
 

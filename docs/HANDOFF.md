@@ -2,7 +2,7 @@
 
 Dieses Dokument fasst **Zustand, Architektur, Konventionen, Verifikations-Methodik und offene Arbeit**
 zusammen, damit ein neuer Agent ohne Vorwissen produktiv weiterarbeiten kann. Lies zuerst dieses MD,
-dann bei Bedarf `README.md`, `docs/ARCHITECTURE.md` und `review/06 claude konsens-und-plan.md`.
+dann bei Bedarf `../README.md` und `ARCHITECTURE.md`. (`review/` = abgeschlossene Code-Review-Historie.)
 
 ---
 
@@ -30,7 +30,7 @@ Alles in `docker-compose.yml`. Zugangsdaten/Stellschrauben in `.env` (lokal, git
 
 ```bash
 cp .env.example .env
-./install.sh            # kompletter Reset+Aufbau, wartet auf Seed+Archivierung (macOS/Linux/WSL2)
+./install.sh            # Reset → Fixture-Restore → Datums-Shift → Archivierung (~2-3 Min)
 # oder ohne Skript:
 docker compose up -d
 ```
@@ -47,24 +47,24 @@ docker compose up -d
 ## 4. Repo-Struktur (Kern)
 
 ```
-docker-compose.yml          # Orchestrierung
-.env(.example)              # Konfiguration (Ports, Versionen, Passwörter, Seed-Stellschrauben)
-.gitattributes             # erzwingt LF (Windows-Klon-Sicherheit) – NICHT entfernen
-install.sh                 # Reset+Aufbau, aktiviert Matomo-Plugins, wartet auf Seed
-seed/catalog.json          # Produktkatalog des Traffic Lab (Spiegel des echten Shops)
+docker-compose.yml          # Orchestrierung (+ docker-compose.bake.yml = Override nur fürs Backen)
+.env(.example)              # Konfiguration (Ports, Versionen, Passwörter, Live-Tropf-Werte)
+.gitattributes              # erzwingt LF (Windows-Klon-Sicherheit) – NICHT entfernen
+install.sh                  # Reset → Fixture-Restore → Datums-Shift → Matomo-Archivierung
+tools/                      # bake.conf, bake-fixture.sh (Fixture backen), shift-dates.sh (Datums-Shift)
+seed/catalog.json           # Produktkatalog des Traffic Lab (Spiegel des echten Shops)
 db/init/01-init-databases.sh
 wordpress/init/
-  wp-init.sh               # Fixture-Restore + Theme/Plugins + Permalinks (+ toter Legacy-Block, s.u.)
-  fixture/                 # shop.sql.gz (DB) + uploads.tar.gz (Bilder) = eingefrorener Shop
-  mu-plugins/              # matomo-tracking, m392-order-api, m392-ab-test, m392-shop-filters,
-                           #   m392-german-shop, m392-test-payments
+  wp-init.sh                # Fixture-Restore (shop.sql.gz); fehlende Fixture → harter Abbruch
+  fixture/                  # shop.sql.gz (Shop OHNE Bestellungen) + uploads.tar.gz = eingefrorener Shop
+  mu-plugins/               # matomo-tracking, m392-order-api, m392-ab-test, m392-shop-filters,
+                            #   m392-german-shop, m392-test-payments
 matomo/
-  matomo-init.sh           # headless Install, Site+Ziele+Custom-Dimension, Token
+  matomo-init.sh            # headless Install, Site+Ziele+Custom-Dimension, Token
+  fixture/                  # matomo-history.sql.gz + wc-orders.sql.gz + BASE + BAKE-INFO (gebackene Historie)
   M392ABTesting/ M392Funnels/   # die zwei nachgebauten Report-Plugins (plugin/ + setup.sh + README)
-traffic/                   # Flask Traffic Lab (app.py, generator.py, orders.py, templates/index.html)
-docs/                      # ARCHITECTURE.md, PRODUKTE-WORKFLOW.md, WINDOWS.md
-LEARNING.md                # Modul-392-Lernpfad → Matomo-Funktionen
-review/                    # Code-Review-Konversation mit Codex (01–06) + finaler Plan
+traffic/                    # Flask Traffic Lab (app.py, generator.py, orders.py, index.html); läuft unter waitress
+docs/                       # HANDOFF, ARCHITECTURE, CHANGELOG, LEARNING, PRODUKTE-WORKFLOW, WINDOWS + review/
 ```
 
 ## 5. Architektur-Kern (Kurzfassung — Details in `docs/ARCHITECTURE.md`)
@@ -72,17 +72,23 @@ review/                    # Code-Review-Konversation mit Codex (01–06) + fina
 - **Zwei Datenwege, eine Matomo-Instanz:** (A) echte Browser-Besuche über den Tracking-Code im Shop;
   (B) das Traffic Lab sendet serverseitig direkt an die Matomo-Tracking-API (`/matomo.php`), datierbar
   (`cdt` + `token_auth`).
-- **Fixture vs. generiert:** Der **Shop** (Produkte, Seiten, Theme, Bewertungen) ist als Fixture
-  eingefroren (`shop.sql.gz` + `uploads.tar.gz`) → schneller, identischer Restore. **Bestellungen** und
-  **Matomo-Historie** werden beim Start **frisch generiert** (relativ zu „heute") – das ist der langsame
-  Teil und bewusst nicht eingefroren (Datums-Relativität).
-- **Seed-Formel** (gekoppelter Modus, `TRAFFIC_AVG_MONTHLY_REVENUE>0`):
-  `Bestellungen/Tag = (Monatsumsatz/30)/28` · `Backfill-Besuche/Tag = Bestellungen/Tag × (1/CR − 1)` · `× TAGE`.
-  Stellschrauben (Last reduzieren): **TAGE↓** (linear auf beides, bester Hebel; Standard **90**),
-  **Monatsumsatz↓** (linear), **CR↑** (nur Besuche), `AVG_MONTHLY_REVENUE=0` (entkoppelt, Besuche/Tag=14),
-  `TRAFFIC_AUTO_SEED=false` (kein Seed). Profile stehen kommentiert in `.env.example`.
-- **3-Schichten-Verankerung** (überlebt `install.sh`): (a) versionierter Code, (b) Fixture,
-  (c) Laufzeit-Seed. Was nicht in (a)/(b) liegt, ist transiente Demodaten.
+- **Fixture-only (Shop UND Historie eingefroren):** Der **Shop** (`shop.sql.gz` + `uploads.tar.gz`)
+  und die **Historie** (Matomo-Besuche + WC-Bestellungen, ~180 Tage; `matomo/fixture/*.sql.gz`) sind
+  beide vorgebacken. `install.sh` **restauriert** sie und **verschiebt alle Datumswerte per
+  `tools/shift-dates.sh` auf „heute"** (Anker `matomo/fixture/BASE`; `offset = heute − BASE`, identisch
+  für Matomo + WooCommerce → die Umsatz-Kopplung bleibt erhalten). Danach **einmal** `core:archive`.
+  → Install ~2-3 Min statt 15-30 (kein Live-Generieren mehr beim Install).
+- **Archiv-Stolperstein:** Matomo archiviert **nichts vor dem Site-Erstelldatum**. `install.sh` setzt
+  darum `matomo_site.ts_created` auf den (geshifteten) Datenanfang + invalidiert, sonst bleiben die
+  Alt-Monate leer.
+- **Backen (Maintainer, selten):** `tools/bake-fixture.sh` fährt den Stack mit den Parametern aus
+  `tools/bake.conf` (Historienlänge 180, Umsatz, CR) frisch hoch, lässt den **Generator** (`traffic/`)
+  die Historie EINMAL erzeugen und dumpt sie. Der Generator bleibt „Source of Truth"; der Dump ist ein
+  abgeleitetes Artefakt. Parameter ändern ⇒ neu backen. (Seed-Formel im gekoppelten Modus:
+  `Bestellungen/Tag = (Monatsumsatz/30)/28`, `Besuche/Tag = Bestellungen/Tag × (1/CR − 1)`.)
+- **Live-Tropf:** `TRAFFIC_LIVE_DRIP` erzeugt zusätzlich die laufende „jetzt"-Schicht (in der UI abschaltbar).
+- **3-Schichten-Verankerung** (überlebt `install.sh`): (a) versionierter Code, (b) Fixtures (Shop +
+  Historie). Was nicht dort liegt, ist transiente Demodaten (Live-Tropf).
 
 ## 6. Die zwei Matomo-Plugins (wichtig & nicht offensichtlich)
 
@@ -157,55 +163,48 @@ dem Matomo-Start und leert danach den Cache. Plugins sind per Bind-Mount im mato
 - `.gitattributes` (LF) **nicht entfernen** (sonst kaputte Container-Skripte nach Windows-Klon).
 - Seed-Standard ist **90 Tage** (Last-Reduktion); Profile in `.env.example`.
 
-## 10. Stand: erledigt (diese Iteration)
+## 10. Stand: erledigt
 
-- Matomo-Report-Plugins A/B + Funnel: gebaut, **auto-aktiviert**, unter „A/B Tests"/„Funnels" sichtbar,
-  in Pluginverwaltung gelistet.
-- A/B: mehrere Tests, **Inline-Anlage** (Demo-Look), **kumulierte** Auswertung + Monats-Verlauf,
-  **Bayes** (Normal + Monte-Carlo). Gewinner-Logik korrekt (kein „Gewinner" bei Gleichstand/0).
-- Funnel: **Sankey** + Seiten-Zuordnung.
-- Traffic Lab: Master-Redesign, Spektrum-Slider, **mehrseriges Chart** (Käufe/Wiederkehrende sichtbar).
-- `.env`: realistischer Order-API-Key, `TRAFFIC_RETURNING_RATE=0.08`, **Seed-Fenster 90 Tage**.
-- Aufräumen: totes CSS, `.gitignore`/`.gitattributes`, Doku-Konsistenz.
-- Neue Doku: `LEARNING.md`, `docs/WINDOWS.md`, `HANDOFF.md` (diese Datei).
+- **Report-Plugins** A/B + Funnel (native Matomo 5): auto-aktiviert, Sankey, Bayes, kumulierte Auswertung.
+- **Fix-Paket 1** (gemergt, E2E-verifiziert): Installer-Wahrheit (`/api/ready` `error`≠`done`, ehrliche
+  Exit-Codes), robuste Traffic-Endpunkte (Bounds, 400 statt 500, inkl. inf/nan), Ports auf `127.0.0.1`,
+  Datenkonsistenz (manuelle Käufe zählen als Besuch, WC-Fehler sichtbar, `STATE.wc` getrennt),
+  Legacy-Pfad in `wp-init.sh` entfernt (fehlende Fixture → harter Abbruch).
+- **Fix-Paket 2:** thread-lokale HTTP-Sessions; leichtes `/ping` (+ separate `/orders-revenue`-Route);
+  `latest`-Fallback → harter Fehler; A/B-Custom-Dimension per Assert (Index==1) abgesichert; keine
+  externen Google-Fonts (Systemfonts); `waitress` statt Flask-Dev-Server.
+- **Fixture-Bake (fixture-only Install):** Historie (Matomo-Logs + WC-Bestellungen) wird gebacken
+  (`tools/bake-fixture.sh` → `matomo/fixture/*.sql.gz`), beim Install restauriert + auf „heute"
+  verschoben (`tools/shift-dates.sh`) + archiviert. E2E verifiziert: Install ~2-3 Min; Kopplung
+  Matomo == WooCommerce (~250 Orders / ~6.9k EUR); keine Zukunftsdaten; Shop-Filter intakt.
+- **Doku/Struktur:** alle MD außer `README.md` unter `docs/`; `TODO.md` + Brainstorm-Specs entfernt
+  (realisiert); Code-Review-Historie unter `docs/review/`.
 
-## 11. Stand: OFFEN – die nächste Arbeit
+## 11. Stand: offene Ideen (nicht dringend)
 
-**Maßgeblich:** [`review/06 claude konsens-und-plan.md`](review/06%20claude%20konsens-und-plan.md) –
-mit Codex abgestimmter, von Luca freigegebener Plan. **Zwei Entscheidungen sind bereits getroffen:**
-Ports **fix + auf `127.0.0.1` binden**; Legacy-Modus **entfernen** (bei fehlender Fixture hart abbrechen).
-
-**Fix-Paket 1 (zuerst umsetzen, je Punkt 1 Commit, jeweils verifizieren):**
-1. **Installer-Wahrheit:** `/api/ready` – `error` nicht mehr als `done` (heute `app.py` ~Z.192:
-   `done = all(v in ("done","off","error") …)`); `install.sh` `wait_http`-Fehler nicht mit `|| true`
-   schlucken; Exit-Codes + Statuszeile; `--no-wait` = „nicht verifiziert".
-2. **Traffic-Endpunkte robust:** tolerantes Parsing/`400`, Bounds (count/days/vph/cr/ret), kein 500,
-   UI-Feedback bei Fehler.
-3. **Lokal einhegen:** Compose-Port-Bindings auf `127.0.0.1:…`; Ports „fix" dokumentieren.
-4. **Datenkonsistenz:** `generate_orders` zählt **Besuche** mit (heute fehlt `visits` im Return →
-   Dashboard zählt manuelle Käufe nicht als Besuch); WC-Bestellfehler sichtbar statt still `count=0`;
-   UI/Status trennt Matomo-Traffic vs. echte Shop-Bestellungen.
-5. **Legacy entfernen:** Block in `wp-init.sh` (~Z.295–599) raus; fehlende Fixture → klarer Abbruch.
-
-**Fix-Paket 2 (danach):** `requests.Session` pro Thread; `/ping` leichtgewichtig; `latest`-Fallback →
-harter Fehler; A/B-Custom-Dimension dynamisch statt statisch `dimension1`; Google-Fonts lokal;
-veraltete „~24 Monate"-Kommentare; Dev-Server nach Bounds neu bewerten.
+- Offset-Rundung `OFFSET_ROUNDING=week` (Wochentags-Realismus, kleine Lücke am Rand) ist in
+  `tools/bake.conf` schaltbar.
+- Historienlänge/Umsatz/CR der Fixture über `tools/bake.conf` + `./tools/bake-fixture.sh` anpassbar.
+- Fix-Paket 1 + 2 sind abgeschlossen; die abgestimmte Konsens-Historie liegt in `docs/review/`.
 
 ## 12. Bekannte Stolpersteine
 
 - **Matomo config.ini `[Plugins]` niemals manuell schreiben** → Login/Auth bricht. Immer
   `console plugin:activate`.
 - **Token-Render-Sperre** (siehe §8) → Endcheck visuell nur eingeloggt.
-- **Seed-Daten sind datums-relativ** zu „heute"; ein statischer Dump würde veralten (Diskussion dazu in
-  der Konversation; aktuell wird generiert).
-- **Manuelle Käufe ≠ Besuche** im Dashboard (Bug, in Fix-Paket 1.4).
-- **Ports binden aktuell auf 0.0.0.0** (LAN-erreichbar) – wird in Fix-Paket 1.3 auf `127.0.0.1` gezogen.
-- **WSL2 empfohlen für `install.sh`** unter Windows (`docs/WINDOWS.md`).
+- **Fixture-Historie ist datums-verschoben:** `tools/shift-dates.sh` schiebt alle Zeitstempel um
+  `heute − BASE`. Matomo archiviert nichts vor `matomo_site.ts_created` → `install.sh` setzt es auf den
+  Datenanfang + invalidiert, sonst bleiben Alt-Monate leer.
+- **WC-Dump OHNE `shop_order`-Platzhalter-Posts:** HPOS vergibt deren `wp_posts`-IDs aus der
+  `wp_wc_orders`-Sequenz → sie kollidieren beim Restore mit `shop.sql.gz`-Posts. Kanonisch sind die
+  `wp_wc_*`-Tabellen (die WC-Admin + wc-admin-Analytics lesen).
+- **Ports an `127.0.0.1` gebunden** (nur localhost); Standardports sind fix (Teil der Kursumgebung).
+- **WSL2 empfohlen für `install.sh`** unter Windows (`WINDOWS.md`).
 
 ## 13. Weiterführende Doku
 
-`README.md` (Überblick/Bedienung) · `docs/ARCHITECTURE.md` (Datenfluss/Seed/Verankerung) ·
-`LEARNING.md` (Modul-392-Lernpfad) · `docs/WINDOWS.md` (Windows-Setup) ·
-`docs/PRODUKTE-WORKFLOW.md` (neue Produkte effizient hinzufügen) ·
-`matomo/M392ABTesting/README.md` & `matomo/M392Funnels/README.md` (Plugin-Details) ·
-`review/01–06` (Code-Review-Konversation + finaler Plan).
+`../README.md` (Überblick/Bedienung) · `ARCHITECTURE.md` (Datenfluss/Fixture/Shift) ·
+`LEARNING.md` (Modul-392-Lernpfad) · `WINDOWS.md` (Windows-Setup) ·
+`PRODUKTE-WORKFLOW.md` (neue Produkte effizient hinzufügen) ·
+`../matomo/M392ABTesting/README.md` & `../matomo/M392Funnels/README.md` (Plugin-Details) ·
+`review/01–06` (abgeschlossene Code-Review-Historie).
