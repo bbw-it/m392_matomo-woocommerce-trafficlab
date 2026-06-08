@@ -30,7 +30,7 @@ services:
       db:
         condition: service_healthy
     ports:
-      - "${WORDPRESS_PORT}:80"
+      - "127.0.0.1:${WORDPRESS_PORT}:80"
     environment:
       WORDPRESS_DB_HOST: db
       WORDPRESS_DB_NAME: ${WP_DB_NAME}
@@ -86,7 +86,7 @@ services:
       db:
         condition: service_healthy
     ports:
-      - "${MATOMO_PORT}:80"
+      - "127.0.0.1:${MATOMO_PORT}:80"
     environment:
       MATOMO_DATABASE_HOST: db
       MATOMO_DATABASE_ADAPTER: mysql
@@ -134,7 +134,7 @@ services:
       wordpress:
         condition: service_started
     ports:
-      - "${TRAFFIC_PORT}:8092"
+      - "127.0.0.1:${TRAFFIC_PORT}:8092"
     environment:
       MATOMO_INTERNAL_URL: http://matomo
       MATOMO_ID_SITE: "1"

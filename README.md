@@ -142,6 +142,8 @@ Sind `wp-init` und `matomo-init` mit `Exited (0)` beendet, ist alles bereit.
 | **Matomo** | http://localhost:8091 | `MATOMO_ADMIN_USER` / `MATOMO_ADMIN_PASSWORD` aus `.env` |
 | **Datengenerierungstool** | http://localhost:8092 | – |
 
+> **Ports sind fix und an `127.0.0.1` gebunden** (nur localhost, kein LAN-Zugriff). Sie gehören zur reproduzierbaren Kursumgebung – nur bewusst in `.env` überschreiben.
+
 > Die Standard-Logins stehen in `.env.example` (z. B. `admin` / `wp123` bzw. `admin` / `matomo123`).
 > Für den Unterricht bewusst einfach gehalten – **nicht für produktiven Einsatz**.
 
