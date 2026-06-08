@@ -6,6 +6,27 @@ Format lose angelehnt an [Keep a Changelog](https://keepachangelog.com/de/).
 ## [Unreleased] – Stand 2026-06-05
 
 ### Hinzugefügt
+- **Matomo-Report-Plugins „A/B Tests" + „Funnels" (nachgebaut, kostenfrei):** Zwei native Matomo-5-
+  Plugins (`matomo/M392ABTesting`, `matomo/M392Funnels`) als kostenfreier Ersatz für die bezahlten
+  Originale. Sie sind per Bind-Mount eingebunden und werden in `install.sh` **automatisch aktiviert**
+  (`console plugin:activate` – schreibt die vollständige Plugin-Liste inkl. Login, statt einer
+  config.ini-`[Plugins]`-Sektion, die Matomo lahmlegen würde). Die Report-Seiten hängen via
+  **Category + Subcategory + Widget** unter den **bestehenden Menüpunkten** „A/B Tests" bzw. „Funnels"
+  (mit deren Icons) und erscheinen in der Pluginverwaltung als Dritt-Anbieter.
+- **A/B-Test-Plugin:** mehrere Tests verwaltbar; **Test inline anlegen** im selben Fenster (Demo-Look:
+  Feld links, Hilfe rechts). Auswertung **kumuliert über die gesamte Laufzeit seit Teststart** (nicht je
+  Monat → Gewinner/P-Wert stabil) + Monats-Verlaufskurve als Kontext. **Bayes (Beta-Binomial,
+  Prior Beta(1,1)):** P(besser als Original) sofort als Normal-Näherung, Button „exakt" rechnet
+  Monte-Carlo (100 000 Stichproben) inkl. Steigerung + 95 %-Intervall. Datenquelle je Variante =
+  Matomo-Segment (Custom Dimension „AB-Variante" bzw. Seiten-URL).
+- **Funnel-Plugin:** Conversion-Trichter als **Sankey-Diagramm** (SVG) – „weiter"- und „Abbruch"-Bänder –
+  mit konkreter **WordPress-Seiten-Zuordnung** je Schritt (Produkt `/product/` → Warenkorb `/cart/` →
+  Kasse `/checkout/` → Bestätigung `/checkout/order-received/`).
+- **Traffic-Lab-Dashboard neu (Master-Design, responsive):** Spektrum-Farb-Slider (Besucher/Stunde,
+  Conversion-Rate, Wiederkehrende Kunden) + abgeleitete „Erwartete Käufe"-Anzeige; **mehrseriges
+  Aktivitätsdiagramm** (Besuche · Käufe · Wiederkehrende) mit eigener Skala für Käufe/Wiederkehrende,
+  damit sie neben Besuchs-Spikes sichtbar bleiben. Order-API liefert dafür die Anzahl wiederkehrender
+  Käufe (`returning`) zurück.
 - **Matomo ↔ WooCommerce gekoppelt (im Richtwert-Modus):** Jede geseedete Bestellung wird zusätzlich
   als Matomo-E-Commerce-Conversion gespiegelt (gleiches Datum/Artikel, **Produktumsatz ohne Versand**).
   Dadurch zeigen Matomo *E-Commerce* „Gesamteinnahmen" und WooCommerce „Bruttoumsatz" **dieselben

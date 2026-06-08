@@ -10,8 +10,14 @@ Conversion-Rate / Umsatz / Ø-Bestellwert) mit **Total-Zeile** und **Gewinner-Ma
 
 Der **Standard-Test „ShopVariante"** (Original `/shop/` vs. Shop-Variante `/shop-variante/`, über die
 Custom Dimension) ist immer vorhanden; Variante B konvertiert bewusst etwas besser → sichtbarer
-Lerneffekt. Weitere Tests legt man über das Formular **„+ Neuen A/B-Test anlegen"** an (gespeichert in
-einer Matomo-Option). 
+Lerneffekt. Weitere Tests legt man über **„+ Neuen A/B-Test anlegen"** an – das Formular öffnet
+**inline im selben Fenster** (die Card wechselt, die Navigation bleibt), Demo-Look (Feld links,
+Hilfe rechts). Tests sind in einer Matomo-Option gespeichert.
+
+**Auswertungszeitraum:** Die Tabelle/der Bayes-Wert sind **kumuliert über die gesamte Laufzeit seit
+Teststart** (unabhängig vom Datumsfilter oben) → Gewinner und P-Wert springen nicht monatlich.
+Zusätzlich zeigt eine kleine **Monats-Verlaufskurve** der Conversion-Rate je Variante den zeitlichen
+Trend als Kontext (nicht die Gewinner-Basis).
 
 ### Bayes-Auswertung (Beta-Binomial)
 Die Conversion-Rate je Variante ist Beta-verteilt; mit Prior Beta(1,1) ist die Posterior
@@ -20,9 +26,10 @@ Die Conversion-Rate je Variante ist Beta-verteilt; mit Prior Beta(1,1) ist die P
 (100 000 Stichproben, ~90 ms) und zeigt zusätzlich die erwartete relative **Steigerung** und das
 **95 %-Intervall** der Conversion-Differenz.
 
-Code: `Storage.php` (Test-CRUD via Option), `Stats.php` (Kennzahlen je Segment + Bayes),
-`Controller.php` (Formular/Speichern/Löschen/Bayes-AJAX), `Widgets/GetAB.php` (Übersicht),
-`templates/index.twig` + `create.twig`.
+Code: `Storage.php` (Test-CRUD via Option), `Stats.php` (Kennzahlen je Segment, kumulierte Range,
+Monats-Verlauf, Bayes), `Controller.php` (Speichern/Löschen/Bayes-AJAX, Nonce-geschützt),
+`Widgets/GetAB.php` (Übersicht, kumuliert), `templates/index.twig` (Übersicht **und** inline
+Create-Formular).
 
 ## Bestandteile
 | Teil | Wo | Zweck |

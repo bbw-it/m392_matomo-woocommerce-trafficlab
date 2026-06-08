@@ -63,6 +63,8 @@ Mit dieser Umgebung lassen sich u. a. folgende Kompetenzen aus Modul 392 abdecke
 > [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
 > 📝 **Änderungsverlauf:** siehe [`CHANGELOG.md`](CHANGELOG.md).
 > 🛍️ **Produkte hinzufügen** (Workflow-Konzept, KI-Bilder): siehe [`docs/PRODUKTE-WORKFLOW.md`](docs/PRODUKTE-WORKFLOW.md).
+> 🤝 **Mitwirkende / Agenten** (Zustand, Architektur, offene Arbeit kompakt): siehe [`HANDOFF.md`](HANDOFF.md).
+> 🎓 **Lernpfad Modul 392 → Matomo:** siehe [`LEARNING.md`](LEARNING.md).
 
 Ein `docker compose` startet sechs Container (drei dauerhafte Web-Dienste, zwei einmalige
 Einrichtungs-Container und eine Datenbank):
