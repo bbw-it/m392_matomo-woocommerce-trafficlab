@@ -127,14 +127,24 @@ dem Matomo-Start und leert danach den Cache. Plugins sind per Bind-Mount im mato
 
 - **API-Vertrag:** `GET /api/status` (totals, history mit `{t,visits,purchases,returning}`, log, …);
   `POST /api/toggle-drip`, `/api/set-drip`, `/api/generate-visits`, `/api/generate-orders`,
-  `/api/backfill`, `GET /api/ready`.
-- **UI** (`templates/index.html`): Spektrum-Slider (Besucher/Stunde, Conversion-Rate, Wiederkehrende),
-  „Erwartete Käufe"-Anzeige, **mehrseriges Aktivitätsdiagramm** (Besuche/Käufe/Wiederkehrende; Käufe &
-  Wiederkehrende auf **eigener Skala**, sonst von Besuchs-Spikes erdrückt).
+  `/api/backfill`, `GET /api/ready`; **Produkte:** `GET /api/products` (Liste + Gewichte),
+  `POST /api/product-weight` (sku, weight 0–100; persistiert via WP-Option `m392_product_weights`,
+  Order-API-Endpunkte `GET/POST m392/v1/weights`).
+- **UI** (`templates/index.html`): **drei Tabs** (Dashboard / Produkte / Protokoll), ruhige
+  Akzent-Fill-Slider, „Erwartete Käufe"-Anzeige, **mehrseriges Aktivitätsdiagramm**
+  (Besuche/Käufe/Wiederkehrende; Achse skaliert auf sichtbare Serien).
+- **Defer-Flow (Live/Manuell):** `generate_visits/orders(defer_purchases=True)` liefert je Kauf ein
+  `pending` (Warenkorb + vorbereitete Conversion-Parameter); `app._finish_purchases` legt die echten
+  WC-Bestellungen mit **exakt diesen Warenkörben** an (`carts`-Parameter der Order-API) und schließt
+  dann mit `generator.complete_purchase` (echter Produktumsatz, selber Besuch) ab → Matomo = WC.
 - **Seed** in `app.py · _maybe_auto_seed` (siehe Formel oben) läuft **nur beim Backen** (gegated
   über `TRAFFIC_AUTO_SEED`, in `.env.example` nicht mehr gesetzt → beim normalen Install inaktiv);
   echte Bestellungen via `orders.py` → mu-plugin `m392-order-api.php`; Matomo-Spiegelung via
   `generator.track_ecommerce_order`.
+- **Gotcha Bestell-IDs:** Die Fixture enthält `wp_wc_orders` mit hohen IDs, aber keine
+  shop_order-Posts; HPOS zieht neue Bestell-IDs aus der `wp_posts`-Sequenz. `install.sh` hebt die
+  Sequenz nach dem Restore hinter `MAX(wp_wc_orders.id)` – sonst kollidieren Live-Bestellungen
+  irgendwann mit Fixture-IDs (Duplicate Key, stille Fehlschläge).
 
 ## 8. Verifikations-Methodik (wichtig – Umgebung hat Eigenheiten)
 

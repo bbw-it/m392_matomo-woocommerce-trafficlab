@@ -5,6 +5,44 @@ Format lose angelehnt an [Keep a Changelog](https://keepachangelog.com/de/).
 
 ## [Unreleased] – Stand 2026-06-11
 
+### Behoben (Traffic Lab ↔ WooCommerce)
+- **„Wiederkehrende Kunden" funktionieren jetzt wirklich:** Der Bestandskunden-Pool der Order-API
+  wird rollenunabhängig über die Bestellhistorie (`wp_wc_orders.customer_id`) ermittelt statt per
+  `get_users(role=customer)`. Der Fixture-Restore bringt `wp_users` ohne `usermeta` (= ohne Rolle)
+  mit – vorher bestand der Pool nur aus wenigen live angelegten Kund:innen, und eine einzige Kund:in
+  bekam fast alle Folgebestellungen. Name/Adresse von Fixture-Kund:innen kommen als Fallback aus
+  `wc_customer_lookup`; `bake-fixture.sh` dumpt künftig die `wp_usermeta` der Kund:innen mit.
+- **Matomo- und WooCommerce-Umsatz sind im Live-Betrieb identisch (Defer-Flow):** Bisher trackte der
+  Live-Tropf bei einem Kauf einen zufälligen Warenkorb nach Matomo und legte unabhängig davon eine
+  WC-Bestellung mit anderem Warenkorb an (Drift, z. B. €2338 vs. €893 an einem Tag). Jetzt wird die
+  WC-Bestellung mit **exakt dem Warenkorb des getrackten Besuchs** angelegt (`carts`-Parameter der
+  Order-API) und die Matomo-Conversion danach – im selben Besuch – mit dem echten Produktumsatz
+  gesendet. Umsatz-Konvention wie bei der Fixture: Produktumsatz ohne Versand. Live verifiziert:
+  15 Käufe → beide Systeme exakt EUR 698.00.
+- **ID-Kollision zwischen Live-Bestellungen und Fixture entschärft:** Die Fixture bringt
+  `wp_wc_orders` mit hohen IDs mit, dumpt aber bewusst keine shop_order-Platzhalter-Posts. HPOS
+  zieht die ID neuer Bestellungen aus der `wp_posts`-Sequenz – die wäre irgendwann in die
+  Fixture-IDs gelaufen (Duplicate Key, Bestellungen schlagen still fehl). `install.sh` hebt die
+  Sequenz nach dem Restore jetzt hinter die höchste Bestell-ID; das Traffic Lab loggt
+  unvollständige Bestell-Batches statt sie zu verschlucken.
+
+### Hinzugefügt (Traffic Lab)
+- **Produkte-Tab – Beliebtheit steuern:** Produktliste live aus WooCommerce (inkl. bisheriger
+  Verkäufe), pro Produkt ein Gewicht 0–100 (Regler + Schnellwahl Bestseller/Normal/Ladenhüter).
+  Wirkt auf Produktansichten UND Warenkörbe, also auf Matomo-Traffic und echte Bestellungen.
+  Persistiert als WP-Option `m392_product_weights` (neue Endpunkte `GET/POST m392/v1/weights`,
+  Schreibzugriff mit API-Key); überlebt Container-Neustarts, `./install.sh` setzt zurück.
+- **Protokoll-Tab:** Das Aktivitätslog liegt in einem eigenen Tab (mit Eintrags-Badge), statt das
+  Dashboard zu verlängern.
+
+### Geändert (Traffic Lab)
+- **UI verfeinert („Papier & Tinte"):** Tab-Navigation, reife Farbpalette (warme Neutraltöne,
+  Tinten-Navy als Akzent, gedeckte Datenfarben Stahlblau/Salbeigrün/Bernstein), ruhige
+  Akzent-Fill-Slider statt Regenbogen-Gradient, Buttons in Tinte, tabellarische Ziffern,
+  Fokus-Stile und `prefers-reduced-motion`. Weiterhin offline-tauglich (nur System-Fonts).
+- KPI „Umsatz heute" weist jetzt konsequent den **Produktumsatz ohne Versand** aus (gleiche
+  Konvention wie Fixture und WooCommerce-„Bruttoumsatz").
+
 ### Geändert
 - **Matomo-Tracking-URL folgt jetzt `.env`:** Das mu-plugin `matomo-tracking.php` liest den
   Matomo-Host-Port aus `MATOMO_PORT` (via Compose als `M392_MATOMO_PORT` in den WordPress-Container

@@ -227,6 +227,16 @@ Datengenerierungstools.
 Ein modernes Dashboard auf **http://localhost:8092** erzeugt realistischen Traffic und sendet ihn
 über die Matomo-Tracking-API. So wird sichtbar, **wie** Tracking-Daten entstehen.
 
+Das Dashboard ist in **drei Tabs** gegliedert:
+
+- **Dashboard** – Live-KPIs, Aktivitäts-Chart und die Aktionen (Live-Tropf, manuell senden).
+- **Produkte** – **Beliebtheit pro Produkt steuern** (0 = Ladenhüter … 100 = Bestseller, mit
+  Schnellwahl-Buttons): Die Liste wird live aus WooCommerce gelesen (inkl. bisheriger Verkäufe).
+  Die Gewichte wirken auf Produktansichten **und** Warenkörbe – also auf den Matomo-Traffic ebenso
+  wie auf die echten Shop-Bestellungen. Sie werden in WordPress gespeichert und überleben
+  Container-Neustarts (`./install.sh` setzt sie zurück).
+- **Protokoll** – das Aktivitätslog in einem eigenen Tab (Autoscroll, leeren).
+
 - **Live-KPIs & Aktivitäts-Chart:** Besuche, Käufe, Umsatz, Conversion in Echtzeit. Der
   Aktivitäts-Chart beschriftet die Zeitachse **relativ** („jetzt", „−1:00" …); ein **Hover-Tooltip**
   zeigt die Anzahl Besucher:innen pro Balken.
@@ -255,7 +265,10 @@ Ein modernes Dashboard auf **http://localhost:8092** erzeugt realistischen Traff
   dort anpassen und mit `./tools/bake-fixture.sh` neu backen (Details in [`docs/HANDOFF.md`](docs/HANDOFF.md)).
   Jede Bestellung ist **zusätzlich in Matomo gespiegelt** (gleiches Datum/Artikel, **Produktumsatz
   ohne Versand**), sodass *Matomo → E-Commerce* „Gesamteinnahmen" und *WooCommerce → Statistiken*
-  „Bruttoumsatz" **dieselben Zahlen** zeigen. Versand/Gutscheine/Retouren bleiben bewusst
+  „Bruttoumsatz" **dieselben Zahlen** zeigen. Das gilt auch im **Live-Betrieb**: Jeder Kauf des
+  Live-Tropfs legt die echte WooCommerce-Bestellung mit **exakt dem Warenkorb des getrackten
+  Besuchs** an – Matomo-Conversion und Shop-Bestellung zeigen dieselben Artikel und denselben
+  Produktumsatz. Versand/Gutscheine/Retouren/Stornos bleiben bewusst
   WooCommerce-exklusiv (Lerneffekt: Tools messen Unterschiedliches).
   Jede Bestellung ist in **alle WooCommerce-Analytics-Tabellen** synchronisiert (Bestell-Statistik,
   Produkte, Gutscheine, Kund:innen) und mit `date_paid` versehen – dadurch stimmen *WooCommerce →

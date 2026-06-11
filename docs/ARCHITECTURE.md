@@ -348,6 +348,12 @@ nicht über Matomo, sondern über einen geschützten REST-Endpunkt im WordPress-
   und denselben Artikeln** (`track_ecommerce_order`; der Order-Endpunkt liefert dazu pro Bestellung
   `ts/revenue/items` zurück). Dadurch zeigen **Matomo *E-Commerce* „Gesamteinnahmen" und WooCommerce
   „Bruttoumsatz" dieselben Zahlen** (Umsatz, Bestellungen, Ø-Bestellwert, verkaufte Artikel).
+  Im **Live-Betrieb** gilt dieselbe Parität über den **Defer-Flow**: Der simulierte Kauf-Besuch
+  übergibt seinen Warenkorb an die Order-API (`carts`-Parameter), die echte Bestellung entsteht mit
+  **exakt diesen Artikeln**, und erst danach wird die Matomo-Conversion – im selben Besuch – mit dem
+  echten Produktumsatz gesendet (`generator.complete_purchase`). Die **Beliebtheits-Gewichte** aus dem
+  Produkte-Tab (WP-Option `m392_product_weights`, Endpunkte `GET/POST m392/v1/weights`) überschreiben
+  die `popularity` aus `catalog.json` und steuern so Ansichten **und** Warenkörbe.
   Bewusst **nicht** abgebildet (Lerneffekt „Tools unterscheiden sich"): **Versand**, **Gutschein-
   Rabatte** und **Retouren** erscheinen nur in WooCommerce (Netto-/Gesamtumsatz, Retouren-Zeile). Damit die **Conversion-Rate realistisch** bleibt, erzeugt der
   Backfill in diesem Modus **keine eigenen Käufe** mehr (die Conversions kommen aus den Bestellungen),
