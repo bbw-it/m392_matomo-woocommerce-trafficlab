@@ -1,0 +1,20 @@
+# EditorConfig (https://editorconfig.org) – einheitliche Formatierung im Repo.
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+[*.{php,py,sh}]
+indent_style = space
+indent_size = 4
+
+[*.{yml,yaml,json}]
+indent_style = space
+indent_size = 2
+
+# In Markdown sind Zeilenende-Leerzeichen bedeutungstragend (harter Umbruch).
+[*.md]
+trim_trailing_whitespace = false

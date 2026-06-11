@@ -3,7 +3,35 @@
 Notable Änderungen an der M392-Matomo-Lehrumgebung. Neueste zuerst.
 Format lose angelehnt an [Keep a Changelog](https://keepachangelog.com/de/).
 
-## [Unreleased] – Stand 2026-06-08
+## [Unreleased] – Stand 2026-06-11
+
+### Geändert
+- **Matomo-Tracking-URL folgt jetzt `.env`:** Das mu-plugin `matomo-tracking.php` liest den
+  Matomo-Host-Port aus `MATOMO_PORT` (via Compose als `M392_MATOMO_PORT` in den WordPress-Container
+  gereicht) statt fest `8091`. Port in `.env` ändern + `docker compose up -d` genügt; kein
+  Datei-Editieren mehr nötig.
+- **`tools/bake-fixture.sh` fragt vor dem destruktiven Neuaufbau nach** (Bestätigung `bake`,
+  überspringbar mit `-y`/`--yes`), analog `install.sh` – schützt vor versehentlichem `down -v`.
+- **Shop-Filter robuster gegen Theme-Markup:** Die Produkt-Zuordnung läuft über einen serverseitigen
+  Marker (`.m392-pid` mit `data-product-id`) statt über das Parsen der `post-<ID>`-CSS-Klasse
+  (bleibt als Fallback erhalten).
+- **`matomo-init.sh`:** Token-Erzeugung entflochten (curl-Fehler bricht jetzt hart mit klarer
+  Meldung ab, statt still mit leerem Token weiterzulaufen).
+- **Backfill zählt übersprungene Treffer:** Transiente Netzwerkfehler beim Backfill werden weiterhin
+  übersprungen, aber gezählt (`skipped`) und im Traffic-Lab-Log ausgewiesen – systematische
+  Probleme (Matomo down, Token fehlt) bleiben nicht mehr unsichtbar.
+- **Order-API: Gutschein-Fehlschläge sichtbar:** Schlägt `apply_coupon()` fehl (abgelaufen,
+  Nutzungslimit), wird das als Bestellnotiz + PHP-Log festgehalten statt still ignoriert.
+- **`tools/shift-dates.sh` warnt bei unplausiblem Offset** (> ±365 Tage → Hinweis auf
+  falsches/veraltetes BASE-Datum).
+- **`install.sh`:** Spinner-Temp-Logs werden auch bei Abbruch (Ctrl+C) aufgeräumt (EXIT-Trap).
+
+### Hinzugefügt
+- **Healthchecks** für `wordpress`, `matomo` und `traffic` in `docker-compose.yml` – `docker compose
+  ps` zeigt jetzt auch ohne `install.sh` an, ob die Dienste wirklich antworten.
+- **`.editorconfig`** für einheitliche Einrückung/Zeilenenden im Repo.
+
+## [1.0.0] – 2026-06-08
 
 ### Geändert
 - **Install ist jetzt fixture-only (180-Tage-Fixture):** Die Historie (Matomo-Logs + WC-Bestellungen,
