@@ -356,7 +356,7 @@ Kursbetrieb funktionieren die Standardwerte ohne Anpassung. Die wichtigsten Vari
 | `TRAFFIC_CREATE_WC_ORDERS` | `true` | Echte WooCommerce-Bestellungen im Live-Betrieb anlegen |
 | `M392_ORDER_API_KEY` | `m392_lab_…` | Gemeinsames Secret für den Bestell-Endpunkt (WP ⇄ Traffic) |
 | `M392_AB_TEST_ENABLED` | `true` | Shop-A/B-Test aktiv (Variante A/B, getrackt als Matomo-Custom-Dimension „AB-Variante") |
-| `M392_AB_SPLIT_B` | `50` | Prozent der Besucher:innen in Variante B |
+| `M392_AB_SPLIT_B` | `50` | Prozent der **synthetischen** Besuche in Variante B (nur Traffic Lab; echte Besucher:innen sehen immer `/shop/`) |
 | `M392_AB_CONV_FACTOR_B` | `1.25` | Faktor, um den Variante B besser konvertiert (Lerneffekt) |
 
 > **Historie/Umsatz der Fixture:** Historienlänge, Umsatzniveau und Conversion-/Returning-Rate der

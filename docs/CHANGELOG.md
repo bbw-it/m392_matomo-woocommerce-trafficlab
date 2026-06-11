@@ -6,6 +6,13 @@ Format lose angelehnt an [Keep a Changelog](https://keepachangelog.com/de/).
 ## [Unreleased] – Stand 2026-06-11
 
 ### Behoben (Traffic Lab ↔ WooCommerce)
+- **Kein /shop/→/shop-variante/-Redirect mehr für echte Besucher:innen:** Das A/B-Plugin hat
+  Besucher:innen per Cookie 50/50 einer Variante zugewiesen und Variante B von `/shop/` auf
+  `/shop-variante/` umgeleitet – im Unterricht irritierend. Jetzt: kein Cookie-Bucketing, kein
+  Redirect; `/shop/` bleibt `/shop/`, `/shop-variante/` ist eigenständig erreichbar. Die
+  Matomo-Custom-Dimension „AB-Variante" wird URL-basiert gesetzt (Variante-Seite = „Shop-Variante",
+  sonst „Original"); den A/B-Besuchs-Split liefert weiterhin das Traffic Lab synthetisch
+  (`M392_AB_SPLIT_B`). Alte `m392_ab`-Cookies werden beim nächsten Aufruf aktiv gelöscht.
 - **„Wiederkehrende Kunden" funktionieren jetzt wirklich:** Der Bestandskunden-Pool der Order-API
   wird rollenunabhängig über die Bestellhistorie (`wp_wc_orders.customer_id`) ermittelt statt per
   `get_users(role=customer)`. Der Fixture-Restore bringt `wp_users` ohne `usermeta` (= ohne Rolle)

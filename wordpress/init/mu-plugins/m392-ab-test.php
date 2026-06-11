@@ -3,9 +3,15 @@
  * Plugin Name: M392 A/B-Test (Shop-Variante)
  * Description: A/B-Test der Shop-Seite für die Lehrumgebung Modul 392. Variante
  *  "Original" = /shop/, Variante "Shop-Variante" = /shop-variante/ (sichtbar anders).
- *  Besucher:innen werden fix (Cookie) einer Variante zugewiesen; die Variante wird
- *  in der Matomo-Custom-Dimension 1 ("AB-Variante") getrackt. So lässt sich in
- *  Matomo vergleichen, welche Variante besser konvertiert.
+ *  Die Variante wird URL-BASIERT in der Matomo-Custom-Dimension 1 ("AB-Variante")
+ *  getrackt: /shop-variante/ = "Shop-Variante", alles andere = "Original".
+ *
+ *  WICHTIG: Es gibt KEIN Cookie-Bucketing und KEINEN Redirect mehr. Echte
+ *  Besucher:innen sehen /shop/ ganz normal; /shop-variante/ ist eine eigenständig
+ *  erreichbare Seite. Den A/B-Besuchs-Split (M392_AB_SPLIT_B) erzeugt das Traffic
+ *  Lab synthetisch über die Tracking-API – dafür braucht der Shop selbst keine
+ *  Umleitung. (Früher wurden Besucher:innen per Cookie zugewiesen und ggf. von
+ *  /shop/ auf /shop-variante/ umgeleitet – das war im Unterricht irritierend.)
  */
 if (!defined('ABSPATH')) { exit; }
 
@@ -19,48 +25,22 @@ function m392_ab_enabled() {
     return strtolower(trim((string) ($v === false ? 'true' : $v))) === 'true';
 }
 
-function m392_ab_split_b() {
-    $v = getenv('M392_AB_SPLIT_B');
-    if ($v === false && isset($_SERVER['M392_AB_SPLIT_B'])) { $v = $_SERVER['M392_AB_SPLIT_B']; }
-    $n = (int) preg_replace('/[^0-9].*$/', '', (string) $v);
-    return max(0, min(100, $n ?: 50));
-}
-
-/** Zugewiesene Variante (Cookie-sticky); weist beim ersten Besuch nach Split zu. */
-function m392_ab_variant() {
-    static $variant = null;
-    if ($variant !== null) { return $variant; }
-    if (!m392_ab_enabled()) { return $variant = ''; }
-    $c = isset($_COOKIE[M392_AB_COOKIE]) ? (string) $_COOKIE[M392_AB_COOKIE] : '';
-    if ($c === M392_AB_ORIGINAL || $c === M392_AB_VARIANTE) {
-        return $variant = $c;
+/** Altes Bucketing-Cookie aufräumen (stammt aus der früheren Redirect-Logik). */
+add_action('init', function () {
+    if (isset($_COOKIE[M392_AB_COOKIE]) && !headers_sent()) {
+        setcookie(M392_AB_COOKIE, '', time() - 3600, (defined('COOKIEPATH') && COOKIEPATH) ? COOKIEPATH : '/');
+        unset($_COOKIE[M392_AB_COOKIE]);
     }
-    $variant = (mt_rand(1, 100) <= m392_ab_split_b()) ? M392_AB_VARIANTE : M392_AB_ORIGINAL;
-    if (!headers_sent()) {
-        setcookie(M392_AB_COOKIE, $variant, time() + 30 * 86400, COOKIEPATH ?: '/');
-        $_COOKIE[M392_AB_COOKIE] = $variant;
-    }
-    return $variant;
-}
-
-/** Der Variante "Shop-Variante" zugewiesene Besucher:innen vom /shop/ auf
- *  /shop-variante/ schicken – so sehen sie wirklich die andere Variante. */
-add_action('template_redirect', function () {
-    if (!m392_ab_enabled() || is_admin()) { return; }
-    if (function_exists('is_shop') && is_shop() && m392_ab_variant() === M392_AB_VARIANTE) {
-        $url = home_url('/shop-variante/');
-        wp_safe_redirect($url, 302);
-        exit;
-    }
-}, 1);
+});
 
 /** Matomo-Custom-Dimension 1 setzen – VOR dem trackPageView des Tracking-Plugins
  *  (das läuft auf wp_head-Priorität 5; wir nutzen 4, damit unser _paq-Push zuerst
- *  in der Warteschlange steht). Auf der Variante-Seite immer "Shop-Variante". */
+ *  in der Warteschlange steht). URL-basiert: nur die Variante-Seite zählt als
+ *  "Shop-Variante", alle übrigen Seiten als "Original". */
 add_action('wp_head', function () {
     if (!m392_ab_enabled()) { return; }
-    $variant = (function_exists('is_page') && is_page('shop-variante')) ? M392_AB_VARIANTE : m392_ab_variant();
-    if (!$variant) { return; }
+    $variant = (function_exists('is_page') && is_page('shop-variante'))
+        ? M392_AB_VARIANTE : M392_AB_ORIGINAL;
     echo "<script>window._paq=window._paq||[];_paq.push(['setCustomDimension',1,"
         . json_encode($variant, JSON_UNESCAPED_UNICODE) . "]);</script>\n";
 }, 4);
