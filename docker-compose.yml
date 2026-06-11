@@ -42,12 +42,23 @@ services:
       # A/B-Test der Shop-Seite (Variante "Shop-Variante" unter /shop-variante/)
       M392_AB_TEST_ENABLED: ${M392_AB_TEST_ENABLED:-true}
       M392_AB_SPLIT_B: ${M392_AB_SPLIT_B:-50}
+      # Host-Port von Matomo: daraus baut der Tracking-Code (mu-plugin
+      # matomo-tracking.php) die vom Browser erreichbare URL http://localhost:<Port>/.
+      M392_MATOMO_PORT: ${MATOMO_PORT:-8091}
     volumes:
       # Bind-Mount des kompletten WordPress-Docroots auf den Host. So lassen sich
       # Dateien von Hand importieren/bearbeiten (Plugins, Themes, Uploads, wp-config).
       # Wird beim ersten Start vom WordPress-Image befüllt, danach von wp-init.
       - ./wordpress/www:/var/www/html
       - ./wordpress/init/mu-plugins:/var/www/html/wp-content/mu-plugins:ro
+    healthcheck:
+      # Liveness: Apache antwortet (3xx beim Erststart auf den Installer ist ok).
+      # start_period grosszuegig – beim ersten Start kopiert das Image erst den Core.
+      test: ["CMD-SHELL", "curl -fsS -o /dev/null http://localhost/ || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 90s
 
   wp-init:
     image: wordpress:cli-${WORDPRESS_CLI_VERSION}
@@ -96,6 +107,13 @@ services:
       # Plugin-Liste inkl. Login – kein Lahmlegen von Matomo).
       - ./matomo/M392ABTesting/plugin:/var/www/html/plugins/M392ABTesting:ro
       - ./matomo/M392Funnels/plugin:/var/www/html/plugins/M392Funnels:ro
+    healthcheck:
+      # Liveness: Apache antwortet (3xx auf Installer/Login ist ok).
+      test: ["CMD-SHELL", "curl -fsS -o /dev/null http://localhost/ || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 60s
 
   matomo-init:
     image: curlimages/curl:8.11.1
@@ -152,6 +170,13 @@ services:
     volumes:
       - ./seed/catalog.json:/seed/catalog.json:ro
       - matomo_token:/token:ro
+    healthcheck:
+      # python statt curl: das slim-Image bringt kein curl/wget mit.
+      test: ["CMD", "python", "-c", "import urllib.request as u; u.urlopen('http://localhost:8092/api/status', timeout=3)"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
 
 volumes:
   db_data:

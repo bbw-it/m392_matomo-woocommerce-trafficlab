@@ -163,8 +163,9 @@ Welche Ereignisse das Plugin meldet (kontextabhängig pro Seitentyp):
 | Seitenaufrufe | Performance-Timings `pf_net`/`pf_srv`/`pf_dm1` … | Verhalten → Leistung |
 | Land/Region/Stadt | `country`/`region`/`city` (Override mit `token_auth`) | Besucher → Orte |
 
-Der im HTML eingebettete Tracker zeigt auf `http://localhost:8091/` (Host-Port), weil der
-Code im **Browser** der Lernenden läuft — nicht im Docker-Netz.
+Der im HTML eingebettete Tracker zeigt auf `http://localhost:<MATOMO_PORT>/` (Standard `8091`),
+weil der Code im **Browser** der Lernenden läuft — nicht im Docker-Netz. Der Port kommt aus `.env`
+(`MATOMO_PORT`, via Compose als `M392_MATOMO_PORT` in den WordPress-Container gereicht).
 
 > **Ziele (Goals):** Neben E-Commerce-Conversions sind zwei weitere **Ziele** hinterlegt, beide
 > von `matomo-init.sh` reproduzierbar angelegt:

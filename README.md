@@ -476,9 +476,9 @@ werden. Ein `down -v && up -d` liefert also wieder **exakt denselben Shop**.
   zeigt der Schritt **[5/5]** ein `✗` samt Fehlerausgabe; meist fehlt der API-Token – `docker compose
   logs matomo-init` prüfen (Token wird dort erzeugt und im Volume `matomo_token` abgelegt).
 - **Ports belegt**
-  Ports in `.env` ändern (`WORDPRESS_PORT`, `MATOMO_PORT`, `TRAFFIC_PORT`). Hinweis: Der im Shop
-  eingebettete Tracking-Code zeigt auf `localhost:8091`; bei geändertem `MATOMO_PORT` die Datei
-  `wordpress/init/mu-plugins/matomo-tracking.php` anpassen.
+  Ports in `.env` ändern (`WORDPRESS_PORT`, `MATOMO_PORT`, `TRAFFIC_PORT`). Der im Shop eingebettete
+  Tracking-Code übernimmt `MATOMO_PORT` automatisch aus `.env` – danach die Container einmal neu
+  erstellen (`docker compose up -d`).
 - **Erster Start hängt / lädt lange**
   Beim ersten Start werden Images, Theme/Plugins und Bilder geladen – Internet nötig, etwas Geduld.
 

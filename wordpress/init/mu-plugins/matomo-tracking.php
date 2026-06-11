@@ -6,8 +6,11 @@
 if (!defined('ABSPATH')) { exit; }
 
 add_action('wp_head', function () {
-    // Vom Browser aus erreichbare Matomo-URL (Host-Port). Bei Bedarf anpassen.
-    $matomo_url = 'http://localhost:8091/';
+    // Vom Browser aus erreichbare Matomo-URL. Der Host-Port kommt aus .env
+    // (MATOMO_PORT, via Compose als M392_MATOMO_PORT durchgereicht); Fallback 8091.
+    $matomo_port = (int) getenv('M392_MATOMO_PORT');
+    if ($matomo_port <= 0) { $matomo_port = 8091; }
+    $matomo_url = 'http://localhost:' . $matomo_port . '/';
     $site_id    = 1;
     ?>
 <!-- Matomo (M392 Lehrumgebung) -->
