@@ -97,11 +97,12 @@ _PRODUCT_CACHE = {"ts": 0.0, "data": None}
 _PRODUCT_TTL = 300.0
 
 
-def _fetch_live_products():
-    """Holt die Live-Produktliste vom Shop (gecacht ~5 min). None bei Fehler."""
+def _fetch_live_products(force=False):
+    """Holt die Live-Produktliste vom Shop (gecacht ~5 min; force=True erneuert
+    den Cache sofort – z. B. via Sync im Produkte-Tab). None bei Fehler."""
     now = time.time()
     cached = _PRODUCT_CACHE["data"]
-    if cached is not None and (now - _PRODUCT_CACHE["ts"]) < _PRODUCT_TTL:
+    if not force and cached is not None and (now - _PRODUCT_CACHE["ts"]) < _PRODUCT_TTL:
         return cached
     try:
         r = _session().get(f"{WP_INTERNAL_URL}/wp-json/m392/v1/products", timeout=10)
@@ -295,13 +296,17 @@ def _load_catalog(apply_weights=True):
     return _apply_weights(catalog) if apply_weights else catalog
 
 
-def product_overview():
+def product_overview(fresh=False):
     """Produktliste für den Produkte-Tab des Dashboards: Stammdaten, bisherige
     WooCommerce-Verkäufe und das Default-Gewicht (aus der Katalog-Gewichtung
-    abgeleitet, stärkstes Produkt = 100; relative Verhältnisse bleiben erhalten)."""
+    abgeleitet, stärkstes Produkt = 100; relative Verhältnisse bleiben erhalten).
+
+    fresh=True umgeht den Produkt-Cache: Verkaufszahlen sind sofort aktuell und
+    NEUE WordPress-Produkte erscheinen unmittelbar – auch im Traffic, denn der
+    erneuerte Cache gilt ebenso für die Besuchs-/Warenkorb-Generierung."""
+    live = _fetch_live_products(force=fresh) or []
     base = _load_catalog(apply_weights=False)
-    sales = {p.get("sku"): int(p.get("total_sales") or 0)
-             for p in (_fetch_live_products() or [])}
+    sales = {p.get("sku"): int(p.get("total_sales") or 0) for p in live}
     prods = base.get("products", [])
     maxp = max((float(pr.get("popularity") or 1) for pr in prods), default=1.0)
     out = []

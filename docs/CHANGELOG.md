@@ -34,6 +34,15 @@ Format lose angelehnt an [Keep a Changelog](https://keepachangelog.com/de/).
   Schreibzugriff mit API-Key); überlebt Container-Neustarts, `./install.sh` setzt zurück.
 - **Protokoll-Tab:** Das Aktivitätslog liegt in einem eigenen Tab (mit Eintrags-Badge), statt das
   Dashboard zu verlängern.
+- **Sync-Button im Produkte-Tab + Verkaufszahlen live:** `/api/products` liest Produkte und
+  „verkauft bisher" jetzt immer frisch aus WooCommerce (kein 5-Minuten-Cache mehr für die Anzeige).
+  Der Button „Synchronisieren" erneuert zusätzlich den Produkt-Cache des Generators und
+  protokolliert den Abgleich – **neue, im WP-Backend angelegte Produkte erscheinen sofort** im Tab
+  (mit Median-Default-Gewicht) und im erzeugten Traffic. End-to-end verifiziert (Produkt angelegt →
+  nach Sync sichtbar → entfernt → nach Sync weg).
+- **Nunito lokal gebündelt:** Die Skydash-Schrift „Nunito" (Variable Font, SIL OFL, ~270 KB) liegt
+  unter `traffic/static/fonts/` und wird vom Container offline ausgeliefert – kein CDN. Fallback
+  bleiben System-Fonts. Dazu grosszügigere Abstände (Header, Karten, Listen).
 
 ### Geändert (Traffic Lab)
 - **UI verfeinert („Papier & Tinte"):** Tab-Navigation, reife Farbpalette (warme Neutraltöne,

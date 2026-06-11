@@ -4,9 +4,17 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Traffic Lab — M392</title>
-<!-- Offline-tauglich: keine externen Fonts/CDNs. Die Stacks fallen auf gute
-     System-Fonts zurück (Avenir Next/Segoe UI bzw. SF Mono/Cascadia). -->
+<!-- Offline-tauglich: "Nunito" (Skydash-Font, SIL OFL) wird LOKAL aus dem
+     Container ausgeliefert (traffic/static/fonts/, Variable Font mit allen
+     Gewichten) – kein CDN. Fallback: System-Fonts. -->
 <style>
+  @font-face{
+    font-family:'Nunito';
+    src:url('/static/fonts/Nunito-Variable.ttf') format('truetype-variations');
+    font-weight:200 1000;
+    font-style:normal;
+    font-display:swap;
+  }
   :root{
     /* Skydash-Palette: kühles Hellblau-Grau, Indigo als Primärfarbe,
        helle Blau-/Violett-/Koralle-Akzente. Keine warmen Töne. */
@@ -19,7 +27,9 @@
     --c-ret:#f3797e;   /* Wiederk. – Koralle  */
     --ok:#7da0fa; --err:#f3797e; --err-soft:#fdecee;
     --r:14px; --sh:0 2px 10px rgba(75,73,172,.05);
-    --font:"Avenir Next","Segoe UI Variable Text","Segoe UI",system-ui,-apple-system,sans-serif;
+    /* Skydash nutzt "Nunito" – falls lokal installiert, wird sie verwendet;
+       sonst greifen rundlich-freundliche System-Fonts (offline-tauglich). */
+    --font:"Nunito","Nunito Sans","Avenir Next","Segoe UI Variable Text","Segoe UI",system-ui,-apple-system,sans-serif;
     --mono:"SF Mono",ui-monospace,"Cascadia Code",Menlo,Consolas,monospace;
   }
   *{box-sizing:border-box}
@@ -33,7 +43,7 @@
 
   /* ---------- Header ---------- */
   .hdr{background:var(--card); border-bottom:1px solid var(--line)}
-  .hdr-in{max-width:1360px; margin:0 auto; padding:15px 28px; display:flex; align-items:center; gap:16px}
+  .hdr-in{max-width:1360px; margin:0 auto; padding:18px 32px; display:flex; align-items:center; gap:16px}
   .logo{width:34px; height:34px; border-radius:10px; background:var(--acc); flex:none;
     display:grid; place-items:center}
   .logo svg{width:18px; height:18px}
@@ -51,7 +61,7 @@
 
   /* ---------- Tabs (Pills wie die Skydash-Sidebar) ---------- */
   .tabs{background:var(--card); border-bottom:1px solid var(--line)}
-  .tabs-in{max-width:1360px; margin:0 auto; padding:10px 28px; display:flex; gap:8px}
+  .tabs-in{max-width:1360px; margin:0 auto; padding:12px 32px; display:flex; gap:8px}
   .tab{border:0; background:none; cursor:pointer; padding:9px 18px; border-radius:10px;
     font-size:13.5px; font-weight:600; color:var(--gray); letter-spacing:.01em;
     transition:background .15s, color .15s}
@@ -62,29 +72,29 @@
   .tab[aria-selected="true"] .cnt{background:rgba(255,255,255,.22); color:#fff}
 
   /* ---------- Layout ---------- */
-  .wrap{max-width:1360px; margin:0 auto; padding:24px 28px 44px;
-    display:flex; flex-direction:column; gap:20px}
+  .wrap{max-width:1360px; margin:0 auto; padding:28px 32px 56px;
+    display:flex; flex-direction:column; gap:24px}
   .view[hidden]{display:none}
-  .view{display:flex; flex-direction:column; gap:20px; animation:fadein .22s ease}
+  .view{display:flex; flex-direction:column; gap:24px; animation:fadein .22s ease}
   @keyframes fadein{from{opacity:0; transform:translateY(4px)}to{opacity:1; transform:none}}
-  .kpis{display:grid; grid-template-columns:repeat(4,1fr); gap:20px}
-  .main{display:grid; grid-template-columns:1fr 380px; gap:20px; align-items:start}
+  .kpis{display:grid; grid-template-columns:repeat(4,1fr); gap:24px}
+  .main{display:grid; grid-template-columns:1fr 380px; gap:24px; align-items:start}
   @media(max-width:1180px){ .main{grid-template-columns:1fr} }
   @media(max-width:760px){ .kpis{grid-template-columns:repeat(2,1fr); gap:14px}
     .hdr-in,.wrap,.tabs-in{padding-left:16px; padding-right:16px} .brand span{display:none} }
 
   .card{background:var(--card); border:1px solid var(--line); border-radius:var(--r); box-shadow:var(--sh)}
-  .pad{padding:22px 24px}
+  .pad{padding:26px 28px}
   h2{font-size:16px; font-weight:700; letter-spacing:-.01em; margin:0}
   .sub{font-size:13px; color:var(--mut); margin:4px 0 0}
 
   /* ---------- KPI: farbige Kacheln (Skydash-Signatur) ---------- */
-  .kpi{padding:18px 20px; border:0}
+  .kpi{padding:22px 24px; border:0}
   .kpi--blue{background:var(--blue-2)}
   .kpi--indigo{background:var(--acc)}
   .kpi--violet{background:var(--violet)}
   .kpi--coral{background:var(--coral)}
-  .kpi-top{display:flex; align-items:flex-start; justify-content:space-between; margin-bottom:13px}
+  .kpi-top{display:flex; align-items:flex-start; justify-content:space-between; margin-bottom:16px}
   .kpi-lbl{font-size:11px; font-weight:700; letter-spacing:.09em; text-transform:uppercase; color:rgba(255,255,255,.85)}
   .kpi-ic{width:36px; height:36px; border-radius:10px; background:rgba(255,255,255,.18); display:grid; place-items:center; flex:none}
   .kpi-ic svg{width:18px; height:18px; stroke:#fff; fill:none}
@@ -96,7 +106,7 @@
   @keyframes flash{0%{opacity:.35}100%{opacity:1}}
 
   /* ---------- Chart ---------- */
-  .ch-head{display:flex; align-items:center; justify-content:space-between; gap:16px; margin-bottom:20px}
+  .ch-head{display:flex; align-items:center; justify-content:space-between; gap:16px; margin-bottom:24px}
   .seg{display:inline-flex; background:var(--line2); border-radius:10px; padding:3px}
   .seg button{border:0; background:transparent; font-size:13px; font-weight:500;
     color:var(--gray); padding:6px 13px; border-radius:8px; cursor:pointer; transition:.15s}
@@ -137,8 +147,8 @@
   .block{flex:1 1 0; min-width:0}
   .toprow{display:flex; align-items:center; justify-content:space-between; margin-bottom:6px}
   .toprow .t{font-size:14.5px; font-weight:500}
-  .prm{margin:18px 0}
-  .prm:first-child{margin-top:8px}
+  .prm{margin:20px 0}
+  .prm:first-child{margin-top:10px}
   .prm-top{display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; font-size:13.5px}
   .prm-top .k{color:var(--gray)}
   .prm-top .v{font-weight:600; font-family:var(--mono); font-size:13px; color:var(--acc);
@@ -166,7 +176,7 @@
   .akt-or::before,.akt-or::after{content:''; height:1px; background:var(--line2); flex:1}
   .drip-params.off{opacity:.45; filter:grayscale(.4); pointer-events:none}
 
-  .man-row{margin-bottom:14px}
+  .man-row{margin-bottom:16px}
   .man-ctl{display:flex; gap:12px; align-items:center}
   input[type=number]{width:74px; height:40px; padding:8px 12px; border:1px solid var(--line); border-radius:10px;
     background:var(--card); font-family:var(--mono); font-size:13.5px; text-align:center; flex:none}
@@ -185,10 +195,13 @@
   }
 
   /* ---------- Produkte ---------- */
-  .p-head{display:flex; align-items:baseline; justify-content:space-between; gap:16px; flex-wrap:wrap; margin-bottom:6px}
-  .p-list{margin-top:14px}
+  .p-head{display:flex; align-items:flex-start; justify-content:space-between; gap:20px; flex-wrap:wrap; margin-bottom:8px}
+  .btn--sync{display:inline-flex; align-items:center; gap:8px; flex:none}
+  .btn--sync svg{width:15px; height:15px; stroke:#fff; fill:none}
+  .btn--sync.busy{opacity:.7; cursor:default}
+  .p-list{margin-top:18px}
   .prow{display:grid; grid-template-columns:minmax(220px,1.4fr) 110px minmax(180px,1fr) 56px 96px auto;
-    gap:18px; align-items:center; padding:14px 4px; border-top:1px solid var(--line2)}
+    gap:20px; align-items:center; padding:17px 6px; border-top:1px solid var(--line2)}
   .prow:first-child{border-top:0}
   .pinfo b{display:block; font-size:14.5px; font-weight:600; letter-spacing:-.005em;
     overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
@@ -207,7 +220,7 @@
     font-weight:600; padding:5px 10px; border-radius:99px; cursor:pointer; transition:.13s; white-space:nowrap}
   .ppre button:hover{border-color:var(--acc); color:var(--acc); background:var(--acc-soft)}
   .p-empty{padding:26px 4px; color:var(--mut); font-size:14px}
-  .p-note{font-size:12.5px; color:var(--mut); margin-top:16px; padding-top:14px; border-top:1px solid var(--line2)}
+  .p-note{font-size:12.5px; color:var(--mut); margin-top:20px; padding-top:16px; border-top:1px solid var(--line2)}
   @media(max-width:980px){
     .prow{grid-template-columns:1fr 90px; row-gap:10px}
     .prow .pslider{grid-column:1/-1}
@@ -371,6 +384,10 @@
           <p class="sub">Live aus WooCommerce gelesen. Die Regler steuern, wie oft ein Produkt angesehen
             und gekauft wird – sie wirken auf den Matomo-Traffic <em>und</em> auf die echten Shop-Bestellungen.</p>
         </div>
+        <button class="btn btn--sync" id="p-sync" title="Produkte und Verkaufszahlen neu aus WooCommerce laden – neue Produkte erscheinen sofort, auch im Traffic">
+          <svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10"/><path d="M20.49 15a9 9 0 0 1-14.85 3.36L1 14"/></svg>
+          <span>Synchronisieren</span>
+        </button>
       </div>
       <div class="p-list" id="p-list"><div class="p-empty">Lade Produkte …</div></div>
       <p class="p-note">0 = Ladenhüter (wird praktisch nie gewählt) · 100 = Bestseller. Die Werte sind
@@ -585,9 +602,9 @@ function productRow(p){
   }));
   return row;
 }
-async function loadProducts(force){
-  if(!force && productsLoaded && Date.now()-productsLoaded<30000) return;
-  let d; try{ d=await (await fetch('/api/products')).json(); }catch(e){ return; }
+async function loadProducts(force, fresh){
+  if(!force && productsLoaded && Date.now()-productsLoaded<15000) return;
+  let d; try{ d=await (await fetch('/api/products'+(fresh?'?fresh=1':''))).json(); }catch(e){ return; }
   const list=$('#p-list');
   if(!d.products || !d.products.length){
     list.innerHTML='<div class="p-empty">Keine Produkte gefunden – ist der Shop schon bereit?</div>';
@@ -599,6 +616,18 @@ async function loadProducts(force){
   d.products.forEach(p=>list.appendChild(productRow(p)));
   productsLoaded=Date.now();
 }
+
+// Sync-Button: Produkte + Verkaufszahlen sofort neu aus WooCommerce laden.
+// Neue, im WP-Backend angelegte Produkte erscheinen damit unmittelbar – auch
+// im Traffic (der Server erneuert dabei den Produkt-Cache des Generators).
+$('#p-sync').addEventListener('click', async ()=>{
+  const b=$('#p-sync'); if(b.classList.contains('busy')) return;
+  const span=b.querySelector('span'); const lbl=span.textContent;
+  b.classList.add('busy'); span.textContent='Synchronisiere …';
+  await loadProducts(true, true);
+  span.textContent='Synchronisiert ✓';
+  setTimeout(()=>{ span.textContent=lbl; b.classList.remove('busy'); }, 1400);
+});
 
 const logColor = m => /fehler|error|timeout|⚠/i.test(m) ? 'r' : /live-tropf|manuell|backfill|bestellung|besuche|✓|gesendet|erzeugt|conversion|beliebtheit/i.test(m) ? 'g' : '';
 

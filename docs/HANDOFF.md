@@ -127,7 +127,9 @@ dem Matomo-Start und leert danach den Cache. Plugins sind per Bind-Mount im mato
 
 - **API-Vertrag:** `GET /api/status` (totals, history mit `{t,visits,purchases,returning}`, log, …);
   `POST /api/toggle-drip`, `/api/set-drip`, `/api/generate-visits`, `/api/generate-orders`,
-  `/api/backfill`, `GET /api/ready`; **Produkte:** `GET /api/products` (Liste + Gewichte),
+  `/api/backfill`, `GET /api/ready`; **Produkte:** `GET /api/products` (Liste + Gewichte, liest
+  immer frisch aus WooCommerce; `?fresh=1` = manueller Sync-Button, erneuert auch den
+  Generator-Cache und loggt den Abgleich),
   `POST /api/product-weight` (sku, weight 0–100; persistiert via WP-Option `m392_product_weights`,
   Order-API-Endpunkte `GET/POST m392/v1/weights`).
 - **UI** (`templates/index.html`): **drei Tabs** (Dashboard / Produkte / Protokoll), ruhige

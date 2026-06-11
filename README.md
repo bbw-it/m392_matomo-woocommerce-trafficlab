@@ -231,10 +231,12 @@ Das Dashboard ist in **drei Tabs** gegliedert:
 
 - **Dashboard** – Live-KPIs, Aktivitäts-Chart und die Aktionen (Live-Tropf, manuell senden).
 - **Produkte** – **Beliebtheit pro Produkt steuern** (0 = Ladenhüter … 100 = Bestseller, mit
-  Schnellwahl-Buttons): Die Liste wird live aus WooCommerce gelesen (inkl. bisheriger Verkäufe).
-  Die Gewichte wirken auf Produktansichten **und** Warenkörbe – also auf den Matomo-Traffic ebenso
-  wie auf die echten Shop-Bestellungen. Sie werden in WordPress gespeichert und überleben
-  Container-Neustarts (`./install.sh` setzt sie zurück).
+  Schnellwahl-Buttons): Die Liste wird live aus WooCommerce gelesen (inkl. bisheriger Verkäufe,
+  laufend aktualisiert). Die Gewichte wirken auf Produktansichten **und** Warenkörbe – also auf den
+  Matomo-Traffic ebenso wie auf die echten Shop-Bestellungen. Sie werden in WordPress gespeichert
+  und überleben Container-Neustarts (`./install.sh` setzt sie zurück). Der Button
+  **„Synchronisieren"** holt neu im WordPress-Backend angelegte Produkte sofort in die Liste und
+  in den erzeugten Traffic.
 - **Protokoll** – das Aktivitätslog in einem eigenen Tab (Autoscroll, leeren).
 
 - **Live-KPIs & Aktivitäts-Chart:** Besuche, Käufe, Umsatz, Conversion in Echtzeit. Der

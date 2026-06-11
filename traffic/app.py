@@ -368,11 +368,17 @@ def _init_weights():
 @app.route("/api/products")
 def api_products():
     """Produktliste für den Produkte-Tab: Stammdaten aus WooCommerce, bisherige
-    Verkäufe und das aktuell wirksame Beliebtheits-Gewicht je Produkt."""
+    Verkäufe und das aktuell wirksame Beliebtheits-Gewicht je Produkt.
+
+    Liest immer frisch aus WooCommerce (Verkaufszahlen live, neue Produkte sofort
+    sichtbar); ?fresh=1 (Sync-Button) protokolliert den manuellen Abgleich."""
+    manual = request.args.get("fresh") == "1"
     try:
-        prods = generator.product_overview()
+        prods = generator.product_overview(fresh=True)
     except Exception as exc:
         return jsonify({"error": str(exc), "products": []}), 503
+    if manual:
+        _log(f"Produkte aus WooCommerce synchronisiert ({len(prods)} Produkte)")
     with LOCK:
         w = dict(WEIGHTS)
     for p in prods:
