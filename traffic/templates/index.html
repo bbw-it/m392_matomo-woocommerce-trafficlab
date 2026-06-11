@@ -19,7 +19,8 @@
     /* Skydash-Palette: kühles Hellblau-Grau, Indigo als Primärfarbe,
        helle Blau-/Violett-/Koralle-Akzente. Keine warmen Töne. */
     --bg:#f5f7ff; --card:#ffffff; --line:#e8ebf7; --line2:#eef0f9;
-    --ink:#2e3140; --ink-2:#4a4e63; --gray:#6c7293; --mut:#a3a8c3; --faint:#ccd0e4;
+    /* Text-Farben nach Skydash-Vorlage: Titel #010101, Fliesstext #1f1f1f. */
+    --title:#010101; --ink:#1f1f1f; --ink-2:#3f4254; --gray:#6c7293; --mut:#a3a8c3; --faint:#ccd0e4;
     --acc:#4b49ac; --acc-deep:#3f3d92; --acc-soft:#ededfb; --acc-ring:rgba(75,73,172,.20);
     --blue:#98bdff; --blue-2:#7da0fa; --violet:#7978e9; --coral:#f3797e;
     /* Slider-Spektrum kühl→warm (niedrig=blau … hoch=koralle). */
@@ -87,8 +88,10 @@
 
   .card{background:var(--card); border:1px solid var(--line); border-radius:var(--r); box-shadow:var(--sh)}
   .pad{padding:26px 28px}
-  h2{font-size:16px; font-weight:700; letter-spacing:-.01em; margin:0}
-  .sub{font-size:13px; color:var(--mut); margin:4px 0 0}
+  /* Karten-Titel exakt wie Skydash .card-title: 18px / 500 / #010101. */
+  h2{font-size:18px; font-weight:500; letter-spacing:0; color:var(--title); margin:0}
+  /* Karten-Beschreibung wie Skydash: 14px / 500 / #1f1f1f. */
+  .sub{font-size:14px; font-weight:500; color:var(--ink); margin:8px 0 0}
 
   /* ---------- KPI: farbige Kacheln (Skydash-Signatur) ---------- */
   .kpi{padding:22px 24px; border:0}
@@ -143,15 +146,15 @@
   .legend .hint{font-size:12px; color:var(--mut)}
 
   /* ---------- Aktionen ---------- */
-  .akt h2{margin:0 0 16px}
+  .akt h2{margin:0 0 19px}
   .akt-body{display:flex; flex-direction:column; gap:0}
   .sec-lbl{font-size:11px; font-weight:700; letter-spacing:.09em; text-transform:uppercase; color:var(--mut); margin:0 0 14px}
   .block{flex:1 1 0; min-width:0}
   .toprow{display:flex; align-items:center; justify-content:space-between; margin-bottom:6px}
-  .toprow .t{font-size:14.5px; font-weight:500}
+  .toprow .t{font-size:14px; font-weight:500}
   .prm{margin:20px 0}
   .prm:first-child{margin-top:10px}
-  .prm-top{display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; font-size:13.5px}
+  .prm-top{display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; font-size:14px}
   .prm-top .k{color:var(--gray)}
   .prm-top .v{font-weight:600; font-family:var(--mono); font-size:13px; color:var(--acc);
     background:var(--acc-soft); padding:2px 9px; border-radius:7px; font-variant-numeric:tabular-nums}
@@ -203,6 +206,7 @@
 
   /* ---------- Produkte ---------- */
   .p-head{display:flex; align-items:flex-start; justify-content:space-between; gap:20px; flex-wrap:wrap; margin-bottom:8px}
+  .p-head > div:first-child{flex:1 1 420px; min-width:0}
   .btn--sync{display:inline-flex; align-items:center; gap:8px; flex:none}
   .btn--sync svg{width:15px; height:15px; stroke:#fff; fill:none}
   .btn--sync.busy{opacity:.7; cursor:default}
