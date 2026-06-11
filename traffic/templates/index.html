@@ -215,7 +215,7 @@
   .p-list{margin-top:18px}
   /* Aufgeräumte Zeile: Produktinfo (inkl. Verkäufe) | Beliebtheits-Regler |
      EIN Status-Pill mit Wert. Keine konkurrierenden Zahlenspalten mehr. */
-  .prow{display:grid; grid-template-columns:minmax(240px,1.2fr) minmax(220px,1fr) 168px;
+  .prow{display:grid; grid-template-columns:minmax(240px,1.2fr) minmax(200px,1fr) 190px;
     gap:28px; align-items:center; padding:17px 6px; border-top:1px solid var(--line2)}
   .prow:first-child{border-top:0}
   .pinfo b{display:block; font-size:14.5px; font-weight:600; letter-spacing:-.005em;
@@ -223,17 +223,21 @@
   .pinfo span{font-size:12.5px; color:var(--mut)}
   .pinfo span .sold{color:var(--ink-2); font-weight:600; font-variant-numeric:tabular-nums}
   .ptag{display:flex; align-items:center; justify-content:space-between; gap:10px;
-    font-size:11px; font-weight:700; letter-spacing:.05em; text-transform:uppercase;
+    font-size:11px; font-weight:700; letter-spacing:.04em; text-transform:uppercase;
     padding:5px 6px 5px 13px; border-radius:99px}
-  .ptag b{font-family:var(--mono); font-size:12px; font-weight:600; letter-spacing:0;
+  .ptag > span{white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+  .ptag b{font-family:var(--mono); font-size:12px; font-weight:600; letter-spacing:0; flex:none;
     background:var(--card); border-radius:99px; padding:2px 9px; font-variant-numeric:tabular-nums}
-  .ptag.hot{background:var(--acc-soft); color:var(--acc)}
-  .ptag.mid{background:var(--line2); color:var(--gray)}
-  .ptag.low{background:var(--err-soft); color:#d9565c}
+  /* Fünfstufige Skala: Rot (Ladenhüter) → Neutral (Normal) → Indigo (Bestseller). */
+  .ptag.t1{background:#fdecee; color:#d9565c}   /* Ladenhüter     */
+  .ptag.t2{background:#f7eef1; color:#b06a83}   /* Wenig gefragt  */
+  .ptag.t3{background:var(--line2); color:var(--gray)}   /* Normal */
+  .ptag.t4{background:#ececfb; color:#6a68c4}   /* Beliebt        */
+  .ptag.t5{background:var(--acc-soft); color:var(--acc)}   /* Bestseller */
   .p-empty{padding:26px 4px; color:var(--mut); font-size:14px}
   .p-note{font-size:12.5px; color:var(--mut); margin-top:20px; padding-top:16px; border-top:1px solid var(--line2)}
   @media(max-width:880px){
-    .prow{grid-template-columns:1fr 150px; row-gap:12px}
+    .prow{grid-template-columns:1fr 170px; row-gap:12px}
     .prow .pslider{grid-column:1/-1}
   }
 
@@ -589,10 +593,14 @@ function drawSpark(hist){
 
 // ---- Produkte-Tab -------------------------------------------------------
 let productsLoaded=0;
+// Fünfstufige Beliebtheits-Skala (0..100) mit passender Farbprogression
+// rot (Ladenhüter) → neutral (Normal) → indigo (Bestseller).
 function weightTag(w){
-  if(w>=61) return ['hot','Bestseller'];
-  if(w>=16) return ['mid','Normal'];
-  return ['low','Ladenhüter'];
+  if(w>=88) return ['t5','Bestseller'];
+  if(w>=63) return ['t4','Beliebt'];
+  if(w>=38) return ['t3','Normal'];
+  if(w>=13) return ['t2','Wenig gefragt'];
+  return ['t1','Ladenhüter'];
 }
 function productRow(p){
   const row=document.createElement('div'); row.className='prow'; row.dataset.sku=p.sku;
