@@ -24,7 +24,7 @@ Sobald `install.sh` **„Der Stack laeuft"** meldet, im Browser öffnen:
 
 | Dienst | URL | Login |
 |---|---|---|
-| 🛒 **Shop** | <http://localhost:8090> | – |
+| 🛒 **Shop** | <http://localhost:8090> | – (Admin: <http://localhost:8090/wp-admin> · `admin` / `wp123`) |
 | 📊 **Matomo** | <http://localhost:8091> | `admin` / `matomo123` |
 | 🤖 **Traffic Lab** | <http://localhost:8092> | – |
 
