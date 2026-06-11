@@ -12,8 +12,14 @@
  *                               oder { "dates": [<epoch>, ...] } für exakte
  *                               Bestelldaten (eine Bestellung je Zeitstempel),
  *                               damit die Bestell-Historie den Matomo-Zeitraum
- *                               (Backfill-Fenster) widerspiegelt.
+ *                               (Backfill-Fenster) widerspiegelt;
+ *                               oder { "carts": [[[sku, menge], ...], ...] } für
+ *                               explizite Warenkörbe (je Bestellung) – so legt der
+ *                               Live-Tropf Bestellungen mit EXAKT den Artikeln an,
+ *                               die auch in Matomo getrackt wurden.
  *                             Header: X-M392-Key: <gemeinsames Secret>
+ *   GET  /weights           → Beliebtheits-Gewichte je SKU (0..100, WP-Option)
+ *   POST /weights           → Gewichte setzen/mergen (Header: X-M392-Key)
  *
  * Die Bestelldaten (Kund:innen, Adressen, Produkte, Zahlart, Status) werden hier
  * serverseitig erzeugt – mit vollem WooCommerce-Zugriff (echte Produkte/Preise).
@@ -74,6 +80,44 @@ add_action('rest_api_init', function () {
         'methods'             => 'GET',
         'permission_callback' => '__return_true',
         'callback'            => 'm392_list_products',
+    ]);
+
+    // Beliebtheits-Gewichte je Produkt (0..100, gesteuert vom Traffic Lab).
+    // Als WP-Option persistiert, damit die Regler-Einstellungen Neustarts und
+    // Rebuilds des Traffic-Containers ueberleben (./install.sh setzt zurueck).
+    register_rest_route('m392/v1', '/weights', [
+        [
+            'methods'             => 'GET',
+            'permission_callback' => '__return_true',
+            'callback'            => function () {
+                $w = get_option('m392_product_weights', []);
+                return ['weights' => is_array($w) && $w ? $w : new stdClass()];
+            },
+        ],
+        [
+            'methods'             => 'POST',
+            'permission_callback' => function (WP_REST_Request $req) {
+                return hash_equals(m392_order_api_key(), (string) $req->get_header('x-m392-key'));
+            },
+            'callback'            => function (WP_REST_Request $req) {
+                $in = $req->get_param('weights');
+                if (!is_array($in)) {
+                    return new WP_REST_Response(['error' => 'weights (Objekt sku => 0..100) fehlt'], 400);
+                }
+                // replace=true ersetzt die Option komplett (sonst Merge je Key).
+                $replace = (bool) $req->get_param('replace');
+                $w = $replace ? [] : get_option('m392_product_weights', []);
+                if (!is_array($w)) { $w = []; }
+                foreach ($in as $sku => $val) {
+                    $sku = (string) $sku;
+                    // SKUs enthalten nie Whitespace – fehlerhafte Keys verwerfen.
+                    if ($sku === '' || preg_match('/\s/', $sku)) { continue; }
+                    $w[$sku] = max(0, min(100, (int) $val));
+                }
+                update_option('m392_product_weights', $w, false);
+                return ['weights' => $w ?: new stdClass()];
+            },
+        ],
     ]);
 });
 
@@ -146,7 +190,15 @@ function m392_create_orders(WP_REST_Request $req) {
         ? array_values(array_filter(array_map('intval', $dates)))
         : [];
 
-    if ($dates) {
+    // Explizite Warenkoerbe (vom Live-Tropf): je Bestellung eine Liste [sku, menge].
+    // Damit enthalten die echten WC-Bestellungen EXAKT die Artikel, die fuer diesen
+    // Kauf in Matomo getrackt werden – Grundlage fuer identische Umsaetze.
+    $carts = $req->get_param('carts');
+    $carts = is_array($carts) ? array_values($carts) : [];
+
+    if ($carts) {
+        $count = min(200, count($carts));      // Sicherheitsdeckel pro Request
+    } elseif ($dates) {
         $count = min(200, count($dates));      // Sicherheitsdeckel pro Request
     } else {
         $count = max(1, min(60, (int) $req->get_param('count')));
@@ -249,7 +301,15 @@ function m392_create_orders(WP_REST_Request $req) {
 
     // Kundenstamm fuer „wiederkehrende" Kaeufer einsammeln, damit ein Teil der
     // Bestellungen Bestandskund:innen zugeordnet wird (realistischer Mix).
-    $customer_pool = array_map('intval', get_users(['role' => 'customer', 'number' => 300, 'fields' => 'ID']));
+    // WICHTIG: rollenUNabhaengig ueber die Bestellhistorie (wp_wc_orders), NICHT
+    // per get_users(role=customer): Der Fixture-Restore bringt wp_users OHNE
+    // usermeta mit (keine Rolle) – eine Rollen-Query faende diese Kund:innen
+    // nicht, der Pool bestuende nur aus wenigen live angelegten Kund:innen und
+    // eine einzige Kund:in bekaeme fast alle Folgebestellungen.
+    global $wpdb;
+    $customer_pool = array_map('intval', $wpdb->get_col(
+        "SELECT DISTINCT customer_id FROM {$wpdb->prefix}wc_orders
+         WHERE customer_id > 0 ORDER BY RAND() LIMIT 300"));
 
     // Rabattgutschein, der „ab und zu" eingeloest wird (~18 % der Bestellungen),
     // sofern er existiert (wird per wp-init reproduzierbar angelegt: NATUR10).
@@ -260,6 +320,7 @@ function m392_create_orders(WP_REST_Request $req) {
 
     $created = [];
     $details = [];                        // pro Umsatz-Bestellung: ts/revenue/items (Matomo-Spiegelung)
+    $all_details = [];                    // pro Bestellung (ALLE Status): fuer den Defer-Abschluss im Live-Tropf
     $batch_revenue = 0.0;                 // Summe der „Umsatz"-Bestellungen dieses Batches
     $returning_count = 0;                 // Anzahl Bestellungen von Bestandskund:innen (wiederkehrend)
     $revenue_statuses = m392_revenue_statuses();
@@ -284,12 +345,22 @@ function m392_create_orders(WP_REST_Request $req) {
             if ($cu) {
                 $customer_id = $cid;
                 $is_returning = true;
-                $fn    = get_user_meta($cid, 'billing_first_name', true) ?: ($cu->first_name ?: $fn);
-                $ln    = get_user_meta($cid, 'billing_last_name', true)  ?: ($cu->last_name  ?: $ln);
-                $email = $cu->user_email;
-                $rcity = get_user_meta($cid, 'billing_city', true);
-                $rplz  = get_user_meta($cid, 'billing_postcode', true);
-                $rco   = get_user_meta($cid, 'billing_country', true);
+                // Stammdaten der Kund:in uebernehmen. Fixture-Kund:innen haben
+                // keine usermeta (Restore ohne wp_usermeta) – dann liefert die
+                // Analytics-Tabelle wc_customer_lookup Name/Adresse als Fallback,
+                // damit Folgebestellungen zur bisherigen Historie passen.
+                $lk = $wpdb->get_row($wpdb->prepare(
+                    "SELECT first_name, last_name, email, city, postcode, country
+                       FROM {$wpdb->prefix}wc_customer_lookup WHERE user_id = %d",
+                    $cid), ARRAY_A) ?: [];
+                $fn    = get_user_meta($cid, 'billing_first_name', true)
+                         ?: ($cu->first_name ?: (($lk['first_name'] ?? '') ?: $fn));
+                $ln    = get_user_meta($cid, 'billing_last_name', true)
+                         ?: ($cu->last_name ?: (($lk['last_name'] ?? '') ?: $ln));
+                $email = $cu->user_email ?: ($lk['email'] ?? '');
+                $rcity = get_user_meta($cid, 'billing_city', true)     ?: ($lk['city'] ?? '');
+                $rplz  = get_user_meta($cid, 'billing_postcode', true) ?: ($lk['postcode'] ?? '');
+                $rco   = get_user_meta($cid, 'billing_country', true)  ?: ($lk['country'] ?? '');
                 if ($rcity) { $city = $rcity; }
                 if ($rplz)  { $plz = $rplz; }
                 if ($rco && isset($geo[$rco])) { $country = $rco; $phone_cc = $geo[$rco][1]; }
@@ -322,12 +393,28 @@ function m392_create_orders(WP_REST_Request $req) {
 
         // Positionen (zusätzlich die Artikel für die Matomo-Spiegelung sammeln:
         // [sku, name, kategorie, preis, menge] – exakt das Matomo-ec_items-Format).
+        // Mit explizitem Warenkorb (carts[i]) werden GENAU dessen Artikel verwendet;
+        // sonst gewichtete Zufallsauswahl. Unauflösbare SKUs fallen auf Zufall zurück.
+        $lines = [];
+        if (isset($carts[$i]) && is_array($carts[$i])) {
+            foreach ($carts[$i] as $entry) {
+                $pid = m392_product_id_by_sku((string) ($entry[0] ?? ''));
+                $product = $pid ? wc_get_product($pid) : false;
+                if ($product) {
+                    $lines[] = [$product, max(1, min(9, (int) ($entry[1] ?? 1)))];
+                }
+            }
+        }
+        if (!$lines) {
+            foreach ($pick_products() as $pid) {
+                $product = wc_get_product($pid);
+                if (!$product) { continue; }
+                $lines[] = [$product, (random_int(1, 100) <= 80) ? 1 : 2];
+            }
+        }
         $subtotal = 0.0;
         $line_items = [];
-        foreach ($pick_products() as $pid) {
-            $product = wc_get_product($pid);
-            if (!$product) { continue; }
-            $qty = (random_int(1, 100) <= 80) ? 1 : 2;
+        foreach ($lines as [$product, $qty]) {
             $order->add_product($product, $qty);
             $subtotal += (float) $product->get_price() * $qty;
             $sku = $product->get_sku(); if (!$sku) { $sku = 'wc_' . $product->get_id(); }
@@ -426,16 +513,26 @@ function m392_create_orders(WP_REST_Request $req) {
                 'items'   => $line_items,
             ];
         }
+        // Detail je Bestellung UNABHÄNGIG vom Status: Der Live-Tropf trackt die
+        // Matomo-Conversion zum Kaufzeitpunkt (real: Tracking feuert beim Kauf,
+        // Stornos passieren später) und braucht dafür den echten Produktumsatz.
+        $all_details[] = [
+            'ts'       => (int) ($created_dt ? $created_dt->getTimestamp() : time()),
+            'subtotal' => round((float) $order->get_subtotal(), 2),
+            'items'    => $line_items,
+            'status'   => $status,
+        ];
         $created[] = $order->get_id();
         if ($is_returning) { $returning_count++; }
     }
 
     return new WP_REST_Response([
-        'count'     => count($created),
-        'created'   => $created,
-        'revenue'   => round($batch_revenue, 2),
-        'returning' => $returning_count,
-        'details'   => $details,
+        'count'         => count($created),
+        'created'       => $created,
+        'revenue'       => round($batch_revenue, 2),
+        'returning'     => $returning_count,
+        'details'       => $details,
+        'orders_detail' => $all_details,
     ], 201);
 }
 
@@ -503,6 +600,14 @@ function m392_pick_status($payment_id) {
     if ($r <= 93) return 'pending';
     if ($r <= 97) return 'refunded';
     return 'cancelled';
+}
+
+/** Produkt-ID aus SKU auflösen – inkl. des Tracker-Fallbacks 'wc_<id>'. */
+function m392_product_id_by_sku($sku) {
+    if ($sku === '') { return 0; }
+    $pid = function_exists('wc_get_product_id_by_sku') ? (int) wc_get_product_id_by_sku($sku) : 0;
+    if (!$pid && preg_match('/^wc_(\d+)$/', $sku, $m)) { $pid = (int) $m[1]; }
+    return $pid;
 }
 
 /** Umlaute/ß und gängige diakritische Zeichen für E-Mail-Adressen vereinfachen. */

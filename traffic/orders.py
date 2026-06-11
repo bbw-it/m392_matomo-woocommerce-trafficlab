@@ -48,13 +48,18 @@ def wait_for_wordpress(timeout=600, interval=5):
     return None
 
 
-def create_orders(count, days_back=0, dates=None, returning_rate=None):
+def create_orders(count, days_back=0, dates=None, returning_rate=None, carts=None):
     """Legt echte Bestellungen an.
 
-    Rückgabe: `{"count", "revenue", "returning", "details", "error"}`.
+    Rückgabe: `{"count", "revenue", "returning", "details", "orders_detail", "error"}`.
     `error` ist `None` bei Erfolg bzw. wenn nichts versucht wurde (deaktiviert /
     count<=0), sonst der Fehlertext (WC nicht erreichbar o. ä.). Konsument:innen
     sollten die Keys mit `.get(...)` lesen.
+
+    Mit `carts` (je Bestellung eine Liste `[sku, menge]`) enthalten die Bestellungen
+    EXAKT diese Artikel – so legt der Live-Tropf Bestellungen mit den in Matomo
+    getrackten Warenkörben an. `orders_detail` liefert dafür je angelegter
+    Bestellung Zeitstempel, Produktumsatz, Artikel und Status zurück.
 
     Mit `dates` (Liste von Epoch-Sekunden) wird je Zeitstempel eine Bestellung
     angelegt und auf dieses Datum datiert – so spiegelt die Bestell-Historie den
@@ -65,16 +70,21 @@ def create_orders(count, days_back=0, dates=None, returning_rate=None):
     `revenue` ist die Summe der „Umsatz"-Bestellungen dieses Batches (bezahlt bzw.
     in Abwicklung) – Grundlage für das Seeding nach Monatsumsatz-Richtwert.
     """
+    empty = {"count": 0, "revenue": 0.0, "returning": 0, "details": [],
+             "orders_detail": [], "error": None}
     if not ENABLED:
-        return {"count": 0, "revenue": 0.0, "returning": 0, "details": [], "error": None}
+        return empty
     payload = {"days_back": int(days_back)}
-    if dates:
+    if carts:
+        payload["carts"] = [[[str(sku), int(qty)] for sku, qty in cart] for cart in carts]
+        payload["count"] = len(payload["carts"])
+    elif dates:
         payload["dates"] = [int(t) for t in dates]
         payload["count"] = len(payload["dates"])
     else:
         payload["count"] = int(count)
     if payload["count"] <= 0:
-        return {"count": 0, "revenue": 0.0, "returning": 0, "details": [], "error": None}
+        return empty
     if returning_rate is not None:
         payload["returning_rate"] = int(round(returning_rate))
     try:
@@ -88,9 +98,32 @@ def create_orders(count, days_back=0, dates=None, returning_rate=None):
         j = r.json()
         return {"count": int(j.get("count", 0)), "revenue": float(j.get("revenue", 0.0)),
                 "returning": int(j.get("returning", 0)), "details": j.get("details", []) or [],
-                "error": None}
+                "orders_detail": j.get("orders_detail", []) or [], "error": None}
     except (requests.RequestException, ValueError) as exc:
-        return {"count": 0, "revenue": 0.0, "returning": 0, "details": [], "error": str(exc)}
+        return dict(empty, error=str(exc))
+
+
+def get_weights():
+    """Persistierte Beliebtheits-Gewichte ({sku: 0..100}) aus WordPress lesen."""
+    try:
+        r = _session().get(f"{WP_URL}/wp-json/m392/v1/weights", timeout=10)
+        return dict(r.json().get("weights") or {}) if r.status_code == 200 else {}
+    except (requests.RequestException, ValueError):
+        return {}
+
+
+def set_weights(weights):
+    """Beliebtheits-Gewichte in WordPress persistieren (Merge). True bei Erfolg."""
+    try:
+        r = _session().post(
+            f"{WP_URL}/wp-json/m392/v1/weights",
+            headers={"X-M392-Key": API_KEY},
+            json={"weights": {str(k): int(v) for k, v in (weights or {}).items()}},
+            timeout=15,
+        )
+        return r.status_code == 200
+    except (requests.RequestException, ValueError):
+        return False
 
 
 def revenue_sum():

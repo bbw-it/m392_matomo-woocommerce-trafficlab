@@ -105,6 +105,11 @@ echo "[bake] Dumpe WooCommerce-Order-Tabellen (HPOS) + Kund:innen ..."
            wp_wc_order_tax_lookup wp_wc_customer_lookup
   "${DC[@]}" exec -T db mariadb-dump -u root -p"$RP" --no-tablespaces --single-transaction --no-create-info \
     "$WDB" wp_users --where="ID IN (${CUST_IDS})"
+  # usermeta MIT dumpen (Rolle wp_capabilities, billing_*): ohne sie haben die
+  # restaurierten Kund:innen keine Rolle/Adresse, und der Bestandskunden-Pool
+  # der Order-API waere nach dem Install praktisch leer.
+  "${DC[@]}" exec -T db mariadb-dump -u root -p"$RP" --no-tablespaces --single-transaction --no-create-info \
+    "$WDB" wp_usermeta --where="user_id IN (${CUST_IDS})"
 } | gzip > "$FIX_DIR/wc-orders.sql.gz"
 
 date +%F > "$FIX_DIR/BASE"

@@ -243,6 +243,21 @@ elif [ "$RESTORE_OK" -eq 1 ]; then
 fi
 
 if [ "$RESTORE_OK" -eq 1 ]; then
+  # WICHTIG: Die Fixture bringt wp_wc_orders mit hohen IDs mit, dumpt aber bewusst
+  # KEINE shop_order-Platzhalter-Posts. HPOS zieht die ID neuer Bestellungen aus der
+  # wp_posts-Sequenz – ohne Anhebung kollidiert die naechste Live-Bestellung mit
+  # einer Fixture-ID (Duplicate Key, Bestellungen schlagen still fehl).
+  NEXTO="$("${DC[@]}" exec -T db mariadb -u root -p"$RP" -N -e \
+        "SELECT COALESCE(MAX(id),0)+1 FROM \`${WDB}\`.wp_wc_orders;" 2>/dev/null | tr -d '\r')"
+  if [ -n "$NEXTO" ] && [ "$NEXTO" -gt 1 ] 2>/dev/null; then
+    "${DC[@]}" exec -T db mariadb -u root -p"$RP" -e \
+      "ALTER TABLE \`${WDB}\`.wp_posts AUTO_INCREMENT = ${NEXTO};" >/dev/null 2>&1 \
+      && echo "      ✓ Bestell-ID-Sequenz auf ${NEXTO} angehoben (keine Kollision mit Fixture-IDs)" \
+      || echo "      WARN: Bestell-ID-Sequenz konnte nicht angehoben werden (wp_posts AUTO_INCREMENT)." >&2
+  fi
+fi
+
+if [ "$RESTORE_OK" -eq 1 ]; then
   BASE_DATE="$(cat "$FIX_DIR/BASE" 2>/dev/null || true)"
   base=$(date -d "$BASE_DATE" +%s 2>/dev/null || date -j -f "%Y-%m-%d" "$BASE_DATE" +%s 2>/dev/null || echo "")
   if [ -n "$base" ]; then
