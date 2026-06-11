@@ -301,7 +301,8 @@ def backfill():
 
     s = generator.backfill(days, conversion_rate=STATE["conversion_rate"], progress=_progress)
     _accumulate(s)
-    _log(f"Backfill {days} Tage fertig – {s['visits']} Besuche, {s['purchases']} Käufe")
+    skipped = f" ({s['skipped']} Treffer wegen Netzwerkfehlern übersprungen)" if s.get("skipped") else ""
+    _log(f"Backfill {days} Tage fertig – {s['visits']} Besuche, {s['purchases']} Käufe{skipped}")
     return jsonify(s)
 
 
@@ -400,7 +401,9 @@ def _maybe_auto_seed():
                 s = generator.backfill(days, base_per_day=base_per_day,
                                        conversion_rate=backfill_conv, progress=_progress)
                 _accumulate(s)
-                _log(f"Auto-Seed: {days} Tage Historie befüllt ({s['visits']} Besuche)")
+                skipped = (f", {s['skipped']} wegen Netzwerkfehlern übersprungen"
+                           if s.get("skipped") else "")
+                _log(f"Auto-Seed: {days} Tage Historie befüllt ({s['visits']} Besuche{skipped})")
                 _set_seed("history", "done")
                 return
             except Exception as exc:

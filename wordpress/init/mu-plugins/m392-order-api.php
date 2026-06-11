@@ -364,9 +364,17 @@ function m392_create_orders(WP_REST_Request $req) {
         $note = $notes[array_rand($notes)];
         if ($note) { $order->set_customer_note($note); }
 
-        // Gutschein „ab und zu" einloesen (vor der Summenberechnung).
+        // Gutschein „ab und zu" einloesen (vor der Summenberechnung). Schlaegt das
+        // fehl (z. B. Gutschein abgelaufen/Nutzungslimit), nicht still ignorieren,
+        // sondern als Bestellnotiz + PHP-Log festhalten.
         if ($coupon_exists && random_int(1, 100) <= $coupon_rate) {
-            $order->apply_coupon($coupon_code);
+            $applied = $order->apply_coupon($coupon_code);
+            if (is_wp_error($applied)) {
+                $msg = sprintf('M392: Gutschein "%s" nicht anwendbar: %s',
+                               $coupon_code, $applied->get_error_message());
+                $order->add_order_note($msg);
+                error_log($msg);
+            }
         }
 
         // Bestelldatum: explizit (dates[]) oder zufällig in den letzten

@@ -793,7 +793,7 @@ def backfill(days, base_per_day=14, conversion_rate=0.04, progress=None):
     aufgerufen, damit langlaufende 24-Monats-Backfills im UI sichtbar bleiben.
     """
     catalog = _load_catalog()
-    total = {"visits": 0, "purchases": 0, "revenue": 0.0}
+    total = {"visits": 0, "purchases": 0, "revenue": 0.0, "skipped": 0}
     now = datetime.now()
     for idx, d in enumerate(range(days, 0, -1), start=1):
         day = now - timedelta(days=d)
@@ -803,10 +803,12 @@ def backfill(days, base_per_day=14, conversion_rate=0.04, progress=None):
                                minute=random.randint(0, 59),
                                second=random.randint(0, 59))
             # Resilient: ein transienter Fehler bei EINEM Besuch darf den ganzen
-            # (zehntausende Treffer langen) Backfill nicht abbrechen – überspringen.
+            # (zehntausende Treffer langen) Backfill nicht abbrechen – überspringen,
+            # aber zählen ("skipped"), damit systematische Probleme sichtbar werden.
             try:
                 r = simulate_visit(catalog, when=when, conversion_rate=conversion_rate)
             except requests.RequestException:
+                total["skipped"] += 1
                 continue
             total["visits"] += 1
             total["purchases"] += 1 if r["purchase"] else 0

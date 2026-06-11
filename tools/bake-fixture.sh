@@ -8,12 +8,26 @@
 #  ACHTUNG: destruktiv – fährt den Stack mit `down -v` frisch hoch (alle Volumes
 #  weg) und seedet neu (dauert ~15-30 Min, je nach HISTORY_DAYS).
 #
-#  Aufruf:  ./tools/bake-fixture.sh
+#  Aufruf:
+#    ./tools/bake-fixture.sh        interaktiv (Sicherheitsabfrage)
+#    ./tools/bake-fixture.sh -y     ohne Rueckfrage (z. B. fuer Skripte)
+#    ./tools/bake-fixture.sh --help Hilfe
 # ===========================================================================
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR/.."
 FIX_DIR="matomo/fixture"
+
+ASSUME_YES=0
+for arg in "$@"; do
+  case "$arg" in
+    -y|--yes)  ASSUME_YES=1 ;;
+    -h|--help)
+      awk 'NR>=2 && /^#/ {sub(/^# ?/,""); print; next} NR>=2 {exit}' "$0"
+      exit 0 ;;
+    *) echo "Unbekannte Option: $arg (siehe --help)"; exit 1 ;;
+  esac
+done
 
 # bake.conf laden + exportieren (vom Compose-Override interpoliert).
 [ -f tools/bake.conf ] || { echo "FEHLER: tools/bake.conf fehlt." >&2; exit 1; }
@@ -31,6 +45,20 @@ dbq(){ "${DC[@]}" exec -T db mariadb -u root -p"$RP" -N -e "$1" 2>/dev/null; }
 echo "============================================================"
 echo "  Fixture backen – HISTORY_DAYS=${HISTORY_DAYS}, REVENUE=${AVG_MONTHLY_REVENUE}"
 echo "============================================================"
+echo "  ACHTUNG: destruktiv – der laufende Stack wird mit 'down -v'"
+echo "  neu aufgebaut (alle Volumes/Demodaten weg) und ~15-30 Min"
+echo "  frisch geseedet. Bestehende Fixture-Artefakte in ${FIX_DIR}/"
+echo "  werden ueberschrieben."
+echo "============================================================"
+
+if [ "$ASSUME_YES" -ne 1 ]; then
+  printf "Backen starten? Tippe 'bake' zum Bestaetigen: "
+  read -r answer
+  if [ "$answer" != "bake" ]; then
+    echo "Abgebrochen."
+    exit 0
+  fi
+fi
 
 echo "[bake] Stack frisch hochfahren (mit Bake-Override, generiert Historie) ..."
 "${DCB[@]}" down -v --remove-orphans

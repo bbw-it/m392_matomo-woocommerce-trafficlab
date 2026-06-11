@@ -87,10 +87,15 @@ TRAFFIC_PORT="$(read_env TRAFFIC_PORT)"; TRAFFIC_PORT="${TRAFFIC_PORT:-8092}"
 SPIN_FRAMES=(⠋ ⠙ ⠹ ⠸ ⠼ ⠴ ⠦ ⠧ ⠇ ⠏)
 HAVE_TTY=0; [ -t 1 ] && HAVE_TTY=1
 fmt_elapsed() { printf '%d:%02d' $(( $1 / 60 )) $(( $1 % 60 )); }
+# Aktuelles run_spin-Log auch bei Abbruch (Ctrl+C/TERM) aufraeumen, sonst bleiben
+# Temp-Dateien unter ${TMPDIR:-/tmp}/install_spin.* liegen.
+SPIN_LOG=""
+trap '[ -z "$SPIN_LOG" ] || rm -f "$SPIN_LOG"' EXIT
 run_spin() {
   local label="$1"; shift
   local start="$SECONDS" i=0 rc=0 pid log mark
   log="$(mktemp "${TMPDIR:-/tmp}/install_spin.XXXXXX")"
+  SPIN_LOG="$log"
   "$@" >"$log" 2>&1 &
   pid=$!
   if [ "$HAVE_TTY" -eq 1 ]; then
@@ -111,6 +116,7 @@ run_spin() {
   fi
   [ "$rc" -ne 0 ] && [ -s "$log" ] && sed 's/^/        /' "$log" >&2
   rm -f "$log"
+  SPIN_LOG=""
   return "$rc"
 }
 
