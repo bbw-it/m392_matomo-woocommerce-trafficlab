@@ -58,15 +58,18 @@
 
   /* ---------- Tabs (Pills wie die Skydash-Sidebar) ---------- */
   .tabs{background:var(--card); border-bottom:1px solid var(--line)}
-  .tabs-in{max-width:1360px; margin:0 auto; padding:12px 32px; display:flex; gap:8px}
-  .tab{border:0; background:none; cursor:pointer; padding:9px 18px; border-radius:10px;
-    font-size:13.5px; font-weight:600; color:var(--gray); letter-spacing:.01em;
-    transition:background .15s, color .15s}
-  .tab:hover{color:var(--acc); background:var(--acc-soft)}
-  .tab[aria-selected="true"]{background:var(--acc); color:#fff}
+  .tabs-in{max-width:1360px; margin:0 auto; padding:6px 32px 0; display:flex; gap:10px}
+  .tab{position:relative; border:0; background:none; cursor:pointer; padding:12px 14px 14px;
+    font-size:14.5px; font-weight:600; color:var(--gray); letter-spacing:.01em;
+    transition:color .15s}
+  .tab:hover{color:var(--acc)}
+  .tab[aria-selected="true"]{color:var(--acc)}
+  .tab::after{content:""; position:absolute; left:14px; right:14px; bottom:-1px; height:3px;
+    border-radius:3px 3px 0 0; background:var(--acc); transform:scaleX(0); transition:transform .18s ease}
+  .tab[aria-selected="true"]::after{transform:scaleX(1)}
   .tab .cnt{font-family:var(--mono); font-size:11px; font-weight:500; color:var(--gray);
     margin-left:7px; padding:2px 7px; border-radius:99px; background:var(--line2)}
-  .tab[aria-selected="true"] .cnt{background:rgba(255,255,255,.22); color:#fff}
+  .tab[aria-selected="true"] .cnt{background:var(--acc-soft); color:var(--acc)}
 
   /* ---------- Layout ---------- */
   .wrap{max-width:1360px; margin:0 auto; padding:28px 32px 56px;
