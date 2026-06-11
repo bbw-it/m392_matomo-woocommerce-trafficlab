@@ -8,24 +8,24 @@
      System-Fonts zurück (Avenir Next/Segoe UI bzw. SF Mono/Cascadia). -->
 <style>
   :root{
-    /* Reife, warme Neutral-Palette ("Papier & Tinte") mit EINER Akzentfarbe
-       und harmonisierten, gedeckten Datenfarben. */
-    --bg:#f4f4f1; --card:#ffffff; --line:#e6e5df; --line2:#eeede8;
-    --ink:#1f2328; --ink-2:#3a3f47; --gray:#5f6672; --mut:#989da7; --faint:#c4c7cd;
-    --acc:#3d63a8; --acc-deep:#2c4b85; --acc-soft:#eef2f9; --acc-ring:rgba(61,99,168,.22);
-    --c-vis:#3d63a8;   /* Besuche  – Stahlblau  */
-    --c-buy:#3a9272;   /* Käufe    – Salbeigrün */
-    --c-ret:#c98a2b;   /* Wiederk. – Bernstein  */
-    --ok:#3a9272; --warn:#c98a2b; --err:#c0473e; --err-soft:#faeae8;
-    --r:14px; --sh:0 1px 2px rgba(31,35,40,.04), 0 2px 6px rgba(31,35,40,.04);
+    /* Skydash-Palette: kühles Hellblau-Grau, Indigo als Primärfarbe,
+       helle Blau-/Violett-/Koralle-Akzente. Keine warmen Töne. */
+    --bg:#f5f7ff; --card:#ffffff; --line:#e8ebf7; --line2:#eef0f9;
+    --ink:#2e3140; --ink-2:#4a4e63; --gray:#6c7293; --mut:#a3a8c3; --faint:#ccd0e4;
+    --acc:#4b49ac; --acc-deep:#3f3d92; --acc-soft:#ededfb; --acc-ring:rgba(75,73,172,.20);
+    --blue:#98bdff; --blue-2:#7da0fa; --violet:#7978e9; --coral:#f3797e;
+    --c-vis:#7da0fa;   /* Besuche  – Hellblau */
+    --c-buy:#4b49ac;   /* Käufe    – Indigo   */
+    --c-ret:#f3797e;   /* Wiederk. – Koralle  */
+    --ok:#7da0fa; --err:#f3797e; --err-soft:#fdecee;
+    --r:14px; --sh:0 2px 10px rgba(75,73,172,.05);
     --font:"Avenir Next","Segoe UI Variable Text","Segoe UI",system-ui,-apple-system,sans-serif;
     --mono:"SF Mono",ui-monospace,"Cascadia Code",Menlo,Consolas,monospace;
   }
   *{box-sizing:border-box}
   html,body{margin:0}
   body{background:var(--bg); color:var(--ink); font-family:var(--font);
-    -webkit-font-smoothing:antialiased; line-height:1.45;
-    background-image:linear-gradient(180deg,#fbfbf9 0%,var(--bg) 220px)}
+    -webkit-font-smoothing:antialiased; line-height:1.45}
   button{font-family:var(--font)}
   :focus-visible{outline:2px solid var(--acc); outline-offset:2px; border-radius:6px}
   .mono{font-family:var(--mono)}
@@ -34,33 +34,32 @@
   /* ---------- Header ---------- */
   .hdr{background:var(--card); border-bottom:1px solid var(--line)}
   .hdr-in{max-width:1360px; margin:0 auto; padding:15px 28px; display:flex; align-items:center; gap:16px}
-  .logo{width:34px; height:34px; border-radius:9px; background:var(--ink); flex:none;
+  .logo{width:34px; height:34px; border-radius:10px; background:var(--acc); flex:none;
     display:grid; place-items:center}
   .logo svg{width:18px; height:18px}
   .brand{display:flex; align-items:baseline; gap:13px; min-width:0}
-  .brand b{font-size:18px; font-weight:700; letter-spacing:-.015em}
+  .brand b{font-size:18px; font-weight:700; letter-spacing:-.015em; color:var(--acc)}
   .brand span{font-size:13.5px; color:var(--mut); white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
   .brand .sep{color:var(--line); font-weight:300}
   .live{margin-left:auto; display:inline-flex; align-items:center; gap:9px; flex:none;
-    padding:7px 15px; border-radius:99px; border:1px solid var(--line); background:#fbfbf9;
+    padding:7px 15px; border-radius:99px; border:1px solid var(--line); background:var(--bg);
     font-size:12.5px; font-weight:600; letter-spacing:.02em}
   .live .pdot{width:8px; height:8px; border-radius:50%; background:var(--faint); flex:none}
-  .live.on .pdot{background:var(--ok); animation:pulse 1.8s infinite}
+  .live.on .pdot{background:var(--blue-2); animation:pulse 1.8s infinite}
   .live .meta{font-family:var(--mono); font-weight:500; color:var(--gray); font-size:11.5px}
-  @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(58,146,114,.45)}70%{box-shadow:0 0 0 6px rgba(58,146,114,0)}100%{box-shadow:0 0 0 0 rgba(58,146,114,0)}}
+  @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(125,160,250,.5)}70%{box-shadow:0 0 0 6px rgba(125,160,250,0)}100%{box-shadow:0 0 0 0 rgba(125,160,250,0)}}
 
-  /* ---------- Tabs ---------- */
+  /* ---------- Tabs (Pills wie die Skydash-Sidebar) ---------- */
   .tabs{background:var(--card); border-bottom:1px solid var(--line)}
-  .tabs-in{max-width:1360px; margin:0 auto; padding:0 28px; display:flex; gap:4px}
-  .tab{position:relative; border:0; background:none; cursor:pointer; padding:13px 16px 12px;
-    font-size:14px; font-weight:600; color:var(--gray); letter-spacing:.01em; transition:color .15s}
-  .tab:hover{color:var(--ink)}
-  .tab[aria-selected="true"]{color:var(--ink)}
-  .tab::after{content:""; position:absolute; left:14px; right:14px; bottom:-1px; height:2px;
-    border-radius:2px 2px 0 0; background:var(--ink); transform:scaleX(0); transition:transform .18s ease}
-  .tab[aria-selected="true"]::after{transform:scaleX(1)}
-  .tab .cnt{font-family:var(--mono); font-size:11px; font-weight:500; color:var(--mut);
+  .tabs-in{max-width:1360px; margin:0 auto; padding:10px 28px; display:flex; gap:8px}
+  .tab{border:0; background:none; cursor:pointer; padding:9px 18px; border-radius:10px;
+    font-size:13.5px; font-weight:600; color:var(--gray); letter-spacing:.01em;
+    transition:background .15s, color .15s}
+  .tab:hover{color:var(--acc); background:var(--acc-soft)}
+  .tab[aria-selected="true"]{background:var(--acc); color:#fff}
+  .tab .cnt{font-family:var(--mono); font-size:11px; font-weight:500; color:var(--gray);
     margin-left:7px; padding:2px 7px; border-radius:99px; background:var(--line2)}
+  .tab[aria-selected="true"] .cnt{background:rgba(255,255,255,.22); color:#fff}
 
   /* ---------- Layout ---------- */
   .wrap{max-width:1360px; margin:0 auto; padding:24px 28px 44px;
@@ -79,24 +78,29 @@
   h2{font-size:16px; font-weight:700; letter-spacing:-.01em; margin:0}
   .sub{font-size:13px; color:var(--mut); margin:4px 0 0}
 
-  /* ---------- KPI ---------- */
-  .kpi{padding:18px 20px}
+  /* ---------- KPI: farbige Kacheln (Skydash-Signatur) ---------- */
+  .kpi{padding:18px 20px; border:0}
+  .kpi--blue{background:var(--blue-2)}
+  .kpi--indigo{background:var(--acc)}
+  .kpi--violet{background:var(--violet)}
+  .kpi--coral{background:var(--coral)}
   .kpi-top{display:flex; align-items:flex-start; justify-content:space-between; margin-bottom:13px}
-  .kpi-lbl{font-size:11px; font-weight:700; letter-spacing:.09em; text-transform:uppercase; color:var(--mut)}
-  .kpi-ic{width:36px; height:36px; border-radius:10px; background:var(--acc-soft); display:grid; place-items:center; flex:none}
-  .kpi-ic svg{width:18px; height:18px; stroke:var(--acc-deep); fill:none}
-  .kpi-val{font-size:29px; font-weight:700; letter-spacing:-.02em; line-height:1.05; font-variant-numeric:tabular-nums}
-  .kpi-sub{display:flex; align-items:center; gap:8px; margin-top:6px; font-size:12.5px; color:var(--mut)}
+  .kpi-lbl{font-size:11px; font-weight:700; letter-spacing:.09em; text-transform:uppercase; color:rgba(255,255,255,.85)}
+  .kpi-ic{width:36px; height:36px; border-radius:10px; background:rgba(255,255,255,.18); display:grid; place-items:center; flex:none}
+  .kpi-ic svg{width:18px; height:18px; stroke:#fff; fill:none}
+  .kpi-val{font-size:29px; font-weight:700; letter-spacing:-.02em; line-height:1.05;
+    font-variant-numeric:tabular-nums; color:#fff}
+  .kpi-sub{display:flex; align-items:center; gap:8px; margin-top:6px; font-size:12.5px; color:rgba(255,255,255,.8)}
   .kpi-spark{margin-left:auto}
   .kpi.flash .kpi-val{animation:flash .7s}
-  @keyframes flash{0%{color:var(--acc)}100%{color:var(--ink)}}
+  @keyframes flash{0%{opacity:.35}100%{opacity:1}}
 
   /* ---------- Chart ---------- */
   .ch-head{display:flex; align-items:center; justify-content:space-between; gap:16px; margin-bottom:20px}
-  .seg{display:inline-flex; background:var(--line2); border-radius:9px; padding:3px}
+  .seg{display:inline-flex; background:var(--line2); border-radius:10px; padding:3px}
   .seg button{border:0; background:transparent; font-size:13px; font-weight:500;
-    color:var(--gray); padding:6px 13px; border-radius:7px; cursor:pointer; transition:.15s}
-  .seg button.on{background:var(--card); color:var(--ink); box-shadow:0 1px 2px rgba(31,35,40,.08); font-weight:600}
+    color:var(--gray); padding:6px 13px; border-radius:8px; cursor:pointer; transition:.15s}
+  .seg button.on{background:var(--card); color:var(--acc); box-shadow:0 1px 2px rgba(46,49,64,.08); font-weight:600}
   .plot{position:relative; height:300px; padding-bottom:26px}
   .grid{position:absolute; left:40px; right:0; top:0; bottom:26px; display:flex; flex-direction:column; justify-content:space-between; pointer-events:none}
   .grid .gl{position:relative; height:1px; background:var(--line2)}
@@ -137,25 +141,25 @@
   .prm:first-child{margin-top:8px}
   .prm-top{display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; font-size:13.5px}
   .prm-top .k{color:var(--gray)}
-  .prm-top .v{font-weight:600; font-family:var(--mono); font-size:13px; color:var(--ink);
-    background:var(--line2); padding:2px 9px; border-radius:7px; font-variant-numeric:tabular-nums}
+  .prm-top .v{font-weight:600; font-family:var(--mono); font-size:13px; color:var(--acc);
+    background:var(--acc-soft); padding:2px 9px; border-radius:7px; font-variant-numeric:tabular-nums}
   .prm.result{margin-top:22px; padding-top:16px; border-top:1px solid var(--line2)}
-  .prm.result .v{background:var(--acc-soft); color:var(--acc-deep)}
+  .prm.result .v{background:var(--acc); color:#fff}
 
-  /* Slider: ruhiger Akzent-Fill statt Regenbogen (Füllstand via --fill, JS). */
+  /* Slider: Indigo-Fill (Füllstand via --fill, JS). */
   input[type=range]{-webkit-appearance:none; appearance:none; width:100%; height:5px; border-radius:99px; margin:0; cursor:pointer;
     background:linear-gradient(90deg,var(--acc) var(--fill,50%),var(--line) var(--fill,50%))}
   input[type=range]::-webkit-slider-thumb{-webkit-appearance:none; width:18px; height:18px; border-radius:50%; background:#fff;
-    border:1.5px solid var(--acc); box-shadow:0 1px 3px rgba(31,35,40,.25); cursor:pointer; transition:transform .12s, box-shadow .12s}
-  input[type=range]::-webkit-slider-thumb:hover{transform:scale(1.12); box-shadow:0 0 0 5px var(--acc-ring),0 1px 3px rgba(31,35,40,.25)}
+    border:2px solid var(--acc); box-shadow:0 1px 3px rgba(46,49,64,.2); cursor:pointer; transition:transform .12s, box-shadow .12s}
+  input[type=range]::-webkit-slider-thumb:hover{transform:scale(1.12); box-shadow:0 0 0 5px var(--acc-ring),0 1px 3px rgba(46,49,64,.2)}
   input[type=range]::-moz-range-thumb{width:16px; height:16px; border-radius:50%; background:#fff;
-    border:1.5px solid var(--acc); box-shadow:0 1px 3px rgba(31,35,40,.25); cursor:pointer}
+    border:2px solid var(--acc); box-shadow:0 1px 3px rgba(46,49,64,.2); cursor:pointer}
 
   .switch{position:relative; width:42px; height:24px; flex:none}
   .switch input{opacity:0; width:0; height:0}
-  .track{position:absolute; inset:0; border-radius:99px; background:#d3d5d9; transition:.2s; cursor:pointer}
+  .track{position:absolute; inset:0; border-radius:99px; background:#d6d9ea; transition:.2s; cursor:pointer}
   .track:before{content:""; position:absolute; width:18px; height:18px; left:3px; top:3px; border-radius:50%; background:#fff; transition:.2s; box-shadow:0 1px 3px rgba(0,0,0,.25)}
-  .switch input:checked + .track{background:var(--ink)}
+  .switch input:checked + .track{background:var(--acc)}
   .switch input:checked + .track:before{transform:translateX(18px)}
 
   .akt-or{display:flex; align-items:center; gap:14px; color:var(--mut); font-size:12.5px; margin:20px 0}
@@ -164,14 +168,14 @@
 
   .man-row{margin-bottom:14px}
   .man-ctl{display:flex; gap:12px; align-items:center}
-  input[type=number]{width:74px; height:40px; padding:8px 12px; border:1px solid var(--line); border-radius:9px;
+  input[type=number]{width:74px; height:40px; padding:8px 12px; border:1px solid var(--line); border-radius:10px;
     background:var(--card); font-family:var(--mono); font-size:13.5px; text-align:center; flex:none}
   input[type=number]:focus{outline:none; border-color:var(--acc); box-shadow:0 0 0 3px var(--acc-ring)}
   .man-ctl .lbl{font-size:14px; color:var(--ink); flex:1; min-width:0}
-  .btn{height:40px; padding:0 20px; border:0; border-radius:9px; background:var(--ink); color:#fff;
+  .btn{height:40px; padding:0 20px; border:0; border-radius:10px; background:var(--acc); color:#fff;
     font-size:13.5px; font-weight:600; cursor:pointer; transition:.15s; white-space:nowrap; flex:none}
-  .btn:hover{background:#000}
-  .btn.sent{background:var(--ok); cursor:default}
+  .btn:hover{background:var(--acc-deep)}
+  .btn.sent{background:var(--blue-2); cursor:default}
   button.err{background:var(--err-soft)!important; color:var(--err)!important}
 
   @media(min-width:761px) and (max-width:1180px){
@@ -191,17 +195,17 @@
   .pinfo span{font-size:12.5px; color:var(--mut)}
   .pstat{font-size:12.5px; color:var(--mut); text-align:right}
   .pstat b{display:block; font-family:var(--mono); font-size:13.5px; font-weight:600; color:var(--ink-2); font-variant-numeric:tabular-nums}
-  .pval{font-family:var(--mono); font-size:13px; font-weight:600; text-align:center; color:var(--ink);
-    background:var(--line2); padding:3px 0; border-radius:7px; font-variant-numeric:tabular-nums}
+  .pval{font-family:var(--mono); font-size:13px; font-weight:600; text-align:center; color:var(--acc);
+    background:var(--acc-soft); padding:3px 0; border-radius:7px; font-variant-numeric:tabular-nums}
   .ptag{font-size:11px; font-weight:700; letter-spacing:.05em; text-transform:uppercase; text-align:center;
     padding:4px 0; border-radius:99px}
-  .ptag.hot{background:#e9f3ee; color:#256a4e}
+  .ptag.hot{background:var(--acc-soft); color:var(--acc)}
   .ptag.mid{background:var(--line2); color:var(--gray)}
-  .ptag.low{background:#f6efe2; color:#8a5f1a}
+  .ptag.low{background:var(--err-soft); color:#d9565c}
   .ppre{display:flex; gap:6px}
   .ppre button{border:1px solid var(--line); background:var(--card); color:var(--gray); font-size:11.5px;
     font-weight:600; padding:5px 10px; border-radius:99px; cursor:pointer; transition:.13s; white-space:nowrap}
-  .ppre button:hover{border-color:var(--ink); color:var(--ink)}
+  .ppre button:hover{border-color:var(--acc); color:var(--acc); background:var(--acc-soft)}
   .p-empty{padding:26px 4px; color:var(--mut); font-size:14px}
   .p-note{font-size:12.5px; color:var(--mut); margin-top:16px; padding-top:14px; border-top:1px solid var(--line2)}
   @media(max-width:980px){
@@ -215,7 +219,7 @@
   /* ---------- Protokoll ---------- */
   .log-head{display:flex; align-items:center; gap:14px; margin-bottom:8px}
   .log-head .as{display:inline-flex; align-items:center; gap:8px; font-size:13px; color:var(--mut)}
-  .log-head .clear{margin-left:auto; background:0; border:0; color:var(--acc-deep); font-size:13.5px; font-weight:600; cursor:pointer}
+  .log-head .clear{margin-left:auto; background:0; border:0; color:var(--acc); font-size:13.5px; font-weight:600; cursor:pointer}
   .switch.sm{width:34px; height:20px}
   .switch.sm .track:before{width:14px; height:14px}
   .switch.sm input:checked + .track:before{transform:translateX(14px)}
@@ -263,26 +267,26 @@
   <!-- ============ DASHBOARD ============ -->
   <section class="view" id="view-dashboard">
     <div class="kpis">
-      <div class="card kpi">
+      <div class="card kpi kpi--blue">
         <div class="kpi-top"><span class="kpi-lbl">Besuche heute</span>
           <span class="kpi-ic"><svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.1a4 4 0 0 1 0 7.75"/></svg></span></div>
         <div class="kpi-val" id="k-visits">0</div>
         <div class="kpi-sub">seit Start des Traffic Lab</div>
       </div>
-      <div class="card kpi">
+      <div class="card kpi kpi--indigo">
         <div class="kpi-top"><span class="kpi-lbl">Käufe heute</span>
           <span class="kpi-ic"><svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="21" r="1"/><circle cx="19" cy="21" r="1"/><path d="M2 2h2l2.7 12.4a2 2 0 0 0 2 1.6h9.7a2 2 0 0 0 2-1.6L23 6H5.1"/></svg></span></div>
         <div class="kpi-val" id="k-purch">0</div>
         <div class="kpi-sub" id="k-purch-sub">0.0% effektiv</div>
       </div>
-      <div class="card kpi">
+      <div class="card kpi kpi--violet">
         <div class="kpi-top"><span class="kpi-lbl">Umsatz heute</span>
           <span class="kpi-ic"><svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg></span></div>
         <div class="kpi-val" id="k-rev">€ 0</div>
         <div class="kpi-sub">Produktumsatz (ohne Versand)</div>
         <div class="kpi-sub" id="wc-line">Echte Shop-Bestellungen: 0 (EUR 0.00)</div>
       </div>
-      <div class="card kpi">
+      <div class="card kpi kpi--coral">
         <div class="kpi-top"><span class="kpi-lbl">Conversion Rate</span>
           <span class="kpi-ic"><svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg></span></div>
         <div class="kpi-val" id="k-cr">0%</div>
@@ -397,7 +401,7 @@ let intervalMin=5, cleared=0;
 const prev={visits:0, purchases:0};
 const state={drip_per_hour:120, conversion_rate:0.015, returning_rate:0.10, live_drip:true};
 
-// ---- Slider-Füllstand (Akzent-Fill links vom Thumb) ----
+// ---- Slider-Füllstand (Indigo-Fill links vom Thumb) ----
 function paintSlider(el){
   const f=((el.value-el.min)/((el.max-el.min)||1))*100;
   el.style.setProperty('--fill', f.toFixed(1)+'%');
@@ -411,7 +415,7 @@ function showView(v){
   activeView=v;
   VIEWS.forEach(x=>{ $('#view-'+x).hidden = x!==v; });
   document.querySelectorAll('.tab').forEach(t=>t.setAttribute('aria-selected', String(t.dataset.view===v)));
-  if(v!=='dashboard'){} else if(window._hist){ drawChart(window._hist); }  // Reflow nach hidden
+  if(v==='dashboard' && window._hist){ drawChart(window._hist); }  // Reflow nach hidden
   if(v==='produkte') loadProducts();
   if(history.replaceState) history.replaceState(null,'','#'+v);
 }
@@ -547,7 +551,7 @@ function drawSpark(hist){
   const s=pts.slice(-16); if(s.length<2){ $('#spark').innerHTML=''; return; }
   const max=Math.max(1,...s), W=74,H=22;
   const d=s.map((v,i)=>(i?'L':'M')+(i/(s.length-1)*W).toFixed(1)+' '+(H-2-(v/max)*(H-4)).toFixed(1)).join(' ');
-  $('#spark').innerHTML='<path d="'+d+'" stroke="#3d63a8" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/>';
+  $('#spark').innerHTML='<path d="'+d+'" stroke="rgba(255,255,255,.9)" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/>';
 }
 
 // ---- Produkte-Tab -------------------------------------------------------
