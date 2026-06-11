@@ -186,13 +186,15 @@
   /* Pausierter Live-Tropf: Regler komplett ausblenden (statt nur ausgrauen). */
   .drip-params.off{display:none}
 
-  .man-row{margin-bottom:16px}
-  .man-ctl{display:flex; gap:12px; align-items:center}
-  input[type=number]{width:74px; height:40px; padding:8px 12px; border:1px solid var(--line); border-radius:10px;
+  .man-row{margin-bottom:14px}
+  .man-row:last-child{margin-bottom:0}
+  .man-ctl{display:flex; gap:14px; align-items:center}
+  input[type=number]{width:72px; height:42px; padding:8px 12px; border:1px solid var(--line); border-radius:10px;
     background:var(--card); font-family:var(--mono); font-size:13.5px; text-align:center; flex:none}
   input[type=number]:focus{outline:none; border-color:var(--acc); box-shadow:0 0 0 3px var(--acc-ring)}
-  .man-ctl .lbl{font-size:14px; color:var(--ink); flex:1; min-width:0}
-  .btn{height:40px; padding:0 20px; border:0; border-radius:10px; background:var(--acc); color:#fff;
+  .man-ctl .lbl{font-size:14px; font-weight:500; color:var(--ink); flex:1; min-width:0; white-space:nowrap}
+  .man-ctl .btn{min-width:116px; text-align:center}
+  .btn{height:42px; padding:0 20px; border:0; border-radius:10px; background:var(--acc); color:#fff;
     font-size:13.5px; font-weight:600; cursor:pointer; transition:.15s; white-space:nowrap; flex:none}
   .btn:hover{background:var(--acc-deep)}
   .btn.sent{background:var(--blue-2); cursor:default}
@@ -367,7 +369,7 @@
           <div class="block">
             <p class="sec-lbl">Manuell senden</p>
             <div class="man-row">
-              <div class="man-ctl"><input type="number" id="m-visits" value="50" min="1"><span class="lbl">Besuche sofort senden</span><button class="btn" data-act="visits">Senden</button></div>
+              <div class="man-ctl"><input type="number" id="m-visits" value="50" min="1"><span class="lbl">Besuche senden</span><button class="btn" data-act="visits">Senden</button></div>
             </div>
             <div class="man-row">
               <div class="man-ctl"><input type="number" id="m-orders" value="10" min="1"><span class="lbl">Käufe erzwingen</span><button class="btn" data-act="orders">Ausführen</button></div>
