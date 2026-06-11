@@ -143,6 +143,9 @@ dem Matomo-Start und leert danach den Cache. Plugins sind per Bind-Mount im mato
   über `TRAFFIC_AUTO_SEED`, in `.env.example` nicht mehr gesetzt → beim normalen Install inaktiv);
   echte Bestellungen via `orders.py` → mu-plugin `m392-order-api.php`; Matomo-Spiegelung via
   `generator.track_ecommerce_order`.
+- **Wiederkehrer-Verteilung:** `m392_create_orders` baut den Bestandskunden-Pool als gewichtetes
+  Lostöpfchen (Lose ~ 1/Bestellanzahl, gedeckelt 1..6) – Kund:innen mit wenigen Bestellungen werden
+  bevorzugt, sodass Wiederkehrer breit streuen und kein Runaway-Kunde entsteht.
 - **Gotcha Bestell-IDs:** Die Fixture enthält `wp_wc_orders` mit hohen IDs, aber keine
   shop_order-Posts; HPOS zieht neue Bestell-IDs aus der `wp_posts`-Sequenz. `install.sh` hebt die
   Sequenz nach dem Restore hinter `MAX(wp_wc_orders.id)` – sonst kollidieren Live-Bestellungen

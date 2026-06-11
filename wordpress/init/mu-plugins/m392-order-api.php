@@ -304,12 +304,23 @@ function m392_create_orders(WP_REST_Request $req) {
     // WICHTIG: rollenUNabhaengig ueber die Bestellhistorie (wp_wc_orders), NICHT
     // per get_users(role=customer): Der Fixture-Restore bringt wp_users OHNE
     // usermeta mit (keine Rolle) – eine Rollen-Query faende diese Kund:innen
-    // nicht, der Pool bestuende nur aus wenigen live angelegten Kund:innen und
-    // eine einzige Kund:in bekaeme fast alle Folgebestellungen.
+    // nicht, der Pool bestuende nur aus wenigen live angelegten Kund:innen.
+    //
+    // Verteilung: Kund:innen mit WENIGEN bisherigen Bestellungen werden bevorzugt
+    // (Gewicht ~ 1/Bestellanzahl als Lose im Topf). So streuen Wiederkehrer ueber
+    // VIELE Kund:innen statt sich auf einzelne „Vielbesteller" zu konzentrieren,
+    // und eine bereits bestehende Konzentration verduennt sich mit der Zeit.
     global $wpdb;
-    $customer_pool = array_map('intval', $wpdb->get_col(
-        "SELECT DISTINCT customer_id FROM {$wpdb->prefix}wc_orders
-         WHERE customer_id > 0 ORDER BY RAND() LIMIT 300"));
+    $cust_rows = $wpdb->get_results(
+        "SELECT customer_id, COUNT(*) AS c FROM {$wpdb->prefix}wc_orders
+         WHERE customer_id > 0 GROUP BY customer_id ORDER BY RAND() LIMIT 400", ARRAY_A);
+    $customer_pool = [];   // gewichtetes Lostöpfchen: weniger Bestellungen → mehr Lose
+    foreach ($cust_rows as $r) {
+        $cid = (int) $r['customer_id'];
+        // 1 Bestellung → 6 Lose, 2 → 3, 3 → 2, ab 6 → 1 Los (gedeckelt).
+        $lose = max(1, min(6, (int) ceil(6 / max(1, (int) $r['c']))));
+        for ($j = 0; $j < $lose; $j++) { $customer_pool[] = $cid; }
+    }
 
     // Rabattgutschein, der „ab und zu" eingeloest wird (~18 % der Bestellungen),
     // sofern er existiert (wird per wp-init reproduzierbar angelegt: NATUR10).

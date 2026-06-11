@@ -12,6 +12,12 @@ Format lose angelehnt an [Keep a Changelog](https://keepachangelog.com/de/).
   mit – vorher bestand der Pool nur aus wenigen live angelegten Kund:innen, und eine einzige Kund:in
   bekam fast alle Folgebestellungen. Name/Adresse von Fixture-Kund:innen kommen als Fallback aus
   `wc_customer_lookup`; `bake-fixture.sh` dumpt künftig die `wp_usermeta` der Kund:innen mit.
+- **Wiederkehrer streuen über viele Kund:innen (gewichtete Auswahl):** Beim Ziehen einer
+  Bestandskund:in werden Kund:innen mit **wenigen** bisherigen Bestellungen bevorzugt (Lose im Topf
+  ~ 1/Bestellanzahl: 1 Bestellung → 6 Lose … ab 6 → 1 Los). Damit verteilen sich Folgebestellungen
+  realistisch auf den ganzen Stamm statt sich auf einzelne „Vielbesteller" zu konzentrieren – und
+  eine bereits bestehende Konzentration verdünnt sich mit der Zeit von selbst. Verifiziert: 60
+  Wiederkehrer-Bestellungen → 60 verschiedene Kund:innen.
 - **Matomo- und WooCommerce-Umsatz sind im Live-Betrieb identisch (Defer-Flow):** Bisher trackte der
   Live-Tropf bei einem Kauf einen zufälligen Warenkorb nach Matomo und legte unabhängig davon eine
   WC-Bestellung mit anderem Warenkorb an (Drift, z. B. €2338 vs. €893 an einem Tag). Jetzt wird die
