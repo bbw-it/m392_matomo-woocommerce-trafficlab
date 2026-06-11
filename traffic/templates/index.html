@@ -54,9 +54,9 @@
     padding:7px 15px; border-radius:99px; border:1px solid var(--line); background:var(--bg);
     font-size:12.5px; font-weight:600; letter-spacing:.02em}
   .live .pdot{width:8px; height:8px; border-radius:50%; background:var(--faint); flex:none}
-  .live.on .pdot{background:var(--blue-2); animation:pulse 1.8s infinite}
+  .live.on .pdot{background:var(--ok); animation:pulse 1.8s infinite}
   .live .meta{font-family:var(--mono); font-weight:500; color:var(--gray); font-size:11.5px}
-  @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(125,160,250,.5)}70%{box-shadow:0 0 0 6px rgba(125,160,250,0)}100%{box-shadow:0 0 0 0 rgba(125,160,250,0)}}
+  @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(82,189,148,.5)}70%{box-shadow:0 0 0 6px rgba(82,189,148,0)}100%{box-shadow:0 0 0 0 rgba(82,189,148,0)}}
 
   /* ---------- Tabs (Pills wie die Skydash-Sidebar) ---------- */
   .tabs{background:var(--card); border-bottom:1px solid var(--line)}
@@ -180,7 +180,8 @@
 
   .akt-or{display:flex; align-items:center; gap:14px; color:var(--mut); font-size:12.5px; margin:20px 0}
   .akt-or::before,.akt-or::after{content:''; height:1px; background:var(--line2); flex:1}
-  .drip-params.off{opacity:.45; filter:grayscale(.4); pointer-events:none}
+  /* Pausierter Live-Tropf: Regler komplett ausblenden (statt nur ausgrauen). */
+  .drip-params.off{display:none}
 
   .man-row{margin-bottom:16px}
   .man-ctl{display:flex; gap:12px; align-items:center}
@@ -206,33 +207,28 @@
   .btn--sync svg{width:15px; height:15px; stroke:#fff; fill:none}
   .btn--sync.busy{opacity:.7; cursor:default}
   .p-list{margin-top:18px}
-  .prow{display:grid; grid-template-columns:minmax(220px,1.4fr) 110px minmax(180px,1fr) 56px 96px auto;
-    gap:20px; align-items:center; padding:17px 6px; border-top:1px solid var(--line2)}
+  /* Aufgeräumte Zeile: Produktinfo (inkl. Verkäufe) | Beliebtheits-Regler |
+     EIN Status-Pill mit Wert. Keine konkurrierenden Zahlenspalten mehr. */
+  .prow{display:grid; grid-template-columns:minmax(240px,1.2fr) minmax(220px,1fr) 168px;
+    gap:28px; align-items:center; padding:17px 6px; border-top:1px solid var(--line2)}
   .prow:first-child{border-top:0}
   .pinfo b{display:block; font-size:14.5px; font-weight:600; letter-spacing:-.005em;
     overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
   .pinfo span{font-size:12.5px; color:var(--mut)}
-  .pstat{font-size:12.5px; color:var(--mut); text-align:right}
-  .pstat b{display:block; font-family:var(--mono); font-size:13.5px; font-weight:600; color:var(--ink-2); font-variant-numeric:tabular-nums}
-  .pval{font-family:var(--mono); font-size:13px; font-weight:600; text-align:center; color:var(--acc);
-    background:var(--acc-soft); padding:3px 0; border-radius:7px; font-variant-numeric:tabular-nums}
-  .ptag{font-size:11px; font-weight:700; letter-spacing:.05em; text-transform:uppercase; text-align:center;
-    padding:4px 0; border-radius:99px}
+  .pinfo span .sold{color:var(--ink-2); font-weight:600; font-variant-numeric:tabular-nums}
+  .ptag{display:flex; align-items:center; justify-content:space-between; gap:10px;
+    font-size:11px; font-weight:700; letter-spacing:.05em; text-transform:uppercase;
+    padding:5px 6px 5px 13px; border-radius:99px}
+  .ptag b{font-family:var(--mono); font-size:12px; font-weight:600; letter-spacing:0;
+    background:var(--card); border-radius:99px; padding:2px 9px; font-variant-numeric:tabular-nums}
   .ptag.hot{background:var(--acc-soft); color:var(--acc)}
   .ptag.mid{background:var(--line2); color:var(--gray)}
   .ptag.low{background:var(--err-soft); color:#d9565c}
-  .ppre{display:flex; gap:6px}
-  .ppre button{border:1px solid var(--line); background:var(--card); color:var(--gray); font-size:11.5px;
-    font-weight:600; padding:5px 10px; border-radius:99px; cursor:pointer; transition:.13s; white-space:nowrap}
-  .ppre button:hover{border-color:var(--acc); color:var(--acc); background:var(--acc-soft)}
   .p-empty{padding:26px 4px; color:var(--mut); font-size:14px}
   .p-note{font-size:12.5px; color:var(--mut); margin-top:20px; padding-top:16px; border-top:1px solid var(--line2)}
-  @media(max-width:980px){
-    .prow{grid-template-columns:1fr 90px; row-gap:10px}
+  @media(max-width:880px){
+    .prow{grid-template-columns:1fr 150px; row-gap:12px}
     .prow .pslider{grid-column:1/-1}
-    .prow .ppre{grid-column:1/-1}
-    .pstat{text-align:left}
-    .pval,.ptag{justify-self:start; padding-left:10px; padding-right:10px}
   }
 
   /* ---------- Protokoll ---------- */
@@ -593,27 +589,23 @@ function weightTag(w){
   return ['low','Ladenhüter'];
 }
 function productRow(p){
-  const [cls,lab]=weightTag(p.weight);
   const row=document.createElement('div'); row.className='prow'; row.dataset.sku=p.sku;
   row.innerHTML =
     '<div class="pinfo"><b title="'+p.name.replace(/"/g,'&quot;')+'">'+p.name+'</b>'
-      + '<span>'+(p.category||'—')+' · € '+(+p.price).toFixed(2).replace('.',',')+'</span></div>'
-    + '<div class="pstat"><b>'+nf.format(p.total_sales)+'</b>verkauft bisher</div>'
+      + '<span>'+(p.category||'—')+' · € '+(+p.price).toFixed(2).replace('.',',')
+      + ' · <span class="sold">'+nf.format(p.total_sales)+'× verkauft</span></span></div>'
     + '<div class="pslider"><input type="range" min="0" max="100" step="1" value="'+p.weight+'" aria-label="Beliebtheit '+p.name.replace(/"/g,'&quot;')+'"></div>'
-    + '<div class="pval num">'+p.weight+'</div>'
-    + '<div class="ptag '+cls+'">'+lab+'</div>'
-    + '<div class="ppre"><button data-w="92">Bestseller</button><button data-w="45">Normal</button><button data-w="4">Ladenhüter</button></div>';
+    + '<div class="ptag"><span></span><b class="num"></b></div>';
   const slider=row.querySelector('input[type=range]');
-  const val=row.querySelector('.pval'), tag=row.querySelector('.ptag');
-  const paint=()=>{ paintSlider(slider); val.textContent=slider.value;
-    const [c,l]=weightTag(+slider.value); tag.className='ptag '+c; tag.textContent=l; };
+  const tag=row.querySelector('.ptag');
+  const paint=()=>{ paintSlider(slider);
+    const [c,l]=weightTag(+slider.value);
+    tag.className='ptag '+c;
+    tag.querySelector('span').textContent=l;
+    tag.querySelector('b').textContent=slider.value; };
   paint();
   slider.addEventListener('input', paint);
   slider.addEventListener('change', ()=> post('/api/product-weight',{sku:p.sku, weight:slider.value}));
-  row.querySelectorAll('.ppre button').forEach(b=>b.addEventListener('click', ()=>{
-    slider.value=b.dataset.w; paint();
-    post('/api/product-weight',{sku:p.sku, weight:slider.value});
-  }));
   return row;
 }
 async function loadProducts(force, fresh){
