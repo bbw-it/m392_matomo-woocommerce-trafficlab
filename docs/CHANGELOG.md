@@ -57,6 +57,16 @@ Format lose angelehnt an [Keep a Changelog](https://keepachangelog.com/de/).
   unter `traffic/static/fonts/` und wird vom Container offline ausgeliefert – kein CDN. Fallback
   bleiben System-Fonts. Dazu grosszügigere Abstände (Header, Karten, Listen).
 
+### Geändert (Shop)
+- **/shop-variante/ grundlegend überarbeitet – in der Farbwelt des Shops:** Die Variante-Seite
+  nutzt jetzt dieselbe Botiga-Designsprache wie `/shop/` (Schwarz `#212121`, warme Haarlinien,
+  eckige Chips/Checkboxen, Uppercase-Mikrolabels, native Produktkarten/Buttons) statt des
+  bisherigen Terracotta-Schemas. Differenzierung fürs A/B-Szenario kommt aus dem **Layout**:
+  Filter-Sidebar links (sticky), großzügiges 2-Spalten-Produktraster, schwarzes Aktionsband.
+  Filter-UX modernisiert: eigene Checkboxen mit Zähler, schwarzer Preis-Slider mit Bereichsangabe,
+  Bewertungs-Chips (Alle/★4+/★4,5+) und „Nur Angebote"-Toggle wie in der Shop-Filterleiste,
+  Produktzähler + bedarfsweises „Zurücksetzen" über dem Raster (wie `/shop/`).
+
 ### Geändert (Traffic Lab)
 - **UI verfeinert („Papier & Tinte"):** Tab-Navigation, reife Farbpalette (warme Neutraltöne,
   Tinten-Navy als Akzent, gedeckte Datenfarben Stahlblau/Salbeigrün/Bernstein), ruhige
