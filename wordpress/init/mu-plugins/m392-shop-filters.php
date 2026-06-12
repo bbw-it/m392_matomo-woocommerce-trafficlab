@@ -5,9 +5,10 @@
  *              und Sortierung auf den Shop-/Kategorieseiten (Lehrumgebung Modul 392).
  *
  * Ansatz: Die echten Produktdaten (Preis, Sale, Bewertung, Verkäufe, Datum) werden
- * serverseitig als JSON bereitgestellt und je Produkt über die `post-<ID>`-CSS-Klasse
- * zugeordnet. Gefiltert/sortiert wird clientseitig ohne Neuladen – schnell und robust
- * gegenüber Theme-Markup (kein Parsen von Preis-/Sternchen-HTML).
+ * serverseitig als JSON bereitgestellt und je Produkt über einen unsichtbaren
+ * Marker (`.m392-pid` mit data-product-id) zugeordnet; die `post-<ID>`-CSS-Klasse
+ * dient nur als Fallback. Gefiltert/sortiert wird clientseitig ohne Neuladen –
+ * schnell und robust gegenüber Theme-Markup (kein Parsen von Preis-/Sternchen-HTML).
  *
  * Design: orientiert sich an Botiga (Source Sans Pro, Aktiv-Farbe #212121, eckige
  * Flächen) statt generischer „App"-Optik. Die Leiste wird per JS über die volle
@@ -42,6 +43,19 @@ function m392_collect_product_data() {
     }
     return $data;
 }
+
+/**
+ * Robuste Produkt-Zuordnung: Produkt-ID als unsichtbarer Marker IM Item ausgeben.
+ * Das JS liest bevorzugt diesen Marker; die `post-<ID>`-Klasse des Themes bleibt
+ * nur Fallback – so überlebt die Zuordnung auch Theme-/Markup-Änderungen.
+ */
+add_action('woocommerce_before_shop_loop_item', function () {
+    if (!m392_is_shop_archive()) { return; }
+    global $product;
+    if ($product instanceof WC_Product) {
+        echo '<span class="m392-pid" data-product-id="' . esc_attr($product->get_id()) . '" hidden></span>';
+    }
+}, 1);
 
 /** Toolbar-HTML ausgeben (wird per JS über die volle Breite verschoben). */
 add_action('woocommerce_before_shop_loop', function () {
@@ -224,9 +238,16 @@ function m392_shop_filters_js() {
     if (!items.length) { return; }
 
     items.forEach(function(li, i){
-      var m = li.className.match(/post-(\d+)/);
-      li.__id  = m ? m[1] : null;
-      li.__d   = (m && DATA[m[1]]) ? DATA[m[1]] : {price:0,sale:false,rating:0,sales:0,date:0,name:''};
+      // Produkt-ID bevorzugt aus dem serverseitigen Marker (.m392-pid) lesen;
+      // die Theme-Klasse post-<ID> dient nur noch als Fallback.
+      var pidEl = li.querySelector('.m392-pid');
+      var id = pidEl ? pidEl.getAttribute('data-product-id') : null;
+      if (!id) {
+        var m = li.className.match(/post-(\d+)/);
+        id = m ? m[1] : null;
+      }
+      li.__id  = id;
+      li.__d   = (id && DATA[id]) ? DATA[id] : {price:0,sale:false,rating:0,sales:0,date:0,name:'',cats:[]};
       li.__idx = i;
     });
 

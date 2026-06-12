@@ -6,6 +6,12 @@ set -euo pipefail
 OFF="${1:?offset_days fehlt}"
 case "$OFF" in (''|*[!0-9-]*) echo "shift-dates: offset muss ganzzahlig sein: '$OFF'" >&2; exit 1;; esac
 [ "$OFF" -eq 0 ] && { echo "[shift] offset=0 – nichts zu verschieben."; exit 0; }
+# Plausibilität: Offset = Tage seit dem Bake (BASE-Anker). Mehr als ein Jahr deutet
+# auf ein falsches/veraltetes BASE-Datum hin – warnen, aber nicht abbrechen.
+if [ "$OFF" -gt 365 ] || [ "$OFF" -lt -365 ]; then
+  echo "[shift] WARNUNG: ungewoehnlich grosser Offset (${OFF} Tage)." >&2
+  echo "[shift]          Anker-Datum pruefen (matomo/fixture/BASE) bzw. Fixture neu backen." >&2
+fi
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR/.."

@@ -3,7 +3,105 @@
 Notable Änderungen an der M392-Matomo-Lehrumgebung. Neueste zuerst.
 Format lose angelehnt an [Keep a Changelog](https://keepachangelog.com/de/).
 
-## [Unreleased] – Stand 2026-06-08
+## [Unreleased] – Stand 2026-06-11
+
+### Behoben (Traffic Lab ↔ WooCommerce)
+- **Kein /shop/→/shop-variante/-Redirect mehr für echte Besucher:innen:** Das A/B-Plugin hat
+  Besucher:innen per Cookie 50/50 einer Variante zugewiesen und Variante B von `/shop/` auf
+  `/shop-variante/` umgeleitet – im Unterricht irritierend. Jetzt: kein Cookie-Bucketing, kein
+  Redirect; `/shop/` bleibt `/shop/`, `/shop-variante/` ist eigenständig erreichbar. Die
+  Matomo-Custom-Dimension „AB-Variante" wird URL-basiert gesetzt (Variante-Seite = „Shop-Variante",
+  sonst „Original"); den A/B-Besuchs-Split liefert weiterhin das Traffic Lab synthetisch
+  (`M392_AB_SPLIT_B`). Alte `m392_ab`-Cookies werden beim nächsten Aufruf aktiv gelöscht.
+- **„Wiederkehrende Kunden" funktionieren jetzt wirklich:** Der Bestandskunden-Pool der Order-API
+  wird rollenunabhängig über die Bestellhistorie (`wp_wc_orders.customer_id`) ermittelt statt per
+  `get_users(role=customer)`. Der Fixture-Restore bringt `wp_users` ohne `usermeta` (= ohne Rolle)
+  mit – vorher bestand der Pool nur aus wenigen live angelegten Kund:innen, und eine einzige Kund:in
+  bekam fast alle Folgebestellungen. Name/Adresse von Fixture-Kund:innen kommen als Fallback aus
+  `wc_customer_lookup`; `bake-fixture.sh` dumpt künftig die `wp_usermeta` der Kund:innen mit.
+- **Wiederkehrer streuen über viele Kund:innen (gewichtete Auswahl):** Beim Ziehen einer
+  Bestandskund:in werden Kund:innen mit **wenigen** bisherigen Bestellungen bevorzugt (Lose im Topf
+  ~ 1/Bestellanzahl: 1 Bestellung → 6 Lose … ab 6 → 1 Los). Damit verteilen sich Folgebestellungen
+  realistisch auf den ganzen Stamm statt sich auf einzelne „Vielbesteller" zu konzentrieren – und
+  eine bereits bestehende Konzentration verdünnt sich mit der Zeit von selbst. Verifiziert: 60
+  Wiederkehrer-Bestellungen → 60 verschiedene Kund:innen.
+- **Matomo- und WooCommerce-Umsatz sind im Live-Betrieb identisch (Defer-Flow):** Bisher trackte der
+  Live-Tropf bei einem Kauf einen zufälligen Warenkorb nach Matomo und legte unabhängig davon eine
+  WC-Bestellung mit anderem Warenkorb an (Drift, z. B. €2338 vs. €893 an einem Tag). Jetzt wird die
+  WC-Bestellung mit **exakt dem Warenkorb des getrackten Besuchs** angelegt (`carts`-Parameter der
+  Order-API) und die Matomo-Conversion danach – im selben Besuch – mit dem echten Produktumsatz
+  gesendet. Umsatz-Konvention wie bei der Fixture: Produktumsatz ohne Versand. Live verifiziert:
+  15 Käufe → beide Systeme exakt EUR 698.00.
+- **ID-Kollision zwischen Live-Bestellungen und Fixture entschärft:** Die Fixture bringt
+  `wp_wc_orders` mit hohen IDs mit, dumpt aber bewusst keine shop_order-Platzhalter-Posts. HPOS
+  zieht die ID neuer Bestellungen aus der `wp_posts`-Sequenz – die wäre irgendwann in die
+  Fixture-IDs gelaufen (Duplicate Key, Bestellungen schlagen still fehl). `install.sh` hebt die
+  Sequenz nach dem Restore jetzt hinter die höchste Bestell-ID; das Traffic Lab loggt
+  unvollständige Bestell-Batches statt sie zu verschlucken.
+
+### Hinzugefügt (Traffic Lab)
+- **Produkte-Tab – Beliebtheit steuern:** Produktliste live aus WooCommerce (inkl. bisheriger
+  Verkäufe), pro Produkt ein Gewicht 0–100 (Regler + Schnellwahl Bestseller/Normal/Ladenhüter).
+  Wirkt auf Produktansichten UND Warenkörbe, also auf Matomo-Traffic und echte Bestellungen.
+  Persistiert als WP-Option `m392_product_weights` (neue Endpunkte `GET/POST m392/v1/weights`,
+  Schreibzugriff mit API-Key); überlebt Container-Neustarts, `./install.sh` setzt zurück.
+- **Protokoll-Tab:** Das Aktivitätslog liegt in einem eigenen Tab (mit Eintrags-Badge), statt das
+  Dashboard zu verlängern.
+- **Sync-Button im Produkte-Tab + Verkaufszahlen live:** `/api/products` liest Produkte und
+  „verkauft bisher" jetzt immer frisch aus WooCommerce (kein 5-Minuten-Cache mehr für die Anzeige).
+  Der Button „Synchronisieren" erneuert zusätzlich den Produkt-Cache des Generators und
+  protokolliert den Abgleich – **neue, im WP-Backend angelegte Produkte erscheinen sofort** im Tab
+  (mit Median-Default-Gewicht) und im erzeugten Traffic. End-to-end verifiziert (Produkt angelegt →
+  nach Sync sichtbar → entfernt → nach Sync weg).
+- **Nunito lokal gebündelt:** Die Skydash-Schrift „Nunito" (Variable Font, SIL OFL, ~270 KB) liegt
+  unter `traffic/static/fonts/` und wird vom Container offline ausgeliefert – kein CDN. Fallback
+  bleiben System-Fonts. Dazu grosszügigere Abstände (Header, Karten, Listen).
+
+### Geändert (Shop)
+- **/shop-variante/ grundlegend überarbeitet – in der Farbwelt des Shops:** Die Variante-Seite
+  nutzt jetzt dieselbe Botiga-Designsprache wie `/shop/` (Schwarz `#212121`, warme Haarlinien,
+  eckige Chips/Checkboxen, Uppercase-Mikrolabels, native Produktkarten/Buttons) statt des
+  bisherigen Terracotta-Schemas. Differenzierung fürs A/B-Szenario kommt aus dem **Layout**:
+  Filter-Sidebar links (sticky), großzügiges 2-Spalten-Produktraster, schwarzes Aktionsband.
+  Filter-UX modernisiert: eigene Checkboxen mit Zähler, schwarzer Preis-Slider mit Bereichsangabe,
+  Bewertungs-Chips (Alle/★4+/★4,5+) und „Nur Angebote"-Toggle wie in der Shop-Filterleiste,
+  Produktzähler + bedarfsweises „Zurücksetzen" über dem Raster (wie `/shop/`).
+
+### Geändert (Traffic Lab)
+- **UI verfeinert („Papier & Tinte"):** Tab-Navigation, reife Farbpalette (warme Neutraltöne,
+  Tinten-Navy als Akzent, gedeckte Datenfarben Stahlblau/Salbeigrün/Bernstein), ruhige
+  Akzent-Fill-Slider statt Regenbogen-Gradient, Buttons in Tinte, tabellarische Ziffern,
+  Fokus-Stile und `prefers-reduced-motion`. Weiterhin offline-tauglich (nur System-Fonts).
+- KPI „Umsatz heute" weist jetzt konsequent den **Produktumsatz ohne Versand** aus (gleiche
+  Konvention wie Fixture und WooCommerce-„Bruttoumsatz").
+
+### Geändert
+- **Matomo-Tracking-URL folgt jetzt `.env`:** Das mu-plugin `matomo-tracking.php` liest den
+  Matomo-Host-Port aus `MATOMO_PORT` (via Compose als `M392_MATOMO_PORT` in den WordPress-Container
+  gereicht) statt fest `8091`. Port in `.env` ändern + `docker compose up -d` genügt; kein
+  Datei-Editieren mehr nötig.
+- **`tools/bake-fixture.sh` fragt vor dem destruktiven Neuaufbau nach** (Bestätigung `bake`,
+  überspringbar mit `-y`/`--yes`), analog `install.sh` – schützt vor versehentlichem `down -v`.
+- **Shop-Filter robuster gegen Theme-Markup:** Die Produkt-Zuordnung läuft über einen serverseitigen
+  Marker (`.m392-pid` mit `data-product-id`) statt über das Parsen der `post-<ID>`-CSS-Klasse
+  (bleibt als Fallback erhalten).
+- **`matomo-init.sh`:** Token-Erzeugung entflochten (curl-Fehler bricht jetzt hart mit klarer
+  Meldung ab, statt still mit leerem Token weiterzulaufen).
+- **Backfill zählt übersprungene Treffer:** Transiente Netzwerkfehler beim Backfill werden weiterhin
+  übersprungen, aber gezählt (`skipped`) und im Traffic-Lab-Log ausgewiesen – systematische
+  Probleme (Matomo down, Token fehlt) bleiben nicht mehr unsichtbar.
+- **Order-API: Gutschein-Fehlschläge sichtbar:** Schlägt `apply_coupon()` fehl (abgelaufen,
+  Nutzungslimit), wird das als Bestellnotiz + PHP-Log festgehalten statt still ignoriert.
+- **`tools/shift-dates.sh` warnt bei unplausiblem Offset** (> ±365 Tage → Hinweis auf
+  falsches/veraltetes BASE-Datum).
+- **`install.sh`:** Spinner-Temp-Logs werden auch bei Abbruch (Ctrl+C) aufgeräumt (EXIT-Trap).
+
+### Hinzugefügt
+- **Healthchecks** für `wordpress`, `matomo` und `traffic` in `docker-compose.yml` – `docker compose
+  ps` zeigt jetzt auch ohne `install.sh` an, ob die Dienste wirklich antworten.
+- **`.editorconfig`** für einheitliche Einrückung/Zeilenenden im Repo.
+
+## [1.0.0] – 2026-06-08
 
 ### Geändert
 - **Install ist jetzt fixture-only (180-Tage-Fixture):** Die Historie (Matomo-Logs + WC-Bestellungen,

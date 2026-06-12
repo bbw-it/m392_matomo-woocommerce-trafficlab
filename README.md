@@ -1,6 +1,6 @@
 # M392 Matomo Lab
 
-> Docker-Lehrumgebung für das Modul **392 – Nutzer-Daten mittels Analysetools auswerten**.
+> Docker-Lernumgebung für das Modul **392 – Nutzer-Daten mittels Analysetools auswerten**.
 > Ein einziger Befehl startet einen vollständigen Online-Shop, ein vorkonfiguriertes
 > Web-Analyse-Tool (Matomo) und ein Werkzeug, das realistischen Besucher- und Kauf-Traffic erzeugt.
 
@@ -24,7 +24,7 @@ Sobald `install.sh` **„Der Stack laeuft"** meldet, im Browser öffnen:
 
 | Dienst | URL | Login |
 |---|---|---|
-| 🛒 **Shop** | <http://localhost:8090> | – |
+| 🛒 **Shop** | <http://localhost:8090> | – (Admin: <http://localhost:8090/wp-admin> · `admin` / `wp123`) |
 | 📊 **Matomo** | <http://localhost:8091> | `admin` / `matomo123` |
 | 🤖 **Traffic Lab** | <http://localhost:8092> | – |
 
@@ -227,6 +227,18 @@ Datengenerierungstools.
 Ein modernes Dashboard auf **http://localhost:8092** erzeugt realistischen Traffic und sendet ihn
 über die Matomo-Tracking-API. So wird sichtbar, **wie** Tracking-Daten entstehen.
 
+Das Dashboard ist in **drei Tabs** gegliedert:
+
+- **Dashboard** – Live-KPIs, Aktivitäts-Chart und die Aktionen (Live-Tropf, manuell senden).
+- **Produkte** – **Beliebtheit pro Produkt steuern** (0 = Ladenhüter … 100 = Bestseller, mit
+  Schnellwahl-Buttons): Die Liste wird live aus WooCommerce gelesen (inkl. bisheriger Verkäufe,
+  laufend aktualisiert). Die Gewichte wirken auf Produktansichten **und** Warenkörbe – also auf den
+  Matomo-Traffic ebenso wie auf die echten Shop-Bestellungen. Sie werden in WordPress gespeichert
+  und überleben Container-Neustarts (`./install.sh` setzt sie zurück). Der Button
+  **„Synchronisieren"** holt neu im WordPress-Backend angelegte Produkte sofort in die Liste und
+  in den erzeugten Traffic.
+- **Protokoll** – das Aktivitätslog in einem eigenen Tab (Autoscroll, leeren).
+
 - **Live-KPIs & Aktivitäts-Chart:** Besuche, Käufe, Umsatz, Conversion in Echtzeit. Der
   Aktivitäts-Chart beschriftet die Zeitachse **relativ** („jetzt", „−1:00" …); ein **Hover-Tooltip**
   zeigt die Anzahl Besucher:innen pro Balken.
@@ -255,7 +267,10 @@ Ein modernes Dashboard auf **http://localhost:8092** erzeugt realistischen Traff
   dort anpassen und mit `./tools/bake-fixture.sh` neu backen (Details in [`docs/HANDOFF.md`](docs/HANDOFF.md)).
   Jede Bestellung ist **zusätzlich in Matomo gespiegelt** (gleiches Datum/Artikel, **Produktumsatz
   ohne Versand**), sodass *Matomo → E-Commerce* „Gesamteinnahmen" und *WooCommerce → Statistiken*
-  „Bruttoumsatz" **dieselben Zahlen** zeigen. Versand/Gutscheine/Retouren bleiben bewusst
+  „Bruttoumsatz" **dieselben Zahlen** zeigen. Das gilt auch im **Live-Betrieb**: Jeder Kauf des
+  Live-Tropfs legt die echte WooCommerce-Bestellung mit **exakt dem Warenkorb des getrackten
+  Besuchs** an – Matomo-Conversion und Shop-Bestellung zeigen dieselben Artikel und denselben
+  Produktumsatz. Versand/Gutscheine/Retouren/Stornos bleiben bewusst
   WooCommerce-exklusiv (Lerneffekt: Tools messen Unterschiedliches).
   Jede Bestellung ist in **alle WooCommerce-Analytics-Tabellen** synchronisiert (Bestell-Statistik,
   Produkte, Gutscheine, Kund:innen) und mit `date_paid` versehen – dadurch stimmen *WooCommerce →
@@ -341,7 +356,7 @@ Kursbetrieb funktionieren die Standardwerte ohne Anpassung. Die wichtigsten Vari
 | `TRAFFIC_CREATE_WC_ORDERS` | `true` | Echte WooCommerce-Bestellungen im Live-Betrieb anlegen |
 | `M392_ORDER_API_KEY` | `m392_lab_…` | Gemeinsames Secret für den Bestell-Endpunkt (WP ⇄ Traffic) |
 | `M392_AB_TEST_ENABLED` | `true` | Shop-A/B-Test aktiv (Variante A/B, getrackt als Matomo-Custom-Dimension „AB-Variante") |
-| `M392_AB_SPLIT_B` | `50` | Prozent der Besucher:innen in Variante B |
+| `M392_AB_SPLIT_B` | `50` | Prozent der **synthetischen** Besuche in Variante B (nur Traffic Lab; echte Besucher:innen sehen immer `/shop/`) |
 | `M392_AB_CONV_FACTOR_B` | `1.25` | Faktor, um den Variante B besser konvertiert (Lerneffekt) |
 
 > **Historie/Umsatz der Fixture:** Historienlänge, Umsatzniveau und Conversion-/Returning-Rate der
@@ -476,9 +491,9 @@ werden. Ein `down -v && up -d` liefert also wieder **exakt denselben Shop**.
   zeigt der Schritt **[5/5]** ein `✗` samt Fehlerausgabe; meist fehlt der API-Token – `docker compose
   logs matomo-init` prüfen (Token wird dort erzeugt und im Volume `matomo_token` abgelegt).
 - **Ports belegt**
-  Ports in `.env` ändern (`WORDPRESS_PORT`, `MATOMO_PORT`, `TRAFFIC_PORT`). Hinweis: Der im Shop
-  eingebettete Tracking-Code zeigt auf `localhost:8091`; bei geändertem `MATOMO_PORT` die Datei
-  `wordpress/init/mu-plugins/matomo-tracking.php` anpassen.
+  Ports in `.env` ändern (`WORDPRESS_PORT`, `MATOMO_PORT`, `TRAFFIC_PORT`). Der im Shop eingebettete
+  Tracking-Code übernimmt `MATOMO_PORT` automatisch aus `.env` – danach die Container einmal neu
+  erstellen (`docker compose up -d`).
 - **Erster Start hängt / lädt lange**
   Beim ersten Start werden Images, Theme/Plugins und Bilder geladen – Internet nötig, etwas Geduld.
 

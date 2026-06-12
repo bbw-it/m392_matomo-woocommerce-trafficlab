@@ -87,10 +87,15 @@ TRAFFIC_PORT="$(read_env TRAFFIC_PORT)"; TRAFFIC_PORT="${TRAFFIC_PORT:-8092}"
 SPIN_FRAMES=(⠋ ⠙ ⠹ ⠸ ⠼ ⠴ ⠦ ⠧ ⠇ ⠏)
 HAVE_TTY=0; [ -t 1 ] && HAVE_TTY=1
 fmt_elapsed() { printf '%d:%02d' $(( $1 / 60 )) $(( $1 % 60 )); }
+# Aktuelles run_spin-Log auch bei Abbruch (Ctrl+C/TERM) aufraeumen, sonst bleiben
+# Temp-Dateien unter ${TMPDIR:-/tmp}/install_spin.* liegen.
+SPIN_LOG=""
+trap '[ -z "$SPIN_LOG" ] || rm -f "$SPIN_LOG"' EXIT
 run_spin() {
   local label="$1"; shift
   local start="$SECONDS" i=0 rc=0 pid log mark
   log="$(mktemp "${TMPDIR:-/tmp}/install_spin.XXXXXX")"
+  SPIN_LOG="$log"
   "$@" >"$log" 2>&1 &
   pid=$!
   if [ "$HAVE_TTY" -eq 1 ]; then
@@ -111,6 +116,7 @@ run_spin() {
   fi
   [ "$rc" -ne 0 ] && [ -s "$log" ] && sed 's/^/        /' "$log" >&2
   rm -f "$log"
+  SPIN_LOG=""
   return "$rc"
 }
 
@@ -234,6 +240,21 @@ if [ "$RESTORE_OK" -eq 1 ] && [ -f "$FIX_DIR/matomo-history.sql.gz" ] && [ -f "$
 elif [ "$RESTORE_OK" -eq 1 ]; then
   echo "      FEHLER: Fixture-Artefakte fehlen in $FIX_DIR/ - erst backen: ./tools/bake-fixture.sh" >&2
   RESTORE_OK=0
+fi
+
+if [ "$RESTORE_OK" -eq 1 ]; then
+  # WICHTIG: Die Fixture bringt wp_wc_orders mit hohen IDs mit, dumpt aber bewusst
+  # KEINE shop_order-Platzhalter-Posts. HPOS zieht die ID neuer Bestellungen aus der
+  # wp_posts-Sequenz – ohne Anhebung kollidiert die naechste Live-Bestellung mit
+  # einer Fixture-ID (Duplicate Key, Bestellungen schlagen still fehl).
+  NEXTO="$("${DC[@]}" exec -T db mariadb -u root -p"$RP" -N -e \
+        "SELECT COALESCE(MAX(id),0)+1 FROM \`${WDB}\`.wp_wc_orders;" 2>/dev/null | tr -d '\r')"
+  if [ -n "$NEXTO" ] && [ "$NEXTO" -gt 1 ] 2>/dev/null; then
+    "${DC[@]}" exec -T db mariadb -u root -p"$RP" -e \
+      "ALTER TABLE \`${WDB}\`.wp_posts AUTO_INCREMENT = ${NEXTO};" >/dev/null 2>&1 \
+      && echo "      ✓ Bestell-ID-Sequenz auf ${NEXTO} angehoben (keine Kollision mit Fixture-IDs)" \
+      || echo "      WARN: Bestell-ID-Sequenz konnte nicht angehoben werden (wp_posts AUTO_INCREMENT)." >&2
+  fi
 fi
 
 if [ "$RESTORE_OK" -eq 1 ]; then

@@ -12,6 +12,9 @@
 # Installation uebersprungen und nur Token + Trusted-Host-Einstellung
 # sichergestellt.
 # ---------------------------------------------------------------------------
+# set -eu (POSIX sh, kein pipefail: BusyBox-sh unterstuetzt es nicht durchgehend,
+# und die grep -q-Warte-Pipes unten wuerden per SIGPIPE fehlschlagen). Kritische
+# Pipes sind stattdessen entflochten bzw. werden ueber ihr Ergebnis geprueft.
 set -eu
 
 BASE="http://matomo"
@@ -156,14 +159,18 @@ fi
 
 if [ "$need_token" -eq 1 ]; then
   log "Erzeuge app-spezifischen API-Token ..."
-  TOKEN="$(curl -s "${BASE}/index.php" \
+  # curl und sed bewusst getrennt (keine Pipe): schlaegt der Request selbst fehl,
+  # bricht das Skript hier mit klarer Meldung ab, statt still mit leerem Token
+  # weiterzulaufen (eine Pipe wuerde den curl-Exitcode verschlucken).
+  RESP="$(curl -s "${BASE}/index.php" \
     --data-urlencode "module=API" \
     --data-urlencode "method=UsersManager.createAppSpecificTokenAuth" \
     --data-urlencode "userLogin=${MATOMO_ADMIN_USER}" \
     --data-urlencode "passwordConfirmation=${MATOMO_ADMIN_PASSWORD}" \
     --data-urlencode "description=m392-traffic-generator" \
-    --data-urlencode "format=json" \
-    | sed -n 's/.*"value":"\([a-f0-9]*\)".*/\1/p')"
+    --data-urlencode "format=json")" \
+    || { log "FEHLER: Token-Request an die Matomo-API fehlgeschlagen."; exit 1; }
+  TOKEN="$(printf '%s' "$RESP" | sed -n 's/.*"value":"\([a-f0-9]*\)".*/\1/p')"
 
   if echo "${TOKEN:-}" | grep -qE '^[a-f0-9]{32}$'; then
     printf '%s' "$TOKEN" > "$TOKEN_FILE"

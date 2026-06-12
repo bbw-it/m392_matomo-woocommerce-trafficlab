@@ -97,11 +97,12 @@ _PRODUCT_CACHE = {"ts": 0.0, "data": None}
 _PRODUCT_TTL = 300.0
 
 
-def _fetch_live_products():
-    """Holt die Live-Produktliste vom Shop (gecacht ~5 min). None bei Fehler."""
+def _fetch_live_products(force=False):
+    """Holt die Live-Produktliste vom Shop (gecacht ~5 min; force=True erneuert
+    den Cache sofort – z. B. via Sync im Produkte-Tab). None bei Fehler."""
     now = time.time()
     cached = _PRODUCT_CACHE["data"]
-    if cached is not None and (now - _PRODUCT_CACHE["ts"]) < _PRODUCT_TTL:
+    if not force and cached is not None and (now - _PRODUCT_CACHE["ts"]) < _PRODUCT_TTL:
         return cached
     try:
         r = _session().get(f"{WP_INTERNAL_URL}/wp-json/m392/v1/products", timeout=10)
@@ -227,14 +228,39 @@ _CONTENT = [
 ]
 
 
-def _load_catalog():
+# Beliebtheits-Gewichte (0..100 je SKU), gesteuert über den Produkte-Tab des
+# Dashboards. Überschreiben die popularity aus catalog.json und wirken damit auf
+# Produktansichten UND Warenkörbe. Atomare Dict-Zuweisung -> kein Lock nötig.
+_WEIGHTS = {}
+
+
+def set_weight_overrides(weights):
+    """Dashboard-Gewichte übernehmen ({sku: 0..100}; leer = Katalog-Gewichtung)."""
+    global _WEIGHTS
+    _WEIGHTS = dict(weights or {})
+
+
+def _apply_weights(catalog):
+    """Gewichte auf die popularity anwenden. Gewicht 0 = Ladenhüter (praktisch
+    nie); ein kleiner Floor verhindert eine Null-Gesamtsumme bei random.choices."""
+    if not _WEIGHTS:
+        return catalog
+    for pr in catalog.get("products", []):
+        w = _WEIGHTS.get(pr.get("sku"))
+        if w is not None:
+            pr["popularity"] = max(0.05, float(w))
+    return catalog
+
+
+def _load_catalog(apply_weights=True):
     """catalog.json (Meta) + Live-Produkte aus WooCommerce.
 
     Produkte/Kategorien werden – wenn der Shop erreichbar ist – live uebernommen
     (echte SKU `wc_<id>`, voller Name, echter Preis, echte Kategorie). So stimmen
     die Matomo-Daten exakt mit dem Shop ueberein und neue Produkte sind automatisch
-    dabei. Die `popularity` (Bestseller-Gewichtung) kommt weiterhin aus catalog.json
-    je SKU; unbekannte/neue Produkte erhalten einen mittleren Default. Faellt der
+    dabei. Die `popularity` (Bestseller-Gewichtung) kommt aus catalog.json je SKU
+    (unbekannte/neue Produkte erhalten einen mittleren Default) und wird – falls
+    gesetzt – von den Dashboard-Gewichten (Produkte-Tab) überschrieben. Faellt der
     Sync aus, gelten die statischen catalog.json-Produkte.
     """
     with open(CATALOG_PATH, encoding="utf-8") as f:
@@ -242,7 +268,7 @@ def _load_catalog():
 
     live = _fetch_live_products()
     if not live:
-        return catalog
+        return _apply_weights(catalog) if apply_weights else catalog
 
     pops = {p.get("sku"): p.get("popularity") for p in catalog.get("products", [])}
     known = sorted(v for v in pops.values() if isinstance(v, (int, float)))
@@ -267,7 +293,36 @@ def _load_catalog():
     catalog["products"] = products
     if cats:
         catalog["categories"] = list(cats.values())
-    return catalog
+    return _apply_weights(catalog) if apply_weights else catalog
+
+
+def product_overview(fresh=False):
+    """Produktliste für den Produkte-Tab des Dashboards: Stammdaten, bisherige
+    WooCommerce-Verkäufe und das Default-Gewicht (aus der Katalog-Gewichtung
+    abgeleitet, stärkstes Produkt = 100; relative Verhältnisse bleiben erhalten).
+
+    fresh=True umgeht den Produkt-Cache: Verkaufszahlen sind sofort aktuell und
+    NEUE WordPress-Produkte erscheinen unmittelbar – auch im Traffic, denn der
+    erneuerte Cache gilt ebenso für die Besuchs-/Warenkorb-Generierung."""
+    live = _fetch_live_products(force=fresh) or []
+    base = _load_catalog(apply_weights=False)
+    sales = {p.get("sku"): int(p.get("total_sales") or 0) for p in live}
+    prods = base.get("products", [])
+    maxp = max((float(pr.get("popularity") or 1) for pr in prods), default=1.0)
+    out = []
+    for pr in prods:
+        sku = pr.get("sku")
+        if not sku:
+            continue
+        out.append({
+            "sku": sku,
+            "name": pr.get("name", ""),
+            "price": float(pr.get("price") or 0),
+            "category": pr.get("category", ""),
+            "total_sales": sales.get(sku, 0),
+            "default_weight": max(1, int(round(float(pr.get("popularity") or 1) / maxp * 100))),
+        })
+    return out
 
 
 def _base_url(catalog):
@@ -407,8 +462,17 @@ def _pick_channel():
     return {"name": c["name"], "kind": c["kind"], "ref": pick, "mult": c["mult"]}
 
 
-def simulate_visit(catalog, when=None, force_purchase=False, conversion_rate=0.04):
-    """Ein kompletter Besucherpfad. Gibt dict mit Kennzahlen zurück."""
+def simulate_visit(catalog, when=None, force_purchase=False, conversion_rate=0.04,
+                   defer_purchase=False):
+    """Ein kompletter Besucherpfad. Gibt dict mit Kennzahlen zurück.
+
+    defer_purchase=True (Live-Tropf): Bei einem Kauf wird die E-Commerce-
+    Conversion NICHT sofort gesendet, sondern als `pending` zurückgegeben
+    (Warenkorb + vorbereitete Tracking-Parameter desselben Besuchs). Der
+    Aufrufer legt zuerst die echte WooCommerce-Bestellung mit GENAU diesem
+    Warenkorb an und schließt dann mit complete_purchase(...) ab – so zeigen
+    Matomo und WooCommerce dieselbe Bestellung (Artikel + Produktumsatz);
+    `revenue` bleibt in dem Fall 0 und wird erst beim Abschluss verbucht."""
     visitor_id = uuid.uuid4().hex[:16]
     ua = random.choice(USER_AGENTS)
     base = _base_url(catalog)
@@ -511,6 +575,7 @@ def simulate_visit(catalog, when=None, force_purchase=False, conversion_rate=0.0
     can_buy = geo.get("can_purchase", True)
     purchased = (force_purchase or (random.random() < eff_cr)) and can_buy
     revenue = 0.0
+    pending = None
     if viewed_products:
         if purchased:
             reach_cart = reach_checkout = True
@@ -559,9 +624,10 @@ def simulate_visit(catalog, when=None, force_purchase=False, conversion_rate=0.0
                 when = _advance(when)
 
                 if purchased:
-                    # Schritt 4: Kauf – Pageview (→ Funnel-Ziel) + separate E-Commerce-Bestellung
-                    shipping = 0.0 if subtotal >= 50 else 4.90
-                    revenue = round(subtotal + shipping, 2)
+                    # Schritt 4: Kauf – Pageview (→ Funnel-Ziel) + E-Commerce-Bestellung.
+                    # Umsatz = PRODUKTUMSATZ ohne Versand (= WC-„Bruttoumsatz"), damit
+                    # Matomo-Gesamteinnahmen und WooCommerce dieselben Zahlen zeigen
+                    # (gleiche Konvention wie die gebackene Fixture).
                     p = mkparams()
                     p["url"] = f"{base}/checkout/order-received/"
                     p["action_name"] = "Bestellbestätigung"
@@ -571,11 +637,17 @@ def simulate_visit(catalog, when=None, force_purchase=False, conversion_rate=0.0
                     o["url"] = f"{base}/checkout/order-received/"
                     o["idgoal"] = 0
                     o["ec_id"] = uuid.uuid4().hex[:12]
-                    o["revenue"] = revenue
-                    o["ec_st"] = round(subtotal, 2)
-                    o["ec_sh"] = shipping
-                    o["ec_items"] = json.dumps(items, ensure_ascii=False)
-                    _send(o)
+                    if defer_purchase:
+                        # Conversion aufschieben: erst die echte WC-Bestellung mit
+                        # diesem Warenkorb anlegen, dann complete_purchase(...).
+                        pending = {"params": o, "items": items,
+                                   "subtotal": round(subtotal, 2)}
+                    else:
+                        revenue = round(subtotal, 2)
+                        o["revenue"] = revenue
+                        o["ec_st"] = round(subtotal, 2)
+                        o["ec_items"] = json.dumps(items, ensure_ascii=False)
+                        _send(o)
 
     # --- Gelegentlicher PDF-Download (Blog: INCI-Leitfaden) -----------------
     # ~3,5 % der Besuche laden den Leitfaden herunter. Matomo verbucht das als
@@ -634,21 +706,27 @@ def simulate_visit(catalog, when=None, force_purchase=False, conversion_rate=0.0
             p["e_n"] = random.choice(_VIDEOS); p["e_v"] = random.randint(5, 120)
         _send(p)
 
-    return {"pages": pages, "purchase": purchased, "revenue": revenue}
+    return {"pages": pages, "purchase": purchased, "revenue": revenue, "pending": pending}
 
 
-def generate_visits(count, conversion_rate=0.04, when=None):
+def generate_visits(count, conversion_rate=0.04, when=None, defer_purchases=False):
     catalog = _load_catalog()
     summary = {"visits": 0, "purchases": 0, "revenue": 0.0}
+    pending = []
     for _ in range(count):
-        r = simulate_visit(catalog, when=when, conversion_rate=conversion_rate)
+        r = simulate_visit(catalog, when=when, conversion_rate=conversion_rate,
+                           defer_purchase=defer_purchases)
         summary["visits"] += 1
         summary["purchases"] += 1 if r["purchase"] else 0
         summary["revenue"] = round(summary["revenue"] + r["revenue"], 2)
+        if r.get("pending"):
+            pending.append(r["pending"])
+    if defer_purchases:
+        summary["pending"] = pending
     return summary
 
 
-def generate_orders(count, when=None):
+def generate_orders(count, when=None, defer_purchases=False):
     """Erzwingt `count` Käufe (jeweils mit vorausgehendem Besuch).
 
     Jeder erzwungene Kauf hat einen Besuch – daher zählt `visits` mit, damit das
@@ -656,12 +734,35 @@ def generate_orders(count, when=None):
     """
     catalog = _load_catalog()
     summary = {"visits": 0, "purchases": 0, "revenue": 0.0}
+    pending = []
     for _ in range(count):
-        r = simulate_visit(catalog, when=when, force_purchase=True)
+        r = simulate_visit(catalog, when=when, force_purchase=True,
+                           defer_purchase=defer_purchases)
         summary["visits"] += 1
         summary["purchases"] += 1
         summary["revenue"] = round(summary["revenue"] + r["revenue"], 2)
+        if r.get("pending"):
+            pending.append(r["pending"])
+    if defer_purchases:
+        summary["pending"] = pending
     return summary
+
+
+def complete_purchase(pending, revenue=None):
+    """Schließt einen aufgeschobenen Kauf ab: sendet die E-Commerce-Conversion
+    im selben Besuch (gleiche Besucher-ID/Parameter wie der Kauf-Trichter).
+
+    `revenue` = echter Produktumsatz der angelegten WooCommerce-Bestellung
+    (ohne Versand); ohne Wert gilt der simulierte Warenkorb als Fallback
+    (z. B. wenn keine WC-Bestellungen angelegt werden). Gibt den verbuchten
+    Umsatz zurück."""
+    o = dict(pending["params"])
+    rev = round(float(revenue if revenue is not None else pending["subtotal"]), 2)
+    o["revenue"] = rev
+    o["ec_st"] = round(sum(float(it[3]) * int(it[4]) for it in pending["items"]), 2)
+    o["ec_items"] = json.dumps(pending["items"], ensure_ascii=False)
+    _send(o)
+    return rev
 
 
 def track_ecommerce_order(ts, revenue, items, catalog=None):
@@ -793,7 +894,7 @@ def backfill(days, base_per_day=14, conversion_rate=0.04, progress=None):
     aufgerufen, damit langlaufende 24-Monats-Backfills im UI sichtbar bleiben.
     """
     catalog = _load_catalog()
-    total = {"visits": 0, "purchases": 0, "revenue": 0.0}
+    total = {"visits": 0, "purchases": 0, "revenue": 0.0, "skipped": 0}
     now = datetime.now()
     for idx, d in enumerate(range(days, 0, -1), start=1):
         day = now - timedelta(days=d)
@@ -803,10 +904,12 @@ def backfill(days, base_per_day=14, conversion_rate=0.04, progress=None):
                                minute=random.randint(0, 59),
                                second=random.randint(0, 59))
             # Resilient: ein transienter Fehler bei EINEM Besuch darf den ganzen
-            # (zehntausende Treffer langen) Backfill nicht abbrechen – überspringen.
+            # (zehntausende Treffer langen) Backfill nicht abbrechen – überspringen,
+            # aber zählen ("skipped"), damit systematische Probleme sichtbar werden.
             try:
                 r = simulate_visit(catalog, when=when, conversion_rate=conversion_rate)
             except requests.RequestException:
+                total["skipped"] += 1
                 continue
             total["visits"] += 1
             total["purchases"] += 1 if r["purchase"] else 0

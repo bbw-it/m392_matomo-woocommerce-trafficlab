@@ -94,6 +94,12 @@ STATE = {
 }
 LOCK = threading.Lock()
 
+# Beliebtheits-Gewichte je Produkt-SKU (0..100), gesteuert über den Produkte-Tab.
+# Quelle beim Start: Defaults aus der Katalog-Gewichtung, überlagert von der in
+# WordPress persistierten Option (überlebt Container-Neustarts/-Rebuilds).
+WEIGHTS = {}
+WEIGHTS_READY = False
+
 DRIP_MIN_PER_HOUR = 6
 DRIP_MAX_PER_HOUR = 1200
 
@@ -145,6 +151,36 @@ def _book_wc(res):
         STATE["wc"]["revenue"] = round(STATE["wc"]["revenue"] + res.get("revenue", 0.0), 2)
 
 
+def _finish_purchases(pendings):
+    """Aufgeschobene Käufe abschließen (Matomo↔WooCommerce-Parität).
+
+    Legt echte WC-Bestellungen mit GENAU den simulierten Warenkörben an und
+    sendet danach die Matomo-Conversions mit den echten Produktumsätzen im
+    jeweils selben Besuch. Fallback (WC deaktiviert/fehlgeschlagen): Conversion
+    mit den simulierten Warenkorb-Werten. Gibt (Matomo-Umsatz, WC-Antwort) zurück."""
+    if not pendings:
+        return 0.0, None
+    res = None
+    if orders.ENABLED:
+        carts = [[[it[0], it[4]] for it in p["items"]] for p in pendings]
+        res = orders.create_orders(len(pendings), carts=carts,
+                                   returning_rate=STATE["returning_rate"] * 100)
+        _book_wc(res)
+        # Stille Teil-Fehlschläge sichtbar machen (z. B. ID-Kollision in WP):
+        # der Endpunkt antwortet dann 201 mit weniger Bestellungen als angefragt.
+        if not res.get("error") and res.get("count", 0) < len(pendings):
+            _log(f"Shop-Bestellungen unvollständig: {res.get('count', 0)}/{len(pendings)} angelegt")
+    detail = (res or {}).get("orders_detail") or []
+    revenue = 0.0
+    for i, p in enumerate(pendings):
+        actual = detail[i].get("subtotal") if i < len(detail) else None
+        try:
+            revenue += generator.complete_purchase(p, revenue=actual)
+        except Exception as exc:
+            _log(f"Conversion-Abschluss fehlgeschlagen: {exc}")
+    return round(revenue, 2), res
+
+
 def _drip_worker():
     # Erst lostropfen, wenn Matomo erreichbar/installiert ist; sonst laufen die
     # ersten Besuche ins Leere, bevor matomo-init fertig ist.
@@ -157,16 +193,17 @@ def _drip_worker():
         # Schub: meist 1 Besuch, gelegentlich mehrere Gaeste "gleichzeitig".
         burst = random.choices(_BURST_SIZES, weights=_BURST_PROBS)[0]
         try:
-            s = generator.generate_visits(burst, conversion_rate=STATE["conversion_rate"])
+            # Defer-Modus: Käufe werden erst als ECHTE WooCommerce-Bestellung
+            # angelegt (gleicher Warenkorb) und dann in Matomo abgeschlossen –
+            # beide Tools zeigen dieselbe Bestellung.
+            s = generator.generate_visits(burst, conversion_rate=STATE["conversion_rate"],
+                                          defer_purchases=True)
+            rev, res = _finish_purchases(s.pop("pending", []))
+            s["revenue"] = round(s["revenue"] + rev, 2)
             _accumulate(s)
-            # Käufe zusätzlich als ECHTE WooCommerce-Bestellungen anlegen (Live).
-            if s.get("purchases"):
-                res = orders.create_orders(s["purchases"], days_back=0,
-                                           returning_rate=STATE["returning_rate"] * 100)
-                _book_wc(res)
-                if res["count"]:
-                    _accumulate({"returning": res.get("returning", 0)})
-                    _log(f"{res['count']} Bestellung(en) im Shop angelegt (Live)")
+            if res and res.get("count"):
+                _accumulate({"returning": res.get("returning", 0)})
+                _log(f"{res['count']} Bestellung(en) im Shop angelegt (Live)")
         except Exception as exc:
             _log(f"Drip-Fehler: {exc}")
         # Exponentiell verteilte Pause (Poisson-Ankuenfte): mal Schlag auf Schlag,
@@ -274,16 +311,18 @@ def gen_visits():
 
 @app.route("/api/generate-orders", methods=["POST"])
 def gen_orders():
-    count, err = _num_arg("count", 10, 1, 500)
+    count, err = _num_arg("count", 10, 1, 200)
     if err:
         return jsonify({"error": err}), 400
-    s = generator.generate_orders(count)
+    # Defer-Modus wie im Live-Tropf: WC-Bestellung mit demselben Warenkorb,
+    # Matomo-Conversion danach mit dem echten Produktumsatz.
+    s = generator.generate_orders(count, defer_purchases=True)
+    rev, res = _finish_purchases(s.pop("pending", []))
+    s["revenue"] = round(s["revenue"] + rev, 2)
     _accumulate({"visits": s["visits"], "purchases": s["purchases"], "revenue": s["revenue"]})
-    res = orders.create_orders(count, days_back=0,                  # echte WooCommerce-Bestellungen
-                               returning_rate=STATE["returning_rate"] * 100)
-    _book_wc(res)
-    _accumulate({"returning": res.get("returning", 0)})
-    made = res["count"]
+    if res:
+        _accumulate({"returning": res.get("returning", 0)})
+    made = (res or {}).get("count", 0)
     extra = f" · {made} Shop-Bestellungen" if made else ""
     _log(f"{count} Käufe erzwungen – EUR {s['revenue']:.2f}{extra}")
     return jsonify(s)
@@ -301,8 +340,69 @@ def backfill():
 
     s = generator.backfill(days, conversion_rate=STATE["conversion_rate"], progress=_progress)
     _accumulate(s)
-    _log(f"Backfill {days} Tage fertig – {s['visits']} Besuche, {s['purchases']} Käufe")
+    skipped = f" ({s['skipped']} Treffer wegen Netzwerkfehlern übersprungen)" if s.get("skipped") else ""
+    _log(f"Backfill {days} Tage fertig – {s['visits']} Besuche, {s['purchases']} Käufe{skipped}")
     return jsonify(s)
+
+
+def _init_weights():
+    """Gewichte initialisieren, sobald der Shop erreichbar ist (Hintergrund)."""
+    global WEIGHTS_READY
+    orders.wait_for_wordpress(timeout=600)
+    defaults = {}
+    try:
+        defaults = {p["sku"]: p["default_weight"] for p in generator.product_overview()}
+    except Exception as exc:
+        _log(f"Produkt-Gewichte: Defaults nicht ermittelbar ({exc})")
+    stored = orders.get_weights()
+    with LOCK:
+        WEIGHTS.update(defaults)
+        WEIGHTS.update({k: max(0, min(100, int(v))) for k, v in (stored or {}).items()})
+        snapshot = dict(WEIGHTS)
+    generator.set_weight_overrides(snapshot)
+    WEIGHTS_READY = True
+    if stored:
+        _log(f"Produkt-Beliebtheit geladen ({len(stored)} gespeicherte Gewichte)")
+
+
+@app.route("/api/products")
+def api_products():
+    """Produktliste für den Produkte-Tab: Stammdaten aus WooCommerce, bisherige
+    Verkäufe und das aktuell wirksame Beliebtheits-Gewicht je Produkt.
+
+    Liest immer frisch aus WooCommerce (Verkaufszahlen live, neue Produkte sofort
+    sichtbar); ?fresh=1 (Sync-Button) protokolliert den manuellen Abgleich."""
+    manual = request.args.get("fresh") == "1"
+    try:
+        prods = generator.product_overview(fresh=True)
+    except Exception as exc:
+        return jsonify({"error": str(exc), "products": []}), 503
+    if manual:
+        _log(f"Produkte aus WooCommerce synchronisiert ({len(prods)} Produkte)")
+    with LOCK:
+        w = dict(WEIGHTS)
+    for p in prods:
+        p["weight"] = int(w.get(p["sku"], p["default_weight"]))
+    prods.sort(key=lambda p: (-p["weight"], p["name"]))
+    return jsonify({"products": prods, "ready": WEIGHTS_READY})
+
+
+@app.route("/api/product-weight", methods=["POST"])
+def set_product_weight():
+    """Beliebtheits-Gewicht eines Produkts setzen (0 = Ladenhüter, 100 = Bestseller).
+    Wirkt sofort auf Produktansichten und Warenkörbe; wird in WordPress persistiert."""
+    sku = (request.form.get("sku") or "").strip()
+    weight, err = _num_arg("weight", None, 0, 100)
+    if err or weight is None or not sku:
+        return jsonify({"error": err or "sku und weight sind erforderlich"}), 400
+    with LOCK:
+        WEIGHTS[sku] = int(weight)
+        snapshot = dict(WEIGHTS)
+    generator.set_weight_overrides(snapshot)
+    persisted = orders.set_weights({sku: int(weight)})
+    _log(f"Beliebtheit angepasst: {sku} → {int(weight)}"
+         + ("" if persisted else " (Persistierung fehlgeschlagen)"))
+    return jsonify({"sku": sku, "weight": int(weight), "persisted": bool(persisted)})
 
 
 @app.route("/api/toggle-drip", methods=["POST"])
@@ -400,7 +500,9 @@ def _maybe_auto_seed():
                 s = generator.backfill(days, base_per_day=base_per_day,
                                        conversion_rate=backfill_conv, progress=_progress)
                 _accumulate(s)
-                _log(f"Auto-Seed: {days} Tage Historie befüllt ({s['visits']} Besuche)")
+                skipped = (f", {s['skipped']} wegen Netzwerkfehlern übersprungen"
+                           if s.get("skipped") else "")
+                _log(f"Auto-Seed: {days} Tage Historie befüllt ({s['visits']} Besuche{skipped})")
                 _set_seed("history", "done")
                 return
             except Exception as exc:
@@ -555,6 +657,7 @@ def _maybe_seed_orders():
 
 threading.Thread(target=_drip_worker, daemon=True).start()
 threading.Thread(target=_history_worker, daemon=True).start()
+threading.Thread(target=_init_weights, daemon=True).start()
 _maybe_auto_seed()
 _maybe_seed_orders()
 

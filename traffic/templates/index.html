@@ -3,79 +3,124 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Traffic Lab — M392</title>
-<!-- Offline-tauglich: keine externen Google-Fonts. --font/--mono fallen auf
-     System-Fonts (system-ui / ui-monospace) zurück; lokal vorhandenes Inter /
-     JetBrains Mono wird weiterhin genutzt. -->
+<title>Traffic Lab Generator — M392</title>
+<!-- Offline-tauglich: "Nunito" (Skydash-Font, SIL OFL) wird LOKAL aus dem
+     Container ausgeliefert (traffic/static/fonts/, Variable Font mit allen
+     Gewichten) – kein CDN. Fallback: System-Fonts. -->
 <style>
+  @font-face{
+    font-family:'Nunito';
+    src:url('/static/fonts/Nunito-Variable.ttf') format('truetype-variations');
+    font-weight:200 1000;
+    font-style:normal;
+    font-display:swap;
+  }
   :root{
-    --bg:#f6f7f9; --card:#ffffff; --line:#e9ebf0; --line2:#eef0f4;
-    --ink:#1e2330; --gray:#6b7280; --mut:#9aa1ad;
-    --blue:#2f6bff; --blue-d:#2257e6; --blue-soft:#eaf1ff;
-    --green:#22c55e; --red:#ef4444; --orange:#f59e0b;
-    --r:16px; --sh:0 1px 2px rgba(16,24,40,.04), 0 1px 3px rgba(16,24,40,.04);
-    --font:'Inter',system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
-    --mono:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,monospace;
+    /* Skydash-Palette: kühles Hellblau-Grau, Indigo als Primärfarbe,
+       helle Blau-/Violett-/Koralle-Akzente. Keine warmen Töne. */
+    --bg:#f5f7ff; --card:#ffffff; --line:#e8ebf7; --line2:#eef0f9;
+    /* Text-Farben nach Skydash-Vorlage: Titel #010101, Fliesstext #1f1f1f. */
+    --title:#010101; --ink:#1f1f1f; --ink-2:#3f4254; --gray:#6c7293; --mut:#a3a8c3; --faint:#ccd0e4;
+    --acc:#4b49ac; --acc-deep:#3f3d92; --acc-soft:#ededfb; --acc-ring:rgba(75,73,172,.20);
+    --blue:#98bdff; --blue-2:#7da0fa; --violet:#7978e9; --coral:#f3797e;
+    /* Slider-Spektrum kühl→warm (niedrig=blau … hoch=koralle). */
+    --cool:#7da0fa; --mid:#7978e9; --hot:#f3797e;
+    --c-vis:#7da0fa;   /* Besuche  – Blau   */
+    --c-buy:#f5a05a;   /* Käufe    – Orange */
+    --c-ret:#52bd94;   /* Wiederk. – Grün   */
+    --ok:#52bd94; --err:#f3797e; --err-soft:#fdecee;
+    --r:14px; --sh:0 2px 10px rgba(75,73,172,.05);
+    /* Skydash nutzt "Nunito" – falls lokal installiert, wird sie verwendet;
+       sonst greifen rundlich-freundliche System-Fonts (offline-tauglich). */
+    --font:"Nunito","Nunito Sans","Avenir Next","Segoe UI Variable Text","Segoe UI",system-ui,-apple-system,sans-serif;
+    --mono:"SF Mono",ui-monospace,"Cascadia Code",Menlo,Consolas,monospace;
   }
   *{box-sizing:border-box}
   html,body{margin:0}
   body{background:var(--bg); color:var(--ink); font-family:var(--font);
     -webkit-font-smoothing:antialiased; line-height:1.45}
+  button{font-family:var(--font)}
+  :focus-visible{outline:2px solid var(--acc); outline-offset:2px; border-radius:6px}
+  .mono{font-family:var(--mono)}
+  .num{font-variant-numeric:tabular-nums}
 
-  /* ---------- header ---------- */
+  /* ---------- Header ---------- */
   .hdr{background:var(--card); border-bottom:1px solid var(--line)}
-  .hdr-in{max-width:1360px; margin:0 auto; padding:16px 28px; display:flex; align-items:center; gap:18px}
-  .logo{width:34px; height:34px; border-radius:9px; background:var(--blue); flex:none;
-    display:grid; place-items:center}
-  .logo svg{width:19px; height:19px}
-  .brand{display:flex; align-items:baseline; gap:14px; min-width:0}
-  .brand b{font-size:19px; font-weight:700; letter-spacing:-.01em}
-  .brand span{font-size:14px; color:var(--mut); white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+  .hdr-in{max-width:1360px; margin:0 auto; padding:18px 32px; display:flex; align-items:center; gap:16px}
+  .brand{display:flex; align-items:baseline; gap:13px; min-width:0}
+  .brand b{font-size:18px; font-weight:700; letter-spacing:-.015em; color:var(--acc)}
+  .brand span{font-size:13.5px; color:var(--mut); white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
   .brand .sep{color:var(--line); font-weight:300}
   .live{margin-left:auto; display:inline-flex; align-items:center; gap:9px; flex:none;
-    padding:8px 16px; border-radius:99px; border:1px solid var(--line); background:#fbfbfc;
-    font-size:13px; font-weight:600}
-  .live .pdot{width:8px; height:8px; border-radius:50%; background:var(--mut); flex:none}
-  .live.on .pdot{background:var(--green); animation:pulse 1.8s infinite}
-  .live .meta{font-family:var(--mono); font-weight:500; color:var(--gray); font-size:12px}
-  @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(34,197,94,.5)}70%{box-shadow:0 0 0 6px rgba(34,197,94,0)}100%{box-shadow:0 0 0 0 rgba(34,197,94,0)}}
+    padding:7px 15px; border-radius:99px; border:1px solid var(--line); background:var(--bg);
+    font-size:12.5px; font-weight:600; letter-spacing:.02em}
+  .live .pdot{width:8px; height:8px; border-radius:50%; background:var(--faint); flex:none}
+  .live.on .pdot{background:var(--ok); animation:pulse 1.8s infinite}
+  .live .meta{font-family:var(--mono); font-weight:500; color:var(--gray); font-size:11.5px}
+  @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(82,189,148,.5)}70%{box-shadow:0 0 0 6px rgba(82,189,148,0)}100%{box-shadow:0 0 0 0 rgba(82,189,148,0)}}
 
-  /* ---------- layout ---------- */
-  .wrap{max-width:1360px; margin:0 auto; padding:26px 28px 40px;
-    display:flex; flex-direction:column; gap:22px}
-  .kpis{display:grid; grid-template-columns:repeat(4,1fr); gap:22px}
-  .main{display:grid; grid-template-columns:1fr 384px; gap:22px; align-items:start}
+  /* ---------- Tabs (Pills wie die Skydash-Sidebar) ---------- */
+  .tabs{background:var(--card); border-bottom:1px solid var(--line)}
+  .tabs-in{max-width:1360px; margin:0 auto; padding:6px 32px 0; display:flex; gap:10px}
+  .tab{position:relative; border:0; background:none; cursor:pointer; padding:12px 14px 14px;
+    font-size:14.5px; font-weight:600; color:var(--gray); letter-spacing:.01em;
+    transition:color .15s}
+  .tab:hover{color:var(--acc)}
+  .tab[aria-selected="true"]{color:var(--acc)}
+  .tab::after{content:""; position:absolute; left:14px; right:14px; bottom:-1px; height:3px;
+    border-radius:3px 3px 0 0; background:var(--acc); transform:scaleX(0); transition:transform .18s ease}
+  .tab[aria-selected="true"]::after{transform:scaleX(1)}
+  .tab .cnt{font-family:var(--mono); font-size:11px; font-weight:500; color:var(--gray);
+    margin-left:7px; padding:2px 7px; border-radius:99px; background:var(--line2)}
+  .tab[aria-selected="true"] .cnt{background:var(--acc-soft); color:var(--acc)}
+
+  /* ---------- Layout ---------- */
+  .wrap{max-width:1360px; margin:0 auto; padding:28px 32px 56px;
+    display:flex; flex-direction:column; gap:24px}
+  .view[hidden]{display:none}
+  .view{display:flex; flex-direction:column; gap:24px; animation:fadein .22s ease}
+  @keyframes fadein{from{opacity:0; transform:translateY(4px)}to{opacity:1; transform:none}}
+  .kpis{display:grid; grid-template-columns:repeat(4,1fr); gap:24px}
+  .main{display:grid; grid-template-columns:1fr 380px; gap:24px; align-items:start}
   @media(max-width:1180px){ .main{grid-template-columns:1fr} }
-  @media(max-width:760px){ .kpis{grid-template-columns:repeat(2,1fr); gap:16px} .hdr-in,.wrap{padding-left:16px; padding-right:16px} .brand span{display:none} }
+  @media(max-width:760px){ .kpis{grid-template-columns:repeat(2,1fr); gap:14px}
+    .hdr-in,.wrap,.tabs-in{padding-left:16px; padding-right:16px} .brand span{display:none} }
 
   .card{background:var(--card); border:1px solid var(--line); border-radius:var(--r); box-shadow:var(--sh)}
-  .pad{padding:22px 24px}
+  .pad{padding:26px 28px}
+  /* Karten-Titel exakt wie Skydash .card-title: 18px / 500 / #010101. */
+  h2{font-size:18px; font-weight:500; letter-spacing:0; color:var(--title); margin:0}
+  /* Karten-Beschreibung wie Skydash: 14px / 500 / #1f1f1f. */
+  .sub{font-size:14px; font-weight:500; color:var(--ink); margin:8px 0 0}
 
-  /* ---------- KPI ---------- */
-  .kpi{padding:20px 22px}
-  .kpi-top{display:flex; align-items:flex-start; justify-content:space-between; margin-bottom:14px}
-  .kpi-lbl{font-size:12px; font-weight:600; letter-spacing:.05em; text-transform:uppercase; color:var(--mut)}
-  .kpi-ic{width:38px; height:38px; border-radius:10px; background:var(--blue-soft); display:grid; place-items:center; flex:none}
-  .kpi-ic svg{width:19px; height:19px; stroke:var(--blue); fill:none}
-  .kpi-val{font-size:30px; font-weight:700; letter-spacing:-.02em; line-height:1.05}
-  .kpi-sub{display:flex; align-items:center; gap:8px; margin-top:6px; font-size:13px; color:var(--mut)}
+  /* ---------- KPI: farbige Kacheln (Skydash-Signatur) ---------- */
+  .kpi{padding:22px 24px; border:0}
+  .kpi--blue{background:var(--blue-2)}
+  .kpi--indigo{background:var(--acc)}
+  .kpi--violet{background:var(--violet)}
+  .kpi--coral{background:var(--coral)}
+  .kpi-top{display:flex; align-items:flex-start; justify-content:space-between; margin-bottom:16px}
+  .kpi-lbl{font-size:11px; font-weight:700; letter-spacing:.09em; text-transform:uppercase; color:rgba(255,255,255,.85)}
+  .kpi-ic{width:36px; height:36px; border-radius:10px; background:rgba(255,255,255,.18); display:grid; place-items:center; flex:none}
+  .kpi-ic svg{width:18px; height:18px; stroke:#fff; fill:none}
+  .kpi-val{font-size:29px; font-weight:700; letter-spacing:-.02em; line-height:1.05;
+    font-variant-numeric:tabular-nums; color:#fff}
+  .kpi-sub{display:flex; align-items:center; gap:8px; margin-top:6px; font-size:12.5px; color:rgba(255,255,255,.8)}
   .kpi-spark{margin-left:auto}
   .kpi.flash .kpi-val{animation:flash .7s}
-  @keyframes flash{0%{color:var(--blue)}100%{color:var(--ink)}}
+  @keyframes flash{0%{opacity:.35}100%{opacity:1}}
 
-  /* ---------- chart ---------- */
-  .ch-head{display:flex; align-items:center; justify-content:space-between; gap:16px; margin-bottom:22px}
-  .ch-head h2{font-size:17px; font-weight:600; margin:0}
-  .seg{display:inline-flex; background:#f1f2f5; border-radius:9px; padding:3px}
-  .seg button{border:0; background:transparent; font-family:var(--font); font-size:13px; font-weight:500;
-    color:var(--gray); padding:6px 13px; border-radius:7px; cursor:pointer; transition:.15s}
-  .seg button.on{background:var(--card); color:var(--ink); box-shadow:0 1px 2px rgba(16,24,40,.08); font-weight:600}
+  /* ---------- Chart ---------- */
+  .ch-head{display:flex; align-items:center; justify-content:space-between; gap:16px; margin-bottom:24px}
+  .seg{display:inline-flex; background:var(--line2); border-radius:10px; padding:3px}
+  .seg button{border:0; background:transparent; font-size:13px; font-weight:500;
+    color:var(--gray); padding:6px 13px; border-radius:8px; cursor:pointer; transition:.15s}
+  .seg button.on{background:var(--card); color:var(--acc); box-shadow:0 1px 2px rgba(46,49,64,.08); font-weight:600}
   .plot{position:relative; height:300px; padding-bottom:26px}
   .grid{position:absolute; left:40px; right:0; top:0; bottom:26px; display:flex; flex-direction:column; justify-content:space-between; pointer-events:none}
   .grid .gl{position:relative; height:1px; background:var(--line2)}
   .grid .gl span{position:absolute; right:100%; margin-right:9px; top:50%; transform:translateY(-50%);
-    font-size:11px; color:var(--mut); font-variant-numeric:tabular-nums; white-space:nowrap}
-  /* Liniendiagramm: SVG-Linien + transparente Hover-Bänder darüber */
+    font-size:11px; color:var(--mut); font-variant-numeric:tabular-nums; white-space:nowrap; font-family:var(--mono)}
   .lc{position:absolute; left:40px; right:0; top:0; bottom:26px}
   .lc svg{position:absolute; inset:0; width:100%; height:100%; overflow:visible}
   .lc svg polyline{fill:none; stroke-width:2; stroke-linejoin:round; stroke-linecap:round}
@@ -84,7 +129,7 @@
   .hb::before{content:''; position:absolute; top:0; bottom:0; left:50%; width:1px; background:var(--line);
     opacity:0; transform:translateX(-50%); transition:opacity .1s}
   .hb:hover::before{opacity:1}
-  .hb .ax{position:absolute; bottom:-22px; left:50%; transform:translateX(-50%); font-size:12px; color:var(--mut); white-space:nowrap}
+  .hb .ax{position:absolute; bottom:-22px; left:50%; transform:translateX(-50%); font-size:11px; color:var(--mut); white-space:nowrap; font-family:var(--mono)}
   .tip{position:absolute; top:4px; left:50%; transform:translateX(-50%); background:var(--ink); color:#fff;
     padding:6px 10px; border-radius:8px; font-size:12px; white-space:nowrap; opacity:0; pointer-events:none; transition:opacity .12s; z-index:6}
   .hb:hover .tip{opacity:1}
@@ -92,106 +137,138 @@
   .tip em{display:block; font-style:normal; opacity:.7; font-size:11px; margin-top:2px}
   .tip i{display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:3px; vertical-align:middle}
   .tip s{text-decoration:none; opacity:.4}
-  /* Legende = Serien-Umschalter (klickbar) */
   .legend{display:flex; flex-wrap:wrap; gap:14px; margin-top:8px; align-items:center}
   .legend .lg{display:inline-flex; align-items:center; gap:6px; font-size:12px; color:var(--gray);
-    background:0; border:0; padding:2px 0; font-family:var(--font); cursor:pointer}
+    background:0; border:0; padding:2px 0; cursor:pointer}
   .legend .lg i.ln{width:14px; height:3px; border-radius:2px; flex:none}
   .legend .lg.off{opacity:.45; text-decoration:line-through}
   .legend .lg.off i.ln{background:var(--mut)!important}
   .legend .hint{font-size:12px; color:var(--mut)}
 
-  /* ---------- aktionen ---------- */
-  .akt h2{font-size:17px; font-weight:600; margin:0 0 18px}
+  /* ---------- Aktionen ---------- */
+  .akt h2{margin:0 0 19px}
   .akt-body{display:flex; flex-direction:column; gap:0}
-  .sec-lbl{font-size:11px; font-weight:600; letter-spacing:.06em; text-transform:uppercase; color:var(--mut); margin:0 0 14px}
+  .sec-lbl{font-size:11px; font-weight:700; letter-spacing:.09em; text-transform:uppercase; color:var(--mut); margin:0 0 14px}
   .block{flex:1 1 0; min-width:0}
   .toprow{display:flex; align-items:center; justify-content:space-between; margin-bottom:6px}
-  .toprow .t{font-size:15px; font-weight:500}
-  .rowm{display:flex; align-items:center; justify-content:space-between; padding:13px 0; border-top:1px solid var(--line2); font-size:14px}
-  .rowm .k{color:var(--gray)}
-  .rowm .v{font-weight:700; font-variant-numeric:tabular-nums}
-  /* parameter sliders (Besucher/Stunde, Conversion-Rate, Wiederkehrende Kunden) */
-  .prm{margin:18px 0}
-  .prm:first-child{margin-top:8px}
-  .prm-top{display:flex; align-items:center; justify-content:space-between; margin-bottom:11px; font-size:14px}
+  .toprow .t{font-size:14px; font-weight:500}
+  .prm{margin:20px 0}
+  .prm:first-child{margin-top:10px}
+  .prm-top{display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; font-size:14px}
   .prm-top .k{color:var(--gray)}
-  .prm-top .v{font-weight:700; font-variant-numeric:tabular-nums}
-  /* Ergebnis-Gauge „Erwartete Käufe": optisch abgesetzt + nicht interaktiv */
-  .prm.result{margin-top:24px; padding-top:18px; border-top:1px solid var(--line2)}
-  /* ---- Spektrum-Slider: Gradient-Track (kühl→warm = niedrig→hoch),
-         weißer Thumb mit farbigem Glow passend zur Position (per JS gesetzt) ---- */
+  .prm-top .v{font-weight:600; font-family:var(--mono); font-size:13px; color:var(--acc);
+    background:var(--acc-soft); padding:2px 9px; border-radius:7px; font-variant-numeric:tabular-nums}
+  .prm.result{margin-top:22px; padding-top:16px; border-top:1px solid var(--line2)}
+  .prm.result .v{background:var(--acc); color:#fff}
+
+  /* Slider: Spektrum-Track kühl→warm (niedrig=blau … hoch=koralle); der
+     Thumb-Glow folgt der Position (--glow/--ring werden per JS gesetzt). */
   input[type=range]{-webkit-appearance:none; appearance:none; width:100%; height:6px; border-radius:99px; margin:0; cursor:pointer;
-    background:linear-gradient(90deg,#3b82f6 0%,#22b8cf 24%,#37c97a 46%,#f4c430 66%,#ff8a3d 84%,#f5523f 100%)}
-  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none; width:20px; height:20px; border-radius:50%; background:#fff;
-    border:2px solid var(--glow,#3b82f6);
-    box-shadow:0 0 0 4px var(--ring,rgba(59,130,246,.20)), 0 1px 4px rgba(16,24,40,.22);
-    cursor:pointer; transition:transform .12s}
-  input[type=range]::-webkit-slider-thumb:hover{transform:scale(1.12)}
-  input[type=range]::-moz-range-thumb{width:18px; height:18px; border-radius:50%; background:#fff;
-    border:2px solid var(--glow,#3b82f6); box-shadow:0 0 0 4px var(--ring,rgba(59,130,246,.20)); cursor:pointer}
+    background:linear-gradient(90deg,var(--cool) 0%,var(--mid) 50%,var(--hot) 100%)}
+  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none; width:18px; height:18px; border-radius:50%; background:#fff;
+    border:2px solid var(--glow,var(--acc));
+    box-shadow:0 0 0 4px var(--ring,var(--acc-ring)),0 1px 3px rgba(46,49,64,.2);
+    cursor:pointer; transition:transform .12s, box-shadow .12s}
+  input[type=range]::-webkit-slider-thumb:hover{transform:scale(1.12);
+    box-shadow:0 0 0 6px var(--ring,var(--acc-ring)),0 1px 3px rgba(46,49,64,.2)}
+  input[type=range]::-moz-range-thumb{width:16px; height:16px; border-radius:50%; background:#fff;
+    border:2px solid var(--glow,var(--acc)); box-shadow:0 0 0 4px var(--ring,var(--acc-ring)),0 1px 3px rgba(46,49,64,.2); cursor:pointer}
 
   .switch{position:relative; width:42px; height:24px; flex:none}
   .switch input{opacity:0; width:0; height:0}
-  .track{position:absolute; inset:0; border-radius:99px; background:#d6d9e0; transition:.2s; cursor:pointer}
+  .track{position:absolute; inset:0; border-radius:99px; background:#d6d9ea; transition:.2s; cursor:pointer}
   .track:before{content:""; position:absolute; width:18px; height:18px; left:3px; top:3px; border-radius:50%; background:#fff; transition:.2s; box-shadow:0 1px 3px rgba(0,0,0,.25)}
-  .switch input:checked + .track{background:var(--blue)}
+  .switch input:checked + .track{background:var(--acc)}
   .switch input:checked + .track:before{transform:translateX(18px)}
 
-  /* "oder" divider – horizontal (1-col) by default */
-  .akt-or{display:flex; align-items:center; gap:14px; color:var(--mut); font-size:13px; margin:20px 0}
+  .akt-or{display:flex; align-items:center; gap:14px; color:var(--mut); font-size:12.5px; margin:20px 0}
   .akt-or::before,.akt-or::after{content:''; height:1px; background:var(--line2); flex:1}
-
-  /* drip params disabled when paused */
-  .drip-params.off{opacity:.45; filter:grayscale(.4); pointer-events:none}
+  /* Pausierter Live-Tropf: Regler komplett ausblenden (statt nur ausgrauen). */
+  .drip-params.off{display:none}
 
   .man-row{margin-bottom:14px}
-  .man-ctl{display:flex; gap:12px; align-items:center}
-  input[type=number]{width:74px; height:42px; padding:8px 12px; border:1px solid var(--line); border-radius:9px;
-    background:var(--card); font-family:var(--font); font-size:14px; text-align:center; flex:none}
-  input[type=number]:focus{outline:none; border-color:var(--blue)}
-  .man-ctl .lbl{font-size:14px; color:var(--ink); flex:1; min-width:0}
-  .btn{height:42px; padding:0 22px; border:0; border-radius:9px; background:var(--blue); color:#fff;
-    font-family:var(--font); font-size:14px; font-weight:600; cursor:pointer; transition:.15s; white-space:nowrap; flex:none}
-  .btn:hover{background:var(--blue-d)}
-  .btn.sent{background:#1c46c4; cursor:default}
-  button.err{ background:#fde7e9 !important; color:#b00020 !important; border-color:#b00020 !important; }
+  .man-row:last-child{margin-bottom:0}
+  .man-ctl{display:flex; gap:14px; align-items:center}
+  input[type=number]{width:72px; height:42px; padding:8px 12px; border:1px solid var(--line); border-radius:10px;
+    background:var(--card); font-family:var(--mono); font-size:13.5px; text-align:center; flex:none}
+  input[type=number]:focus{outline:none; border-color:var(--acc); box-shadow:0 0 0 3px var(--acc-ring)}
+  .man-ctl .lbl{font-size:14px; font-weight:500; color:var(--ink); flex:1; min-width:0; white-space:nowrap}
+  .man-ctl .btn{min-width:116px; text-align:center}
+  .btn{height:42px; padding:0 20px; border:0; border-radius:10px; background:var(--acc); color:#fff;
+    font-size:13.5px; font-weight:600; cursor:pointer; transition:.15s; white-space:nowrap; flex:none}
+  .btn:hover{background:var(--acc-deep)}
+  .btn.sent{background:var(--blue-2); cursor:default}
+  button.err{background:var(--err-soft)!important; color:var(--err)!important}
 
-  /* desktop sidebar = 1 col; tablet (761-1180) = 2 col */
   @media(min-width:761px) and (max-width:1180px){
     .akt-body{flex-direction:row; gap:0}
     .akt-or{flex-direction:column; margin:0 26px; align-self:stretch}
     .akt-or::before,.akt-or::after{height:auto; width:1px; flex:1}
   }
 
-  /* ---------- protokoll ---------- */
+  /* ---------- Produkte ---------- */
+  .p-head{display:flex; align-items:flex-start; justify-content:space-between; gap:20px; flex-wrap:wrap; margin-bottom:8px}
+  .p-head > div:first-child{flex:1 1 420px; min-width:0}
+  .btn--sync{display:inline-flex; align-items:center; gap:8px; flex:none}
+  .btn--sync svg{width:15px; height:15px; stroke:#fff; fill:none}
+  .btn--sync.busy{opacity:.7; cursor:default}
+  .p-list{margin-top:18px}
+  /* Aufgeräumte Zeile: Produktinfo (inkl. Verkäufe) | Beliebtheits-Regler |
+     EIN Status-Pill mit Wert. Keine konkurrierenden Zahlenspalten mehr. */
+  .prow{display:grid; grid-template-columns:minmax(240px,1.2fr) minmax(200px,1fr) 190px;
+    gap:28px; align-items:center; padding:17px 6px; border-top:1px solid var(--line2)}
+  .prow:first-child{border-top:0}
+  .pinfo b{display:block; font-size:14.5px; font-weight:600; letter-spacing:-.005em;
+    overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+  .pinfo span{font-size:12.5px; color:var(--mut)}
+  .pinfo span .sold{color:var(--ink-2); font-weight:600; font-variant-numeric:tabular-nums}
+  .ptag{display:flex; align-items:center; justify-content:space-between; gap:10px;
+    font-size:11px; font-weight:700; letter-spacing:.04em; text-transform:uppercase;
+    padding:5px 6px 5px 13px; border-radius:99px}
+  .ptag > span{white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+  .ptag b{font-family:var(--mono); font-size:12px; font-weight:600; letter-spacing:0; flex:none;
+    background:var(--card); border-radius:99px; padding:2px 9px; font-variant-numeric:tabular-nums}
+  /* Fünfstufige Skala: Rot (Ladenhüter) → Neutral (Normal) → Indigo (Bestseller). */
+  .ptag.t1{background:#fdecee; color:#d9565c}   /* Ladenhüter     */
+  .ptag.t2{background:#f7eef1; color:#b06a83}   /* Wenig gefragt  */
+  .ptag.t3{background:var(--line2); color:var(--gray)}   /* Normal */
+  .ptag.t4{background:#ececfb; color:#6a68c4}   /* Beliebt        */
+  .ptag.t5{background:var(--acc-soft); color:var(--acc)}   /* Bestseller */
+  .p-empty{padding:26px 4px; color:var(--mut); font-size:14px}
+  .p-note{font-size:12.5px; color:var(--mut); margin-top:20px; padding-top:16px; border-top:1px solid var(--line2)}
+  @media(max-width:880px){
+    .prow{grid-template-columns:1fr 170px; row-gap:12px}
+    .prow .pslider{grid-column:1/-1}
+  }
+
+  /* ---------- Protokoll ---------- */
   .log-head{display:flex; align-items:center; gap:14px; margin-bottom:8px}
-  .log-head h2{font-size:17px; font-weight:600; margin:0}
   .log-head .as{display:inline-flex; align-items:center; gap:8px; font-size:13px; color:var(--mut)}
-  .log-head .clear{margin-left:auto; background:0; border:0; color:var(--blue); font-family:var(--font); font-size:14px; font-weight:600; cursor:pointer}
+  .log-head .clear{margin-left:auto; background:0; border:0; color:var(--acc); font-size:13.5px; font-weight:600; cursor:pointer}
   .switch.sm{width:34px; height:20px}
   .switch.sm .track:before{width:14px; height:14px}
   .switch.sm input:checked + .track:before{transform:translateX(14px)}
-  .log{font-family:var(--mono); font-size:12.5px; max-height:340px; overflow-y:auto}
-  .lrow{display:flex; align-items:center; gap:16px; padding:13px 4px; border-top:1px solid var(--line2)}
+  .log{font-family:var(--mono); font-size:12.5px; max-height:62vh; overflow-y:auto}
+  .lrow{display:flex; align-items:center; gap:16px; padding:12px 4px; border-top:1px solid var(--line2)}
   .lrow:first-child{border-top:0}
   .lrow .lt{color:var(--mut); flex:none}
-  .lrow .ld{width:8px; height:8px; border-radius:50%; flex:none; background:var(--mut)}
-  .lrow .ld.g{background:var(--green)} .lrow .ld.r{background:var(--red)}
-  .lrow .lm{color:#3f4654; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+  .lrow .ld{width:8px; height:8px; border-radius:50%; flex:none; background:var(--faint)}
+  .lrow .ld.g{background:var(--ok)} .lrow .ld.r{background:var(--err)}
+  .lrow .lm{color:var(--ink-2); min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
   .log:empty::after{content:"Noch keine Aktivität."; display:block; padding:18px 4px; color:var(--mut); font-family:var(--font)}
-  .log::-webkit-scrollbar{width:8px}.log::-webkit-scrollbar-thumb{background:#e4e7ee; border-radius:8px}
+  .log::-webkit-scrollbar{width:8px}.log::-webkit-scrollbar-thumb{background:var(--line); border-radius:8px}
+
+  @media (prefers-reduced-motion: reduce){
+    *{animation:none!important; transition:none!important}
+  }
 </style>
 </head>
 <body>
 
 <header class="hdr">
   <div class="hdr-in">
-    <div class="logo">
-      <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 15l4-5 4 3 5-7"/></svg>
-    </div>
     <div class="brand">
-      <b>Traffic Lab</b>
+      <b>Traffic Lab Generator</b>
       <span class="sep">|</span>
       <span>392 Nutzer-Daten mittels Analysetools auswerten</span>
     </div>
@@ -199,117 +276,146 @@
   </div>
 </header>
 
+<nav class="tabs" aria-label="Bereiche">
+  <div class="tabs-in" role="tablist">
+    <button class="tab" role="tab" data-view="dashboard" aria-selected="true">Dashboard</button>
+    <button class="tab" role="tab" data-view="produkte" aria-selected="false">Produkte</button>
+    <button class="tab" role="tab" data-view="protokoll" aria-selected="false">Protokoll<span class="cnt" id="log-cnt">0</span></button>
+  </div>
+</nav>
+
 <div class="wrap">
 
-  <!-- KPIs -->
-  <div class="kpis">
-    <div class="card kpi">
-      <div class="kpi-top"><span class="kpi-lbl">Gesamt heute</span>
-        <span class="kpi-ic"><svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.1a4 4 0 0 1 0 7.75"/></svg></span></div>
-      <div class="kpi-val" id="k-visits">0</div>
-      <div class="kpi-sub">gesamt</div>
+  <!-- ============ DASHBOARD ============ -->
+  <section class="view" id="view-dashboard">
+    <div class="kpis">
+      <div class="card kpi kpi--blue">
+        <div class="kpi-top"><span class="kpi-lbl">Besuche heute</span>
+          <span class="kpi-ic"><svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.1a4 4 0 0 1 0 7.75"/></svg></span></div>
+        <div class="kpi-val" id="k-visits">0</div>
+        <div class="kpi-sub">seit Start des Traffic Lab</div>
+      </div>
+      <div class="card kpi kpi--indigo">
+        <div class="kpi-top"><span class="kpi-lbl">Käufe heute</span>
+          <span class="kpi-ic"><svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="21" r="1"/><circle cx="19" cy="21" r="1"/><path d="M2 2h2l2.7 12.4a2 2 0 0 0 2 1.6h9.7a2 2 0 0 0 2-1.6L23 6H5.1"/></svg></span></div>
+        <div class="kpi-val" id="k-purch">0</div>
+        <div class="kpi-sub" id="k-purch-sub">0.0% effektiv</div>
+      </div>
+      <div class="card kpi kpi--violet">
+        <div class="kpi-top"><span class="kpi-lbl">Umsatz heute</span>
+          <span class="kpi-ic"><svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg></span></div>
+        <div class="kpi-val" id="k-rev">€ 0</div>
+        <div class="kpi-sub">Produktumsatz (ohne Versand)</div>
+        <div class="kpi-sub" id="wc-line">Echte Shop-Bestellungen: 0 (EUR 0.00)</div>
+      </div>
+      <div class="card kpi kpi--coral">
+        <div class="kpi-top"><span class="kpi-lbl">Conversion Rate</span>
+          <span class="kpi-ic"><svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg></span></div>
+        <div class="kpi-val" id="k-cr">0%</div>
+        <div class="kpi-sub">eingestellt <svg class="kpi-spark" id="spark" width="74" height="22" viewBox="0 0 74 22" fill="none"></svg></div>
+      </div>
     </div>
-    <div class="card kpi">
-      <div class="kpi-top"><span class="kpi-lbl">Käufe heute</span>
-        <span class="kpi-ic"><svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="21" r="1"/><circle cx="19" cy="21" r="1"/><path d="M2 2h2l2.7 12.4a2 2 0 0 0 2 1.6h9.7a2 2 0 0 0 2-1.6L23 6H5.1"/></svg></span></div>
-      <div class="kpi-val" id="k-purch">0</div>
-      <div class="kpi-sub" id="k-purch-sub">0.0% effektiv</div>
-    </div>
-    <div class="card kpi">
-      <div class="kpi-top"><span class="kpi-lbl">Umsatz heute</span>
-        <span class="kpi-ic"><svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg></span></div>
-      <div class="kpi-val" id="k-rev">€ 0</div>
-      <div class="kpi-sub">brutto</div>
-      <!-- Echte WooCommerce-Bestellungen (getrennt vom Matomo-Traffic oben). -->
-      <div class="kpi-sub" id="wc-line">Echte Shop-Bestellungen: 0 (EUR 0.00)</div>
-    </div>
-    <div class="card kpi">
-      <div class="kpi-top"><span class="kpi-lbl">Conversion Rate</span>
-        <span class="kpi-ic"><svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg></span></div>
-      <div class="kpi-val" id="k-cr">0%</div>
-      <div class="kpi-sub">berechnet <svg class="kpi-spark" id="spark" width="74" height="22" viewBox="0 0 74 22" fill="none"></svg></div>
-    </div>
-  </div>
 
-  <!-- chart + aktionen -->
-  <div class="main">
+    <div class="main">
+      <div class="card pad">
+        <div class="ch-head">
+          <div>
+            <h2>Aktivität pro Intervall</h2>
+            <div class="legend" id="legend">
+              <button class="lg" data-s="v" type="button"><i class="ln" style="background:var(--c-vis)"></i>Besuche</button>
+              <button class="lg" data-s="p" type="button"><i class="ln" style="background:var(--c-buy)"></i>Käufe</button>
+              <button class="lg" data-s="r" type="button"><i class="ln" style="background:var(--c-ret)"></i>Wiederkehrende</button>
+              <span class="hint">· Klick blendet Serien ein/aus</span>
+            </div>
+          </div>
+          <div class="seg" id="seg">
+            <button data-min="5" class="on">5 Min</button>
+            <button data-min="15">15 Min</button>
+            <button data-min="60">1 Std</button>
+          </div>
+        </div>
+        <div class="plot">
+          <div class="grid" id="grid"></div>
+          <div class="lc" id="chart"></div>
+        </div>
+      </div>
+
+      <div class="card pad akt">
+        <h2>Aktionen</h2>
+        <div class="akt-body">
+          <div class="block">
+            <p class="sec-lbl">Live-Tropf</p>
+            <div class="toprow">
+              <span class="t">Kontinuierlich senden</span>
+              <label class="switch"><input type="checkbox" id="drip-toggle"><span class="track"></span></label>
+            </div>
+            <div class="drip-params" id="drip-params">
+              <div class="prm">
+                <div class="prm-top"><span class="k">Besucher / Stunde</span><span class="v num" id="vph-val">120</span></div>
+                <input type="range" id="s-vph" min="6" max="1200" step="6" value="120">
+              </div>
+              <div class="prm">
+                <div class="prm-top"><span class="k">Conversion-Rate</span><span class="v num" id="cr-val">1.5%</span></div>
+                <input type="range" id="s-cr" min="0" max="100" step="1" value="15">
+              </div>
+              <div class="prm">
+                <div class="prm-top"><span class="k">Wiederkehrende Kunden</span><span class="v num" id="ret-val">10%</span></div>
+                <input type="range" id="s-ret" min="0" max="100" step="1" value="10">
+              </div>
+              <div class="prm result">
+                <div class="prm-top"><span class="k">Erwartete Käufe</span><span class="v num" id="pph">≈ 1.8 / Std</span></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="akt-or">oder</div>
+
+          <div class="block">
+            <p class="sec-lbl">Manuell senden</p>
+            <div class="man-row">
+              <div class="man-ctl"><input type="number" id="m-visits" value="50" min="1"><span class="lbl">Besuche senden</span><button class="btn" data-act="visits">Senden</button></div>
+            </div>
+            <div class="man-row">
+              <div class="man-ctl"><input type="number" id="m-orders" value="10" min="1"><span class="lbl">Käufe erzwingen</span><button class="btn" data-act="orders">Ausführen</button></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ PRODUKTE ============ -->
+  <section class="view" id="view-produkte" hidden>
     <div class="card pad">
-      <div class="ch-head">
+      <div class="p-head">
         <div>
-          <h2>Aktivität pro Intervall</h2>
-          <div class="legend" id="legend">
-            <button class="lg" data-s="v" type="button"><i class="ln" style="background:var(--blue)"></i>Besuche</button>
-            <button class="lg" data-s="p" type="button"><i class="ln" style="background:var(--green)"></i>Käufe</button>
-            <button class="lg" data-s="r" type="button"><i class="ln" style="background:var(--orange)"></i>Wiederkehrende</button>
-            <span class="hint">· Klick blendet Serien ein/aus · Achse skaliert auf sichtbare</span>
-          </div>
+          <h2>Produkt-Beliebtheit</h2>
+          <p class="sub">Live aus WooCommerce gelesen. Die Regler steuern, wie oft ein Produkt angesehen
+            und gekauft wird – sie wirken auf den Matomo-Traffic <em>und</em> auf die echten Shop-Bestellungen.</p>
         </div>
-        <div class="seg" id="seg">
-          <button data-min="5" class="on">5 Min</button>
-          <button data-min="15">15 Min</button>
-          <button data-min="60">1 Std</button>
-        </div>
+        <button class="btn btn--sync" id="p-sync" title="Produkte und Verkaufszahlen neu aus WooCommerce laden – neue Produkte erscheinen sofort, auch im Traffic">
+          <svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10"/><path d="M20.49 15a9 9 0 0 1-14.85 3.36L1 14"/></svg>
+          <span>Synchronisieren</span>
+        </button>
       </div>
-      <div class="plot">
-        <div class="grid" id="grid"></div>
-        <div class="lc" id="chart"></div>
+      <div class="p-list" id="p-list"><div class="p-empty">Lade Produkte …</div></div>
+      <p class="p-note">0 = Ladenhüter (wird praktisch nie gewählt) · 100 = Bestseller. Die Werte sind
+        relative Gewichte und werden in WordPress gespeichert (überleben einen Neustart;
+        <span class="mono">./install.sh</span> setzt sie zurück).</p>
+    </div>
+  </section>
+
+  <!-- ============ PROTOKOLL ============ -->
+  <section class="view" id="view-protokoll" hidden>
+    <div class="card pad">
+      <div class="log-head">
+        <h2>Protokoll</h2>
+        <span class="as">Autoscroll <label class="switch sm"><input type="checkbox" id="autoscroll" checked><span class="track"></span></label></span>
+        <button class="clear" id="clear">Leeren</button>
       </div>
+      <div class="log" id="log"></div>
     </div>
-
-    <div class="card pad akt">
-      <h2>Aktionen</h2>
-      <div class="akt-body">
-        <!-- LIVE-TROPF -->
-        <div class="block">
-          <p class="sec-lbl">Live-Tropf</p>
-          <div class="toprow">
-            <span class="t">Kontinuierlich senden</span>
-            <label class="switch"><input type="checkbox" id="drip-toggle"><span class="track"></span></label>
-          </div>
-          <div class="drip-params" id="drip-params">
-            <div class="prm">
-              <div class="prm-top"><span class="k">Besucher / Stunde</span><span class="v" id="vph-val">120</span></div>
-              <input type="range" id="s-vph" min="6" max="1200" step="6" value="120">
-            </div>
-            <div class="prm">
-              <div class="prm-top"><span class="k">Conversion-Rate</span><span class="v" id="cr-val">1.5%</span></div>
-              <input type="range" id="s-cr" min="0" max="100" step="1" value="15">
-            </div>
-            <div class="prm">
-              <div class="prm-top"><span class="k">Wiederkehrende Kunden</span><span class="v" id="ret-val">10%</span></div>
-              <input type="range" id="s-ret" min="0" max="100" step="1" value="10">
-            </div>
-            <div class="prm result">
-              <div class="prm-top"><span class="k">Erwartete Käufe</span><span class="v" id="pph">≈ 1.8 / Std</span></div>
-            </div>
-          </div>
-        </div>
-
-        <div class="akt-or">oder</div>
-
-        <!-- MANUELL -->
-        <div class="block">
-          <p class="sec-lbl">Manuell senden</p>
-          <div class="man-row">
-            <div class="man-ctl"><input type="number" id="m-visits" value="50" min="1"><span class="lbl">Besuche sofort senden</span><button class="btn" data-act="visits">Senden</button></div>
-          </div>
-          <div class="man-row">
-            <div class="man-ctl"><input type="number" id="m-orders" value="10" min="1"><span class="lbl">Käufe erzwingen</span><button class="btn" data-act="orders">Ausführen</button></div>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- protokoll -->
-  <div class="card pad">
-    <div class="log-head">
-      <h2>Protokoll</h2>
-      <span class="as">Autoscroll <label class="switch sm"><input type="checkbox" id="autoscroll" checked><span class="track"></span></label></span>
-      <button class="clear" id="clear">Leeren</button>
-    </div>
-    <div class="log" id="log"></div>
-  </div>
+  </section>
 
 </div>
 
@@ -321,8 +427,9 @@ let intervalMin=5, cleared=0;
 const prev={visits:0, purchases:0};
 const state={drip_per_hour:120, conversion_rate:0.015, returning_rate:0.10, live_drip:true};
 
-// ---- Spektrum-Farbe an Position frac (0..1); Stops = exakt die CSS-Track-Stops ----
-const SPECTRUM=[[0,[59,130,246]],[0.24,[34,184,207]],[0.46,[55,201,122]],[0.66,[244,196,48]],[0.84,[255,138,61]],[1,[245,82,63]]];
+// ---- Slider-Spektrum: Thumb-Glow folgt der Position (kühl→warm) ----
+// Stops = exakt die Track-Stops (blau #7da0fa → violett #7978e9 → koralle #f3797e).
+const SPECTRUM=[[0,[125,160,250]],[0.5,[121,120,233]],[1,[243,121,126]]];
 function spectrum(frac){
   frac=Math.max(0,Math.min(1,frac||0));
   for(let i=1;i<SPECTRUM.length;i++){ if(frac<=SPECTRUM[i][0]){
@@ -330,13 +437,26 @@ function spectrum(frac){
     return a[1].map((v,k)=>Math.round(v+(b[1][k]-v)*t)); } }
   return SPECTRUM[SPECTRUM.length-1][1];
 }
-function fracOf(el){ return (el.value-el.min)/((el.max-el.min)||1); }
-function paintSlider(el, frac){           // setzt Thumb-Glow passend zur Position, gibt die Farbe zurück
-  const [r,g,b]=spectrum(frac);
-  el.style.setProperty('--glow', 'rgb('+r+','+g+','+b+')');
-  el.style.setProperty('--ring', 'rgba('+r+','+g+','+b+',.22)');
-  return 'rgb('+r+','+g+','+b+')';
+function paintSlider(el){
+  const f=(el.value-el.min)/((el.max-el.min)||1);
+  const [r,g,b]=spectrum(f);
+  el.style.setProperty('--glow','rgb('+r+','+g+','+b+')');
+  el.style.setProperty('--ring','rgba('+r+','+g+','+b+',.22)');
 }
+
+// ---- Tabs ----
+const VIEWS=['dashboard','produkte','protokoll'];
+let activeView='dashboard';
+function showView(v){
+  if(!VIEWS.includes(v)) v='dashboard';
+  activeView=v;
+  VIEWS.forEach(x=>{ $('#view-'+x).hidden = x!==v; });
+  document.querySelectorAll('.tab').forEach(t=>t.setAttribute('aria-selected', String(t.dataset.view===v)));
+  if(v==='dashboard' && window._hist){ drawChart(window._hist); }  // Reflow nach hidden
+  if(v==='produkte') loadProducts();
+  if(history.replaceState) history.replaceState(null,'','#'+v);
+}
+document.querySelectorAll('.tab').forEach(t=>t.addEventListener('click', ()=>showView(t.dataset.view)));
 
 async function post(url, data){
   let ok=false;
@@ -348,10 +468,8 @@ async function post(url, data){
 function pushDrip(){ post('/api/set-drip', {visitors_per_hour:state.drip_per_hour,
    conversion_rate:state.conversion_rate, returning_rate:state.returning_rate}); }
 
-// toggle
 $('#drip-toggle').addEventListener('change', ()=> post('/api/toggle-drip'));
 
-// drei Parameter-Slider: Besucher/Stunde, Conversion-Rate, Wiederkehrende Kunden
 const sVph=$('#s-vph'), sCr=$('#s-cr'), sRet=$('#s-ret');
 sVph.addEventListener('input', ()=>{ state.drip_per_hour=+sVph.value;        renderDerived(); });
 sCr .addEventListener('input', ()=>{ state.conversion_rate=(+sCr.value)/1000; renderDerived(); });
@@ -364,16 +482,9 @@ function renderDerived(){
   $('#ret-val').textContent = Math.round(state.returning_rate*100)+'%';
   const pph = state.drip_per_hour * state.conversion_rate;
   $('#pph').textContent = '≈ '+pph.toFixed(1)+' / Std';
-  // „Erwartete Käufe" ist nur Anzeige: Wert in der Intensitätsfarbe (sqrt-Skala)
-  const pc = spectrum(Math.sqrt(Math.min(1, pph/120)));
-  $('#pph').style.color = 'rgb('+pc[0]+','+pc[1]+','+pc[2]+')';
-  // Track-Thumb der drei Slider einfärben + Werte in der jeweiligen Positionsfarbe
-  $('#vph-val').style.color = paintSlider(sVph, fracOf(sVph));
-  $('#cr-val').style.color  = paintSlider(sCr,  fracOf(sCr));
-  $('#ret-val').style.color = paintSlider(sRet, fracOf(sRet));
+  [sVph,sCr,sRet].forEach(paintSlider);
 }
 
-// Slider-Positionen aus dem Server-State übernehmen – aber nicht, während gezogen wird
 function syncSliders(){
   if(document.activeElement!==sVph) sVph.value=state.drip_per_hour;
   if(document.activeElement!==sCr ) sCr.value =Math.round(state.conversion_rate*1000);
@@ -381,7 +492,6 @@ function syncSliders(){
   renderDerived();
 }
 
-// manual actions
 document.querySelectorAll('button[data-act]').forEach(b=>b.addEventListener('click', async ()=>{
   if(b.dataset.sent) return;
   const a=b.dataset.act; const lbl=b.textContent;
@@ -394,12 +504,10 @@ document.querySelectorAll('button[data-act]').forEach(b=>b.addEventListener('cli
   setTimeout(()=>{ b.textContent=lbl; b.classList.remove('sent','err'); delete b.dataset.sent; }, ok ? 1000 : 2200);
 }));
 
-// interval toggle
 $('#seg').addEventListener('click', e=>{ const b=e.target.closest('button'); if(!b) return;
   $('#seg').querySelectorAll('button').forEach(x=>x.classList.toggle('on', x===b));
   intervalMin=+b.dataset.min; if(window._hist) drawChart(window._hist); });
 
-// Serien ein-/ausblenden (Klick auf die Legende) – mind. eine Serie bleibt sichtbar
 $('#legend').addEventListener('click', e=>{
   const b=e.target.closest('.lg'); if(!b||!b.dataset.s) return;
   const k=b.dataset.s;
@@ -409,7 +517,6 @@ $('#legend').addEventListener('click', e=>{
   if(window._hist) drawChart(window._hist);
 });
 
-// log clear (client-seitig)
 $('#clear').addEventListener('click', ()=>{ cleared=Date.now()/1000; $('#log').innerHTML=''; });
 
 function flash(id){ const c=$(id).closest('.kpi'); c.classList.remove('flash'); void c.offsetWidth; c.classList.add('flash'); }
@@ -417,13 +524,13 @@ function flash(id){ const c=$(id).closest('.kpi'); c.classList.remove('flash'); 
 const N_BARS=24;
 function pad2(n){ return String(n).padStart(2,'0'); }
 function clock(t){ const d=new Date(t*1000); return pad2(d.getHours())+':'+pad2(d.getMinutes()); }
-const seriesOn = {v:true, p:true, r:true};   // Sichtbarkeit je Serie (Legende schaltet)
+const seriesOn = {v:true, p:true, r:true};
 const SERIES = [
-  {k:'v', col:'var(--blue)',   lab:'Besuche'},
-  {k:'p', col:'var(--green)',  lab:'Käufe'},
-  {k:'r', col:'var(--orange)', lab:'Wiederk.'},
+  {k:'v', col:'var(--c-vis)', lab:'Besuche'},
+  {k:'p', col:'var(--c-buy)', lab:'Käufe'},
+  {k:'r', col:'var(--c-ret)', lab:'Wiederk.'},
 ];
-function axisMax(x){             // schönes Achsen-Max; kleine Zählungen ganzzahlig
+function axisMax(x){
   if(x<=6) return Math.max(1, Math.ceil(x));
   const p=Math.pow(10,Math.floor(Math.log10(x))), f=x/p;
   const n = f<=2?2 : f<=2.5?2.5 : f<=3?3 : f<=4?4 : f<=5?5 : f<=6?6 : f<=8?8 : 10;
@@ -431,7 +538,7 @@ function axisMax(x){             // schönes Achsen-Max; kleine Zählungen ganzz
 }
 function drawChart(hist){
   window._hist=hist;
-  // pro Datenpunkt die Zuwächse je Serie (kumulierte Summen -> Delta)
+  if($('#view-dashboard').hidden) return;
   const pts=[]; for(let i=1;i<hist.length;i++) pts.push({
     t:hist[i].t,
     v:Math.max(0, hist[i].visits      - hist[i-1].visits),
@@ -444,19 +551,14 @@ function drawChart(hist){
   pts.forEach(pt=>{ if(pt.t>=start){ const idx=Math.min(N_BARS-1, Math.floor((pt.t-start)/bw));
     buckets[idx].v+=pt.v; buckets[idx].p+=pt.p; buckets[idx].r+=pt.r; } });
 
-  // EINE Skala, die sich auf die SICHTBAREN Serien einstellt: Käufe/Wiederkehrende sind
-  // viel seltener als Besuche -> blendet man Besuche aus, zoomt die Achse auf sie. So
-  // bleibt es ehrlich (keine verdeckte zweite Skala) und trotzdem ablesbar.
   const visKeys = SERIES.filter(s=>seriesOn[s.k]).map(s=>s.k);
   let dataMax=1; buckets.forEach(b=> visKeys.forEach(k=>{ if(b[k]>dataMax) dataMax=b[k]; }));
   const max = axisMax(dataMax);
 
-  // Y-Achse: bei kleinem Max ganzzahlige Linien, sonst 5 Linien (oben max ... unten 0)
   const ticks = max<=6 ? Array.from({length:max+1},(_,k)=>max-k)
                        : [0,1,2,3,4].map(k=>Math.round(max*(4-k)/4));
   $('#grid').innerHTML = ticks.map(v=>'<div class="gl"><span>'+nf.format(v)+'</span></div>').join('');
 
-  // Pixelmaße des Plot-Bereichs -> scharfe SVG-Linien/Punkte (1:1-viewBox)
   const host=$('#chart'), W=host.clientWidth||600, H=host.clientHeight||240;
   const X=i=> (N_BARS<2?0:i/(N_BARS-1))*W;
   const Y=n=> H - (n/max)*H;
@@ -486,10 +588,68 @@ function drawSpark(hist){
   const s=pts.slice(-16); if(s.length<2){ $('#spark').innerHTML=''; return; }
   const max=Math.max(1,...s), W=74,H=22;
   const d=s.map((v,i)=>(i?'L':'M')+(i/(s.length-1)*W).toFixed(1)+' '+(H-2-(v/max)*(H-4)).toFixed(1)).join(' ');
-  $('#spark').innerHTML='<path d="'+d+'" stroke="#2f6bff" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/>';
+  $('#spark').innerHTML='<path d="'+d+'" stroke="rgba(255,255,255,.9)" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/>';
 }
 
-const logColor = m => /fehler|error|timeout|⚠/i.test(m) ? 'r' : /live-tropf|manuell|backfill|bestellung|besuche|✓|gesendet|erzeugt|conversion/i.test(m) ? 'g' : '';
+// ---- Produkte-Tab -------------------------------------------------------
+let productsLoaded=0;
+// Fünfstufige Beliebtheits-Skala (0..100) mit passender Farbprogression
+// rot (Ladenhüter) → neutral (Normal) → indigo (Bestseller).
+function weightTag(w){
+  if(w>=88) return ['t5','Bestseller'];
+  if(w>=63) return ['t4','Beliebt'];
+  if(w>=38) return ['t3','Normal'];
+  if(w>=13) return ['t2','Wenig gefragt'];
+  return ['t1','Ladenhüter'];
+}
+function productRow(p){
+  const row=document.createElement('div'); row.className='prow'; row.dataset.sku=p.sku;
+  row.innerHTML =
+    '<div class="pinfo"><b title="'+p.name.replace(/"/g,'&quot;')+'">'+p.name+'</b>'
+      + '<span>'+(p.category||'—')+' · € '+(+p.price).toFixed(2).replace('.',',')
+      + ' · <span class="sold">'+nf.format(p.total_sales)+'× verkauft</span></span></div>'
+    + '<div class="pslider"><input type="range" min="0" max="100" step="1" value="'+p.weight+'" aria-label="Beliebtheit '+p.name.replace(/"/g,'&quot;')+'"></div>'
+    + '<div class="ptag"><span></span><b class="num"></b></div>';
+  const slider=row.querySelector('input[type=range]');
+  const tag=row.querySelector('.ptag');
+  const paint=()=>{ paintSlider(slider);
+    const [c,l]=weightTag(+slider.value);
+    tag.className='ptag '+c;
+    tag.querySelector('span').textContent=l;
+    tag.querySelector('b').textContent=slider.value; };
+  paint();
+  slider.addEventListener('input', paint);
+  slider.addEventListener('change', ()=> post('/api/product-weight',{sku:p.sku, weight:slider.value}));
+  return row;
+}
+async function loadProducts(force, fresh){
+  if(!force && productsLoaded && Date.now()-productsLoaded<15000) return;
+  let d; try{ d=await (await fetch('/api/products'+(fresh?'?fresh=1':''))).json(); }catch(e){ return; }
+  const list=$('#p-list');
+  if(!d.products || !d.products.length){
+    list.innerHTML='<div class="p-empty">Keine Produkte gefunden – ist der Shop schon bereit?</div>';
+    return;
+  }
+  // Während gezogen wird nicht neu rendern (Slider-Fokus nicht zerstören).
+  if(list.contains(document.activeElement) && document.activeElement.type==='range') return;
+  list.innerHTML='';
+  d.products.forEach(p=>list.appendChild(productRow(p)));
+  productsLoaded=Date.now();
+}
+
+// Sync-Button: Produkte + Verkaufszahlen sofort neu aus WooCommerce laden.
+// Neue, im WP-Backend angelegte Produkte erscheinen damit unmittelbar – auch
+// im Traffic (der Server erneuert dabei den Produkt-Cache des Generators).
+$('#p-sync').addEventListener('click', async ()=>{
+  const b=$('#p-sync'); if(b.classList.contains('busy')) return;
+  const span=b.querySelector('span'); const lbl=span.textContent;
+  b.classList.add('busy'); span.textContent='Synchronisiere …';
+  await loadProducts(true, true);
+  span.textContent='Synchronisiert ✓';
+  setTimeout(()=>{ span.textContent=lbl; b.classList.remove('busy'); }, 1400);
+});
+
+const logColor = m => /fehler|error|timeout|⚠/i.test(m) ? 'r' : /live-tropf|manuell|backfill|bestellung|besuche|✓|gesendet|erzeugt|conversion|beliebtheit/i.test(m) ? 'g' : '';
 
 async function refresh(){
   let s; try{ s=await (await fetch('/api/status')).json(); }catch(e){ return; }
@@ -498,7 +658,7 @@ async function refresh(){
 
   const live=$('#live'); live.classList.toggle('on', s.live_drip);
   $('#live-txt').innerHTML = s.live_drip
-    ? 'LIVE <span class="meta">('+s.drip_per_hour+' User / Stunde → localhost:8090)</span>'
+    ? 'LIVE <span class="meta">('+s.drip_per_hour+' Besucher / Stunde)</span>'
     : 'PAUSIERT';
   $('#drip-toggle').checked = s.live_drip;
   $('#drip-params').classList.toggle('off', !s.live_drip);
@@ -511,26 +671,27 @@ async function refresh(){
   $('#k-purch-sub').textContent = realCr.toFixed(1)+'% effektiv';
 
   const wc = s.wc || {orders:0,revenue:0,errors:0};
-  const wcEl = document.getElementById('wc-line');
-  if(wcEl) wcEl.textContent =
+  $('#wc-line').textContent =
     `Echte Shop-Bestellungen: ${wc.orders} (EUR ${wc.revenue.toFixed(2)})`
     + (wc.errors ? ` · ${wc.errors} Fehler` : '');
 
   syncSliders(); renderDerived();
-
   drawChart(s.history||[]); drawSpark(s.history||[]);
 
   const rows=(s.log||[]).filter(l=>!cleared || (toEpoch(l.t)>cleared));
+  $('#log-cnt').textContent = rows.length;
   $('#log').innerHTML = rows.map(l=>{
     const msg=(l.msg||'').replace(/</g,'&lt;'); const c=logColor(msg);
     return '<div class="lrow"><span class="lt">'+ts(l.t)+'</span><span class="ld '+c+'"></span><span class="lm">'+msg+'</span></div>';
   }).join('');
   if($('#autoscroll').checked){ const lg=$('#log'); lg.scrollTop=0; }
+
+  if(activeView==='produkte') loadProducts();
 }
-// Log-Zeitstempel: "HH:MM:SS" -> mit Datum-Prefix wie im Master (heute)
 function ts(t){ const d=new Date(); return d.getFullYear()+'-'+pad2(d.getMonth()+1)+'-'+pad2(d.getDate())+' '+(t||''); }
 function toEpoch(t){ if(!t) return 0; const d=new Date(); const [h,m,s]=t.split(':').map(Number); d.setHours(h,m,s||0,0); return d.getTime()/1000; }
 
+showView((location.hash||'').replace('#','') || 'dashboard');
 refresh(); setInterval(refresh, 2500);
 </script>
 </body>
