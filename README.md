@@ -1,6 +1,6 @@
 # M392 Matomo Lab
 
-> Docker-Lehrumgebung für das Modul **392 – Nutzer-Daten mittels Analysetools auswerten**.
+> Docker-Lernumgebung für das Modul **392 – Nutzer-Daten mittels Analysetools auswerten**.
 > Ein einziger Befehl startet einen vollständigen Online-Shop, ein vorkonfiguriertes
 > Web-Analyse-Tool (Matomo) und ein Werkzeug, das realistischen Besucher- und Kauf-Traffic erzeugt.
 
